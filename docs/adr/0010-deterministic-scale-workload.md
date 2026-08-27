@@ -24,6 +24,12 @@ worker compute time, scheduler time, throughput, checksum, browser user agent,
 and hardware-concurrency hint. The five runs execute serially to avoid
 cross-run contamination.
 
+The default deterministic work is 50,000 fixed fingerprint rounds per
+operation. It was selected after the recorded Chrome sweep showed that the
+former 160-round default was worker-start and message-overhead dominated. It
+is computation, not an artificial delay; the complete sweep and its honest
+saturating result are preserved in `PHASE_6A3_HANDOFF.md`.
+
 No artificial delay is used. A flat, regressive, or saturating curve is a valid
 result and may indicate browser-worker or hardware limits rather than an Xact
 architecture result.

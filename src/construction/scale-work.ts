@@ -1,6 +1,11 @@
 export const SCALE_TOTAL_OPERATIONS = 10_011;
 export const SCALE_DEPENDENCY_STAGES = 47;
-export const SCALE_WORK_ROUNDS = 160;
+/**
+ * Chosen from the recorded Chrome sweep: the former 160-round default measured
+ * worker-start/message overhead, not useful deterministic parallel work.
+ * This remains fixed work (not a timer or artificial delay).
+ */
+export const SCALE_WORK_ROUNDS = 50_000;
 
 export interface ScaleStage { stage: number; start: number; count: number; }
 

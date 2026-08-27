@@ -20,6 +20,7 @@ export class BrowserScaleWorkloadRunner {
     let workerComputeTimeMs = 0;
     let activeTotal = 0;
     let activeSamples = 0;
+    let peakActiveWorkers = 0;
     const started = performance.now();
 
     try {
@@ -27,6 +28,7 @@ export class BrowserScaleWorkloadRunner {
         const batches = this.batches(stage.start, stage.count, workerCount);
         activeTotal += batches.length;
         activeSamples += 1;
+        peakActiveWorkers = Math.max(peakActiveWorkers, batches.length);
         const results = await Promise.all(batches.map((batch, index) => this.dispatch(workers[index], index, batch.start, batch.count)));
         for (const result of results) {
           checksum = (checksum ^ result.checksum) >>> 0;
@@ -43,7 +45,9 @@ export class BrowserScaleWorkloadRunner {
       totalOperations: SCALE_TOTAL_OPERATIONS,
       dependencyStages: graph.length,
       configuredWorkers,
-      peakActiveWorkers: workerCount,
+      // Measure dispatched work, rather than reporting the configured pool as
+      // though every worker received a task at every dependency stage.
+      peakActiveWorkers,
       averageActiveWorkers: activeSamples ? activeTotal / activeSamples : 0,
       schedulerTimeMs,
       workerComputeTimeMs,
