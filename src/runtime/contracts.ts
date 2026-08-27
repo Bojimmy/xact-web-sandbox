@@ -1,6 +1,7 @@
 import type { ExecutionResult, ExecutionSubstrate } from "../execution/contracts";
 import type { DecisionCandidate, DecisionResult } from "../xact/contracts";
 import type { VerificationResult } from "../xact/providers";
+import type { TelemetrySample } from "../telemetry/contracts";
 
 export type RuntimePhase =
   | "READY"
@@ -30,5 +31,6 @@ export interface SimulationSession<TInputs, TState, TEffect> {
   selectedSubstrate: ExecutionSubstrate | "NONE";
   execution?: ExecutionResult;
   verification?: VerificationResult;
+  telemetry: TelemetrySample[];
   trace: RuntimeTraceEvent[];
 }

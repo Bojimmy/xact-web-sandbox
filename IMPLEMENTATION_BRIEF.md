@@ -59,3 +59,15 @@ Replace fixtures with a mutable `ScenarioPack` runtime and public-safe `Simulati
 
 WebMCP remains a named simulated execution substrate. Live WebMCP integration
 is deliberately deferred until this boundary is reviewed and stable.
+
+## Phase 2 modular demonstrations
+
+- Live telemetry from the public runtime, separated from historical reference
+  benchmark evidence
+- Deterministic and semantic-path timing with reasoning reported independently
+- Public-safe evolution lifecycle from `OBSERVED` through `ACTIVE`
+- Explicit governed transitions with no pre-ACTIVE behavior changes
+- Equivalent-request replay proving U reduction without weakening Commit
+
+These demonstrations are observer and resolution-evidence modules. They do not
+replace or redesign the approved mutable runtime.

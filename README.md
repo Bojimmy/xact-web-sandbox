@@ -39,6 +39,24 @@ non-authorized decision selects `NONE` and cannot execute.
 The runtime contains explicit demonstration rules only. It does not implement,
 imitate, or expose production Xact resolution or authorization internals.
 
+### Xact telemetry
+
+The telemetry panel reports actual timings from the running public sandbox for
+Resolve, Policy, Commit, optional reasoning/re-entry, and Verification. A
+separate reference card shows supplied historical Xact benchmark evidence and
+explicitly states that it is not a browser-sandbox measurement.
+
+### Xact evolution
+
+The Evolution panel demonstrates a public-safe governed lifecycle:
+
+`OBSERVED → CANDIDATE → VALIDATED → APPROVED → ACTIVE`
+
+Complete an ambiguous first encounter, promote the resulting candidate through
+each explicit state, then replay the equivalent request. ACTIVE evidence moves
+the semantic field into R and leaves U empty, but Commit remains independently
+required before execution.
+
 ```bash
 npm install
 npm run dev

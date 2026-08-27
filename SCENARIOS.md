@@ -47,6 +47,20 @@ The simulated authority registry cannot establish authority.
 Expected outcome: `ESCALATED → NONE`; execution remains blocked until governed
 authority evidence can produce a newly resolved candidate and Commit decision.
 
+### 6. Governed evolution replay
+
+The first encounter uses the existing semantic escalation path. After the
+re-entered candidate passes Commit, the sandbox may observe a public-safe
+learning candidate. The user must move it through every lifecycle state:
+
+`OBSERVED → CANDIDATE → VALIDATED → APPROVED → ACTIVE`
+
+Before `ACTIVE`, the candidate cannot affect Resolution. After `ACTIVE`, an
+equivalent explicit demo case receives governed resolution evidence, places the
+previously unresolved rationale in R, leaves U empty, and does not invoke the
+simulated O-Agent. Policy, authority, capability, freshness, Commit, execution,
+and verification remain unchanged and independently required.
+
 ## Expansion packs
 
 - IT Operations

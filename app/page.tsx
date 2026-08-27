@@ -3,8 +3,12 @@
 import { useMemo, useState } from "react";
 import { toControlRoomScenario } from "@/src/control-room/runtime-view";
 import type { ControlRoomScenario } from "@/src/control-room/types";
+import { EvolutionPanel } from "@/src/evolution/evolution-panel";
+import { LearningSimulationProvider } from "@/src/evolution/learning-simulation-provider";
+import type { PromotionState } from "@/src/evolution/contracts";
 import { createCommerceSimulationEngine, type CommerceSession } from "@/src/runtime/commerce-engine";
-import type { AuthorityState } from "@/src/scenarios/commerce-v1";
+import type { AuthorityState, CommerceScenarioInputs } from "@/src/scenarios/commerce-v1";
+import { TelemetryPanel } from "@/src/telemetry/telemetry-panel";
 
 const sourceLabels = { reported: "Reported", verified: "Verified", derived: "Derived" };
 
@@ -275,8 +279,19 @@ function ControlRoom({ scenario }: { scenario: ControlRoomScenario }) {
 }
 
 export default function Home() {
-  const engine = useMemo(() => createCommerceSimulationEngine(), []);
+  const learningProvider = useMemo(() => new LearningSimulationProvider<CommerceScenarioInputs>({
+    candidateId: "learning:commerce-rationale-v1",
+    label: "Delivery-consistent service recovery",
+    caseKey: (inputs) => inputs.semanticAmbiguity ? "commerce:delivery-consistent" : undefined,
+    equivalentCaseKey: "commerce:delivery-consistent",
+    resolves: ["refund-rationale"],
+  }), []);
+  const engine = useMemo(
+    () => createCommerceSimulationEngine({ resolutionEvidenceProvider: learningProvider }),
+    [learningProvider],
+  );
   const [session, setSession] = useState<CommerceSession>(() => engine.createSession());
+  const [evolution, setEvolution] = useState(() => learningProvider.snapshot());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
   const activeScenario = toControlRoomScenario(session);
@@ -305,6 +320,79 @@ export default function Home() {
     setError(undefined);
   };
 
+  const commitCurrent = () => void run(async (current) => {
+    const next = await engine.commit(current);
+    const currentEvolution = learningProvider.snapshot();
+
+    if (
+      next.decision?.status === "AUTHORIZED"
+      && next.candidate?.reasoningEvidence.length
+      && !currentEvolution.candidate
+    ) {
+      setEvolution(learningProvider.observe({
+        evidenceId: "learning-evidence:commerce-rationale-v1",
+        claim: "The public demo service-recovery rationale is consistent with the simulated delivery record.",
+        beforeTrace: [
+          `Resolve: R${next.candidate.resolution.resolved.length - 1} / U1`,
+          "O-Agent: invoked for one isolated semantic field",
+          "Re-entry: structured evidence bound to a new candidate",
+          `Commit: ${next.decision.status} after independent current-state checks`,
+        ],
+      }));
+    } else if (
+      currentEvolution.candidate?.state === "ACTIVE"
+      && next.candidate?.resolutionEvidence.length
+    ) {
+      setEvolution(learningProvider.recordReplay([
+        `Resolve: R${next.candidate.resolution.resolved.length} / U${next.candidate.resolution.unresolved.length}`,
+        "O-Agent: NOT INVOKED",
+        "Active pattern: resolution evidence only",
+        `Commit: ${next.decision?.status ?? "PENDING"} after independent current-state checks`,
+      ]));
+    }
+
+    return next;
+  });
+
+  const startEvolution = () => {
+    setEvolution(learningProvider.reset());
+    void run(() => engine.resolve(engine.createSession({ semanticAmbiguity: true })));
+  };
+
+  const advanceEvolution = () => {
+    const state = learningProvider.snapshot().candidate?.state;
+    const next: Partial<Record<PromotionState, PromotionState>> = {
+      OBSERVED: "CANDIDATE",
+      CANDIDATE: "VALIDATED",
+      VALIDATED: "APPROVED",
+      APPROVED: "ACTIVE",
+    };
+    if (!state || !next[state]) return;
+    try {
+      setEvolution(learningProvider.transition(next[state] as PromotionState));
+      setError(undefined);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Governed transition failed.");
+    }
+  };
+
+  const replayEvolution = () => void run(async () => {
+    const replay = await engine.resolve(engine.createSession({ semanticAmbiguity: true }));
+    setEvolution(learningProvider.recordReplay([
+      `Resolve: R${replay.candidate?.resolution.resolved.length ?? 0} / U${replay.candidate?.resolution.unresolved.length ?? 0}`,
+      "O-Agent: NOT INVOKED",
+      "Active pattern: resolution evidence only",
+      "Commit: still independently required",
+    ]));
+    return replay;
+  });
+
+  const resetEvolution = () => {
+    setEvolution(learningProvider.reset());
+    setSession(engine.createSession());
+    setError(undefined);
+  };
+
   return (
     <main className="app-shell">
       <header className="topbar">
@@ -321,14 +409,27 @@ export default function Home() {
           onPreset={loadPreset}
           onResolve={() => void run((current) => engine.resolve(current))}
           onChangeState={() => { try { setSession(engine.simulateConcurrentChange(session)); setError(undefined); } catch (cause) { setError(cause instanceof Error ? cause.message : "State change failed."); } }}
-          onCommit={() => void run((current) => engine.commit(current))}
+          onCommit={commitCurrent}
           onReenter={() => void run((current) => engine.addReasoningEvidenceAndReenter(current))}
           onExecute={() => void run((current) => engine.executeAndVerify(current))}
           onReset={() => { setSession(engine.createSession()); setError(undefined); }}
         /></aside>
-        <ControlRoom scenario={activeScenario} />
+        <div className="control-room-stack">
+          <ControlRoom scenario={activeScenario} />
+          <div className="capability-deck">
+            <TelemetryPanel samples={session.telemetry} />
+            <EvolutionPanel
+              snapshot={evolution}
+              busy={busy}
+              onStart={startEvolution}
+              onAdvance={advanceEvolution}
+              onReplay={replayEvolution}
+              onReset={resetEvolution}
+            />
+          </div>
+        </div>
       </div>
-      <footer className="footer"><span>Xact Web Sandbox / Phase 2</span><span>Reason when necessary. Execute Xactly.</span><span>Mutable simulation · No live effects</span></footer>
+      <footer className="footer"><span>Xact Web Sandbox / Phase 2+</span><span>Reason when necessary. Execute Xactly.</span><span>Measured runtime · Governed evolution simulation</span></footer>
     </main>
   );
 }

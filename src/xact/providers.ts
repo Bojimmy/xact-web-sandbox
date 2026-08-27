@@ -9,7 +9,11 @@ import type {
 export type ProviderResult<T> = T | Promise<T>;
 
 export interface DecisionProvider<TInputs, TState, TEffect> {
-  resolve(inputs: TInputs, state: TState): ProviderResult<DecisionCandidate<TInputs, TEffect>>;
+  resolve(
+    inputs: TInputs,
+    state: TState,
+    resolutionEvidence?: EvidenceRecord[],
+  ): ProviderResult<DecisionCandidate<TInputs, TEffect>>;
   reenter(
     candidate: DecisionCandidate<TInputs, TEffect>,
     currentState: TState,
@@ -36,6 +40,10 @@ export interface PolicyProvider<TInputs, TState, TEffect> {
 
 export interface EvidenceProvider<TInputs, TEffect> {
   collect(candidate: DecisionCandidate<TInputs, TEffect>): ProviderResult<EvidenceRecord[]>;
+}
+
+export interface ResolutionEvidenceProvider<TInputs> {
+  collect(inputs: TInputs): ProviderResult<EvidenceRecord[]>;
 }
 
 export interface VerificationResult {

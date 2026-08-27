@@ -16,6 +16,10 @@
 - scenario packs
 - audit and verification results
 - clean-room commit-boundary mechanics
+- live sandbox timing samples
+- clearly labeled historical reference results
+- public-safe learning lifecycle states and candidate metadata
+- simulated coverage and reasoning-frequency snapshots
 
 ## Demonstrate through interfaces, do not disclose internals
 
@@ -32,6 +36,16 @@ Do not copy, reconstruct, infer, publish, or expose:
 - proprietary confidence systems
 - production authorization logic
 - confidential benchmark code or implementation details
+
+Reference benchmark and evolution figures may be displayed only when their
+data contracts and UI label them as applying to the reference implementation,
+not the browser sandbox. Live measurements must come from the running public
+simulation and may not be substituted with reference values.
+
+The public learning simulation may expose `OBSERVED`, `CANDIDATE`, `VALIDATED`,
+`APPROVED`, and `ACTIVE`. It may inject deterministic resolution evidence only
+after an explicit governed transition to `ACTIVE`; it may never modify Commit
+authority or execution capability.
 
 ## Build rule
 

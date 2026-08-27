@@ -61,16 +61,25 @@ export const commerceScenarioPack: ScenarioPack<
 
   stateVersion: (state) => state.version,
 
-  resolve: (inputs, state, reasoningEvidence) => {
-    const semanticResolved = reasoningEvidence.some((item) =>
+  resolve: (inputs, state, resolutionEvidence) => {
+    const semanticEvidence = resolutionEvidence.find((item) =>
       item.resolves?.includes("refund-rationale"),
     );
+    const semanticResolved = Boolean(semanticEvidence);
 
     const resolved: ResolvedFact[] = [
       { key: "refundAmount", value: inputs.refundAmount, source: "reported", provenance: "Mutable request input" },
       { key: "policyLimit", value: inputs.policyLimit, source: "verified", provenance: "Simulated Commerce Policy v3.4" },
       { key: "refundableBalance", value: state.refundableBalance, source: "verified", provenance: `Simulated order state v${state.version}` },
       { key: "authorityState", value: inputs.authorityState, source: "verified", provenance: "Simulated authority registry" },
+      ...(semanticEvidence
+        ? [{
+            key: "refundRationale",
+            value: "Delivery-consistent service recovery",
+            source: semanticEvidence.kind,
+            provenance: `${semanticEvidence.source} / ${semanticEvidence.provenance}`,
+          }]
+        : []),
     ];
 
     const unresolved = inputs.semanticAmbiguity && !semanticResolved
@@ -161,7 +170,7 @@ export const commerceScenarioPack: ScenarioPack<
 
     return {
       resolution: { resolved, unresolved, commitConstraints },
-      evidence: [...baseEvidence, ...reasoningEvidence],
+      evidence: [...baseEvidence, ...resolutionEvidence],
       proposedEffect: { type: "REFUND", amount: inputs.refundAmount, rail: "ORIGINAL" },
     };
   },

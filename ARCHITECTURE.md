@@ -127,3 +127,39 @@ verification compares the observed post-effect state with that exact candidate.
 - Commit re-validates relevant assumptions against current state.
 - Unknown authorization state fails closed.
 - Consequential effects are verified after execution.
+
+## Telemetry boundary
+
+`TelemetryProvider` observes public runtime operations without participating in
+their decisions. Live sandbox samples are labeled
+`LIVE_SANDBOX_MEASUREMENT`; historical reference evidence is represented by a
+separate immutable `BenchmarkReference` labeled `REFERENCE_BENCHMARK` and
+`REFERENCE_IMPLEMENTATION_NOT_SANDBOX`.
+
+Commit timing includes its nested policy evaluation. The UI exposes Policy as
+a breakout but excludes it from the summed deterministic total to avoid double
+counting. Execution time is not included in deterministic decision processing.
+Reasoning is measured separately when the simulated O-Agent is invoked.
+
+## Governed evolution boundary
+
+```text
+First encounter: Resolve → U → simulated O-Agent evidence → re-entry → Commit
+                                                          ↓
+                                                   OBSERVED pattern
+                                                          ↓
+                                CANDIDATE → VALIDATED → APPROVED → ACTIVE
+                                                          ↓
+Equivalent encounter: Resolve with governed evidence → U = 0 → Commit required
+```
+
+`LearningSimulationProvider` is a public-safe in-memory lifecycle simulator.
+It can observe structured evidence, but it returns no deterministic resolution
+evidence until governance explicitly reaches `ACTIVE`. State transitions are
+sequential and cannot be skipped. ACTIVE evidence improves only Resolution;
+it does not modify policy, authority, capability, freshness, execution, or
+verification behavior.
+
+The scenario-specific case key is supplied at composition time. The learning
+provider contains no production extraction, matching, scoring, validation,
+promotion, confidence, or Rule Pack logic.

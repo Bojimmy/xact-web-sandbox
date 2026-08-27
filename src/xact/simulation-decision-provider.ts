@@ -6,6 +6,7 @@ import type {
   EvidenceRecord,
 } from "./contracts";
 import type { DecisionProvider, PolicyProvider } from "./providers";
+import type { TelemetryProvider, TelemetryStage } from "../telemetry/contracts";
 
 export class SimulationDecisionProvider<TInputs, TState, TEffect>
   implements DecisionProvider<TInputs, TState, TEffect>
@@ -13,26 +14,45 @@ export class SimulationDecisionProvider<TInputs, TState, TEffect>
   constructor(
     private readonly pack: ScenarioPack<TInputs, TState, TEffect>,
     private readonly policyProvider: PolicyProvider<TInputs, TState, TEffect>,
+    private readonly telemetry?: TelemetryProvider,
   ) {}
 
-  resolve(inputs: TInputs, state: TState): DecisionCandidate<TInputs, TEffect> {
-    return this.buildCandidate(inputs, state, [], 0);
+  resolve(
+    inputs: TInputs,
+    state: TState,
+    resolutionEvidence: EvidenceRecord[] = [],
+  ): Promise<DecisionCandidate<TInputs, TEffect>> {
+    return this.measure(
+      "RESOLVE",
+      () => this.buildCandidate(inputs, state, resolutionEvidence, [], 0),
+    );
   }
 
   reenter(
     candidate: DecisionCandidate<TInputs, TEffect>,
     currentState: TState,
     evidence: EvidenceRecord[],
-  ): DecisionCandidate<TInputs, TEffect> {
-    return this.buildCandidate(
-      candidate.request.inputs,
-      currentState,
-      [...candidate.reasoningEvidence, ...evidence],
-      candidate.reentryCount + 1,
+  ): Promise<DecisionCandidate<TInputs, TEffect>> {
+    return this.measure(
+      "REENTRY",
+      () => this.buildCandidate(
+        candidate.request.inputs,
+        currentState,
+        candidate.resolutionEvidence,
+        [...candidate.reasoningEvidence, ...evidence],
+        candidate.reentryCount + 1,
+      ),
     );
   }
 
   async commit(
+    candidate: DecisionCandidate<TInputs, TEffect>,
+    currentState: TState,
+  ): Promise<DecisionResult<TInputs, TEffect>> {
+    return this.measure("COMMIT", () => this.evaluateCommit(candidate, currentState));
+  }
+
+  private async evaluateCommit(
     candidate: DecisionCandidate<TInputs, TEffect>,
     currentState: TState,
   ): Promise<DecisionResult<TInputs, TEffect>> {
@@ -66,7 +86,10 @@ export class SimulationDecisionProvider<TInputs, TState, TEffect>
       );
     }
 
-    const assessment = await this.policyProvider.authorize({ candidate, currentState });
+    const assessment = await this.measure(
+      "POLICY",
+      () => this.policyProvider.authorize({ candidate, currentState }),
+    );
     const checks = [resolutionCheck, freshnessCheck, ...assessment.checks];
 
     if (assessment.outcome === "UNKNOWN") {
@@ -104,10 +127,15 @@ export class SimulationDecisionProvider<TInputs, TState, TEffect>
   private buildCandidate(
     inputs: TInputs,
     state: TState,
+    resolutionEvidence: EvidenceRecord[],
     reasoningEvidence: EvidenceRecord[],
     reentryCount: number,
   ): DecisionCandidate<TInputs, TEffect> {
-    const output = this.pack.resolve(inputs, state, reasoningEvidence);
+    const output = this.pack.resolve(
+      inputs,
+      state,
+      [...resolutionEvidence, ...reasoningEvidence],
+    );
     const stateHash = this.pack.stateHash(state);
 
     return {
@@ -122,10 +150,17 @@ export class SimulationDecisionProvider<TInputs, TState, TEffect>
       baseStateVersion: this.pack.stateVersion(state),
       resolution: output.resolution,
       evidence: output.evidence,
+      resolutionEvidence,
       reasoningEvidence,
       proposedEffect: output.proposedEffect,
       reentryCount,
     };
+  }
+
+  private async measure<T>(stage: TelemetryStage, operation: () => T | Promise<T>): Promise<T> {
+    return this.telemetry
+      ? this.telemetry.measure(stage, operation)
+      : operation();
   }
 
   private result(

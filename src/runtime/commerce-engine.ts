@@ -13,9 +13,12 @@ import type {
   PolicyProvider,
   VerificationProvider,
   VerificationResult,
+  ResolutionEvidenceProvider,
 } from "../xact/providers";
 import { SimulationDecisionProvider } from "../xact/simulation-decision-provider";
 import type { RuntimeTraceEvent, SimulationSession } from "./contracts";
+import type { TelemetryProvider } from "../telemetry/contracts";
+import { PerformanceTelemetryProvider } from "../telemetry/performance-telemetry-provider";
 
 type CommerceSession = SimulationSession<CommerceScenarioInputs, CommerceScenarioState, RefundEffect>;
 
@@ -118,18 +121,24 @@ class CommerceSimulationVerificationProvider
 }
 
 export class CommerceSimulationEngine {
-  private readonly provider = new SimulationDecisionProvider(
-    commerceScenarioPack,
-    new CommerceSimulationPolicyProvider(),
-  );
+  private readonly provider: SimulationDecisionProvider<CommerceScenarioInputs, CommerceScenarioState, RefundEffect>;
   private readonly evidenceProvider = new CommerceSimulationEvidenceProvider();
   private readonly verificationProvider = new CommerceSimulationVerificationProvider();
+  private readonly executionAdapter: ExecutionAdapter;
+  private readonly telemetryProvider: TelemetryProvider;
+  private readonly resolutionEvidenceProvider?: ResolutionEvidenceProvider<CommerceScenarioInputs>;
 
-  constructor(
-    private readonly executionAdapter: ExecutionAdapter = new SimulatedExecutionAdapter(
-      commerceScenarioPack.preferredSubstrate,
-    ),
-  ) {}
+  constructor(options: CommerceEngineOptions = {}) {
+    this.executionAdapter = options.executionAdapter
+      ?? new SimulatedExecutionAdapter(commerceScenarioPack.preferredSubstrate);
+    this.telemetryProvider = options.telemetryProvider ?? new PerformanceTelemetryProvider();
+    this.resolutionEvidenceProvider = options.resolutionEvidenceProvider;
+    this.provider = new SimulationDecisionProvider(
+      commerceScenarioPack,
+      new CommerceSimulationPolicyProvider(),
+      this.telemetryProvider,
+    );
+  }
 
   createSession(overrides: Partial<CommerceScenarioInputs> = {}): CommerceSession {
     const currentState = commerceScenarioPack.createInitialState();
@@ -139,6 +148,7 @@ export class CommerceSimulationEngine {
       currentState,
       currentStateHash: commerceScenarioPack.stateHash(currentState),
       selectedSubstrate: "NONE",
+      telemetry: [],
       trace: [{ phase: "Input", outcome: "Ready", detail: "Mutable Commerce V1 inputs initialized.", sequence: 1 }],
     };
   }
@@ -153,12 +163,19 @@ export class CommerceSimulationEngine {
       selectedSubstrate: "NONE",
       execution: undefined,
       verification: undefined,
+      telemetry: [],
       trace: this.append(session.trace, "Input", "Changed", "Inputs changed; prior candidate and decision invalidated."),
     };
   }
 
   async resolve(session: CommerceSession): Promise<CommerceSession> {
-    const candidate = await this.provider.resolve(session.inputs, session.currentState);
+    const checkpoint = this.telemetryProvider.checkpoint();
+    const resolutionEvidence = await this.resolutionEvidenceProvider?.collect(session.inputs) ?? [];
+    const candidate = await this.provider.resolve(
+      session.inputs,
+      session.currentState,
+      resolutionEvidence,
+    );
     const counts = candidate.resolution;
     return {
       ...session,
@@ -168,6 +185,7 @@ export class CommerceSimulationEngine {
       selectedSubstrate: "NONE",
       execution: undefined,
       verification: undefined,
+      telemetry: this.captureTelemetry(session, checkpoint),
       trace: this.append(
         session.trace,
         "Resolve",
@@ -182,6 +200,7 @@ export class CommerceSimulationEngine {
       throw new Error("Resolve must produce a candidate before Commit.");
     }
 
+    const checkpoint = this.telemetryProvider.checkpoint();
     const decision = await this.provider.commit(session.candidate, session.currentState);
     const selectedSubstrate = decision.status === "AUTHORIZED"
       ? commerceScenarioPack.preferredSubstrate
@@ -194,6 +213,7 @@ export class CommerceSimulationEngine {
       selectedSubstrate,
       execution: undefined,
       verification: undefined,
+      telemetry: this.captureTelemetry(session, checkpoint),
       currentStateHash: commerceScenarioPack.stateHash(session.currentState),
       trace: this.append(
         session.trace,
@@ -209,7 +229,11 @@ export class CommerceSimulationEngine {
       throw new Error("An Escalated candidate is required before reasoning evidence may re-enter.");
     }
 
-    const evidence = await this.evidenceProvider.collect(session.candidate);
+    const checkpoint = this.telemetryProvider.checkpoint();
+    const evidence = await this.telemetryProvider.measure(
+      "REASONING",
+      () => this.evidenceProvider.collect(session.candidate as DecisionCandidate<CommerceScenarioInputs, RefundEffect>),
+    );
     if (evidence.length === 0) {
       throw new Error("This escalation requires authority evidence, not semantic reasoning evidence.");
     }
@@ -234,6 +258,7 @@ export class CommerceSimulationEngine {
       selectedSubstrate: "NONE",
       execution: undefined,
       verification: undefined,
+      telemetry: this.captureTelemetry(session, checkpoint),
       trace: this.append(
         withReasoning,
         "Re-entry",
@@ -296,13 +321,17 @@ export class CommerceSimulationEngine {
       authorizedCandidate.proposedEffect,
       execution.receipt,
     );
-    const verification = await this.verificationProvider.verify({
-      pack: commerceScenarioPack,
-      candidate: authorizedCandidate,
-      before,
-      after,
-      execution,
-    });
+    const checkpoint = this.telemetryProvider.checkpoint();
+    const verification = await this.telemetryProvider.measure(
+      "VERIFICATION",
+      () => this.verificationProvider.verify({
+        pack: commerceScenarioPack,
+        candidate: authorizedCandidate,
+        before,
+        after,
+        execution,
+      }),
+    );
     const executedTrace = this.append(
       session.trace,
       "Execute",
@@ -317,6 +346,7 @@ export class CommerceSimulationEngine {
       currentStateHash: commerceScenarioPack.stateHash(after),
       execution,
       verification,
+      telemetry: this.captureTelemetry(session, checkpoint),
       trace: this.append(
         executedTrace,
         "Verify",
@@ -334,10 +364,20 @@ export class CommerceSimulationEngine {
   ): RuntimeTraceEvent[] {
     return [...trace, { phase, outcome, detail, sequence: trace.length + 1 }];
   }
+
+  private captureTelemetry(session: CommerceSession, checkpoint: number) {
+    return [...session.telemetry, ...this.telemetryProvider.samplesSince(checkpoint)];
+  }
 }
 
-export function createCommerceSimulationEngine(): CommerceSimulationEngine {
-  return new CommerceSimulationEngine();
+export interface CommerceEngineOptions {
+  executionAdapter?: ExecutionAdapter;
+  telemetryProvider?: TelemetryProvider;
+  resolutionEvidenceProvider?: ResolutionEvidenceProvider<CommerceScenarioInputs>;
+}
+
+export function createCommerceSimulationEngine(options?: CommerceEngineOptions): CommerceSimulationEngine {
+  return new CommerceSimulationEngine(options);
 }
 
 export type { CommerceSession };

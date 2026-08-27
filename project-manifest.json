@@ -15,9 +15,12 @@
   "scenario_pack": "src/scenarios/commerce-v1.ts",
   "runtime_engine": "src/runtime/commerce-engine.ts",
   "simulation_decision_provider": "src/xact/simulation-decision-provider.ts",
+  "telemetry_provider": "src/telemetry/performance-telemetry-provider.ts",
+  "learning_simulation_provider": "src/evolution/learning-simulation-provider.ts",
   "phase_1_fixtures": "src/control-room/fixtures.ts",
   "architecture_decisions": [
     "docs/adr/0001-phase-1-control-room-fixtures.md",
-    "docs/adr/0002-phase-2-mutable-scenario-engine.md"
+    "docs/adr/0002-phase-2-mutable-scenario-engine.md",
+    "docs/adr/0003-telemetry-and-governed-evolution-simulation.md"
   ]
 }

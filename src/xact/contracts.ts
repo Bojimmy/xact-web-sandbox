@@ -63,6 +63,7 @@ export interface DecisionCandidate<TInputs = unknown, TEffect = unknown> {
   baseStateVersion: number;
   resolution: ResolutionState;
   evidence: EvidenceRecord[];
+  resolutionEvidence: EvidenceRecord[];
   reasoningEvidence: EvidenceRecord[];
   proposedEffect: TEffect;
   reentryCount: number;
