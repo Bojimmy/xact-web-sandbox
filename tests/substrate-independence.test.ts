@@ -13,7 +13,20 @@ import { VisionExecutionAdapter, type VisionExecutionClient } from "../src/execu
 import { WebMCPExecutionAdapter, type WebMCPExecutionClient } from "../src/execution/webmcp-execution-adapter";
 import { createCommerceSimulationEngine } from "../src/runtime/commerce-engine";
 
-const payload = { type: "REFUND", amount: 42, rail: "ORIGINAL", target: "order:XC-MUTABLE/refund" };
+const payload = {
+  type: "REFUND",
+  amount: 42,
+  rail: "ORIGINAL",
+  target: "order:XC-MUTABLE/refund",
+  visionTarget: {
+    targetId: "order:XC-MUTABLE/refund",
+    role: "button",
+    name: "Issue refund",
+    origin: "https://sandbox.xact.local",
+    frameId: "main",
+    pageRevision: "commerce-v1",
+  },
+};
 
 function setup() {
   const store = new InMemoryAuthorizationArtifactStore();
@@ -50,10 +63,24 @@ class FakeDomClient implements DOMExecutionClient {
 
 class FakeVisionClient implements VisionExecutionClient {
   activateCalls = 0;
-  constructor(private readonly available = true, private readonly locatedTarget = payload.target) {}
+  constructor(
+    private readonly available = true,
+    private readonly locatedTarget = payload.target,
+    private readonly activationError?: string,
+    private readonly recheckedTarget = locatedTarget,
+  ) {}
   isAvailable() { return this.available; }
-  async locate() { return { target: this.locatedTarget }; }
-  async activateLocatedTarget() { this.activateCalls += 1; return { receipt: "vision-receipt" }; }
+  async preflight(descriptor: typeof payload.visionTarget) {
+    return { located: { ...descriptor, targetId: this.locatedTarget }, captureId: "capture:1" };
+  }
+  async recheck(preflight: { located: typeof payload.visionTarget; captureId: string }) {
+    return { ...preflight.located, targetId: this.recheckedTarget };
+  }
+  async activateExactTarget() {
+    this.activateCalls += 1;
+    if (this.activationError) throw new Error(this.activationError);
+    return { receipt: "vision-receipt" };
+  }
   async observeAction(_effect: AuthorizedEffect, receipt: unknown) { return observed("VISION", receipt); }
 }
 
@@ -113,8 +140,37 @@ test("Vision cannot activate a visually located target different from the author
   const execution = await adapter.execute(routed);
 
   assert.equal(execution.executed, false);
-  assert.match(execution.error ?? "", /different from the authorized effect/i);
+  assert.match(execution.error ?? "", /different from the authorized descriptor/i);
   assert.equal(client.activateCalls, 0);
+  assert.equal(store.nonceConsumed(routed.artifact.nonce), false);
+});
+
+test("Vision spends the nonce only after exact preflight, then fails closed when the target mutates before activation", async () => {
+  const { store, effect } = setup();
+  const client = new FakeVisionClient(true, payload.target, "Target disappeared before activation.");
+  const adapter = new VisionExecutionAdapter(client, store);
+  const routed = { ...effect, substrate: "VISION" as const };
+
+  const execution = await adapter.execute(routed);
+
+  assert.equal(client.activateCalls, 1);
+  assert.equal(execution.executed, false);
+  assert.match(execution.error ?? "", /disappeared/i);
+  assert.equal(store.nonceConsumed(routed.artifact.nonce), true);
+});
+
+test("Vision re-check blocks a target replaced after preflight without spending the nonce", async () => {
+  const { store, effect } = setup();
+  const client = new FakeVisionClient(true, payload.target, undefined, "order:REPLACED/refund");
+  const adapter = new VisionExecutionAdapter(client, store);
+  const routed = { ...effect, substrate: "VISION" as const };
+
+  const execution = await adapter.execute(routed);
+
+  assert.equal(execution.executed, false);
+  assert.match(execution.error ?? "", /re-check found a target different/i);
+  assert.equal(client.activateCalls, 0);
+  assert.equal(store.nonceConsumed(routed.artifact.nonce), false);
 });
 
 test("Browser DOM client activates only the exact bound target and observes its own audit attributes", async () => {

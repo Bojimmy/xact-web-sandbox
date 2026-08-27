@@ -105,6 +105,7 @@ SimulationDecisionProvider.commit(current state)
 DecisionResult
   ├─ AUTHORIZED → ExecutionRouter → WebMCPExecutionAdapter | DOMExecutionAdapter | VisionExecutionAdapter
   │                  → independent observation → VerificationProvider
+  │                  Vision: preflight → exact re-check → nonce → activate
   └─ REJECTED / ESCALATED / STALE → NONE
   ↓
 Control Room projection
