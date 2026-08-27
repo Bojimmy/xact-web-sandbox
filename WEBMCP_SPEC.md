@@ -68,3 +68,7 @@ DOM or Vision when availability changes. It preserves the same
 `AuthorizationArtifact`, effect fingerprint, target, actor, capability, and
 state binding; only the `substrate` on the execution envelope changes. See
 ADR 0007 for the typed observation and fallback contract.
+
+For the Vision route, ADR 0008 adds a non-consequential visual preflight and
+an immediate exact-target re-check before nonce consumption. Vision can locate
+the target bound in the effect; it cannot redefine one.

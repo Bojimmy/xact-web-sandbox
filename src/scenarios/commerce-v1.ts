@@ -1,4 +1,5 @@
 import type { ExecutionSubstrate } from "../execution/contracts";
+import type { VisionTargetDescriptor } from "../execution/targeted-payload";
 import type { ScenarioPack } from "./contracts";
 import type { CommitConstraint, EvidenceRecord, ResolvedFact } from "../xact/contracts";
 
@@ -26,9 +27,18 @@ export interface RefundEffect {
   rail: "ORIGINAL";
   /** Target identity is part of the authorized effect fingerprint. */
   target: "order:XC-MUTABLE/refund";
+  visionTarget: VisionTargetDescriptor;
 }
 
 const preferredSubstrate: ExecutionSubstrate = "WEBMCP";
+const refundVisionTarget: VisionTargetDescriptor = {
+  targetId: "order:XC-MUTABLE/refund",
+  role: "button",
+  name: "Issue refund",
+  origin: "https://sandbox.xact.local",
+  frameId: "main",
+  pageRevision: "commerce-v1",
+};
 
 function money(value: number): string {
   return `$${value.toFixed(2)}`;
@@ -175,7 +185,13 @@ export const commerceScenarioPack: ScenarioPack<
     return {
       resolution: { resolved, unresolved, commitConstraints },
       evidence: [...baseEvidence, ...resolutionEvidence],
-      proposedEffect: { type: "REFUND", amount: inputs.refundAmount, rail: "ORIGINAL", target: "order:XC-MUTABLE/refund" },
+      proposedEffect: {
+        type: "REFUND",
+        amount: inputs.refundAmount,
+        rail: "ORIGINAL",
+        target: "order:XC-MUTABLE/refund",
+        visionTarget: refundVisionTarget,
+      },
     };
   },
 
