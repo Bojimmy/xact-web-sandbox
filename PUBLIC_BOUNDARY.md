@@ -61,3 +61,12 @@ The Commit path may demonstrate public-safe clean-room implementations of proven
 - governed evidence bindings
 
 Do not copy code from private reference implementations into the public challenge repository.
+
+## O-Agent provider boundary
+
+The browser may call a same-origin `OAgentProvider` endpoint only for
+structured reasoning evidence. Model credentials, model configuration, and any
+provider transport remain server-side. A provider response is not authority:
+it must re-enter Xact through Resolve and Commit before an effect may be
+authorized. Offline provider output is labeled `SIMULATED_O_AGENT`; only a
+server-attested model result may be labeled `LIVE_SANDBOX_MEASUREMENT`.

@@ -1,6 +1,7 @@
 # ADR 0011 — Deterministic-vs-Reasoning Cost Telemetry
 
-**Status:** Proposed — drafted by DSH, revised after lead review.
+**Status:** Accepted — experimental proof branch, drafted by DSH and implemented
+as a public-safe provider boundary.
 
 **Depends on:** ADR 0009 (construction benchmark), ADR 0010 (deterministic scale
 workload). It **preserves** 6A.1 and 6A.2 unchanged; the 6A.2 concurrency curve
@@ -98,6 +99,15 @@ interface OAgentProvider {
 Real implementation = a server endpoint behind credentials; simulation = a
 deterministic stub. Both return the same `ReasoningResult` shape. The provider
 may read, but never causes a consequence; its output is evidence for Xact.
+
+The sandbox implements `SecureEndpointOAgentProvider` as the browser-side
+client for that boundary. It has no credential field and accepts a response
+only when the protected server endpoint attests `LIVE_SANDBOX_MEASUREMENT`.
+Deployments may wire that endpoint to a real model using server-only secrets;
+until then, the explicit `SimulatedOAgentProvider` is the offline fallback.
+The bundled route fails closed until both `OAGENT_PROVIDER_URL` and
+`OAGENT_PROVIDER_TOKEN` identify a protected model gateway; the gateway must
+enforce its own caller controls and return the attested structured result.
 
 ### Two-path metrics
 
