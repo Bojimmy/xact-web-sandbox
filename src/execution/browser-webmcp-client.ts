@@ -1,4 +1,4 @@
-import type { AuthorizedEffect } from "./contracts";
+import type { AuthorizedEffect, ExecutionObservation } from "./contracts";
 import type { WebMCPExecutionClient } from "./webmcp-execution-adapter";
 
 /** Minimal public shape for Chrome's current document.modelContext API. */
@@ -50,12 +50,13 @@ export class BrowserWebMCPExecutionClient implements WebMCPExecutionClient {
     return { receipt };
   }
 
-  async observeAction(receipt: unknown): Promise<unknown> {
+  async observeAction(receipt: unknown): Promise<ExecutionObservation> {
     const context = this.requireContext();
     const tool = await this.findTool(context, this.observationToolName);
     // This is a read of the tool's post-execution record. Do not substitute the
     // intended payload for an unavailable or empty observation.
-    return context.executeTool(tool, JSON.stringify({ receipt }));
+    const observation = await context.executeTool(tool, JSON.stringify({ receipt }));
+    return this.readObservation(observation);
   }
 
   private requireContext(): BrowserWebMCPModelContext {
@@ -73,5 +74,25 @@ export class BrowserWebMCPExecutionClient implements WebMCPExecutionClient {
   private readReceipt(response: unknown): unknown {
     if (!response || typeof response !== "object") return undefined;
     return (response as { receipt?: unknown }).receipt;
+  }
+
+  private readObservation(response: unknown): ExecutionObservation {
+    if (!response || typeof response !== "object") {
+      throw new Error("WebMCP observation returned no structured execution record.");
+    }
+    const candidate = response as Partial<ExecutionObservation>;
+    if (
+      !candidate.substrate || !candidate.target || !candidate.effectFingerprint
+      || candidate.receipt === undefined || typeof candidate.observedAtEpochMs !== "number"
+    ) {
+      throw new Error("WebMCP observation is missing required execution evidence.");
+    }
+    return {
+      substrate: candidate.substrate,
+      receipt: candidate.receipt,
+      target: candidate.target,
+      effectFingerprint: candidate.effectFingerprint,
+      observedAtEpochMs: candidate.observedAtEpochMs,
+    };
   }
 }

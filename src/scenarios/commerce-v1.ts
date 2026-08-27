@@ -24,6 +24,8 @@ export interface RefundEffect {
   type: "REFUND";
   amount: number;
   rail: "ORIGINAL";
+  /** Target identity is part of the authorized effect fingerprint. */
+  target: "order:XC-MUTABLE/refund";
 }
 
 const preferredSubstrate: ExecutionSubstrate = "WEBMCP";
@@ -173,7 +175,7 @@ export const commerceScenarioPack: ScenarioPack<
     return {
       resolution: { resolved, unresolved, commitConstraints },
       evidence: [...baseEvidence, ...resolutionEvidence],
-      proposedEffect: { type: "REFUND", amount: inputs.refundAmount, rail: "ORIGINAL" },
+      proposedEffect: { type: "REFUND", amount: inputs.refundAmount, rail: "ORIGINAL", target: "order:XC-MUTABLE/refund" },
     };
   },
 

@@ -9,8 +9,31 @@ import type { PromotionState } from "@/src/evolution/contracts";
 import { createCommerceSimulationEngine, type CommerceSession } from "@/src/runtime/commerce-engine";
 import type { AuthorityState, CommerceScenarioInputs } from "@/src/scenarios/commerce-v1";
 import { TelemetryPanel } from "@/src/telemetry/telemetry-panel";
+import { AvailabilityGatedExecutionAdapter } from "@/src/execution/availability-gated-adapter";
+import { SimulatedExecutionAdapter } from "@/src/execution/simulated-adapter";
+import { InMemoryAuthorizationArtifactStore } from "@/src/xact/authorization-artifact";
+import type { ExecutionSubstrate } from "@/src/execution/contracts";
 
 const sourceLabels = { reported: "Reported", verified: "Verified", derived: "Derived" };
+
+type ToggleableSubstrate = "WEBMCP" | "DOM" | "VISION";
+
+class SubstrateAvailability {
+  private readonly values: Record<ToggleableSubstrate, boolean> = { WEBMCP: true, DOM: true, VISION: true };
+
+  enabled(substrate: ToggleableSubstrate): boolean {
+    return this.values[substrate];
+  }
+
+  set(substrate: ToggleableSubstrate, enabled: boolean): Record<ToggleableSubstrate, boolean> {
+    this.values[substrate] = enabled;
+    return { ...this.values };
+  }
+
+  snapshot(): Record<ToggleableSubstrate, boolean> {
+    return { ...this.values };
+  }
+}
 
 function ResolutionColumn({
   letter,
@@ -52,6 +75,8 @@ function RuntimeControls({
   onReenter,
   onExecute,
   onReset,
+  substrateAvailability,
+  onSubstrateAvailability,
 }: {
   session: CommerceSession;
   busy: boolean;
@@ -64,6 +89,8 @@ function RuntimeControls({
   onReenter: () => void;
   onExecute: () => void;
   onReset: () => void;
+  substrateAvailability: Record<ToggleableSubstrate, boolean>;
+  onSubstrateAvailability: (substrate: ToggleableSubstrate, enabled: boolean) => void;
 }) {
   const canChangeState = Boolean(session.candidate && !session.decision);
   const canCommit = Boolean(session.candidate && !session.decision);
@@ -141,6 +168,21 @@ function RuntimeControls({
         <button type="button" className="execute-action" onClick={onExecute} disabled={busy || !canExecute}>4 · Execute + verify</button>
         <button type="button" className="reset-action" onClick={onReset} disabled={busy}>Reset runtime</button>
       </div>
+
+      <fieldset className="substrate-controls">
+        <legend>Execution substrates</legend>
+        <small>Disable a preferred route to prove fallback changes how, never what or whether.</small>
+        {(["WEBMCP", "DOM", "VISION"] as const).map((substrate) => (
+          <label className="toggle-field" key={substrate}>
+            <input
+              type="checkbox"
+              checked={substrateAvailability[substrate]}
+              onChange={(event) => onSubstrateAvailability(substrate, event.target.checked)}
+            />
+            <span><strong>{substrate}</strong><small>{substrateAvailability[substrate] ? "Available" : "Unavailable"}</small></span>
+          </label>
+        ))}
+      </fieldset>
 
       {error ? <p className="runtime-error" role="alert">{error}</p> : null}
       <div className="simulation-note">
@@ -279,6 +321,8 @@ function ControlRoom({ scenario }: { scenario: ControlRoomScenario }) {
 }
 
 export default function Home() {
+  const executionAvailability = useMemo(() => new SubstrateAvailability(), []);
+  const [substrateAvailability, setSubstrateAvailability] = useState(() => executionAvailability.snapshot());
   const learningProvider = useMemo(() => new LearningSimulationProvider<CommerceScenarioInputs>({
     candidateId: "learning:commerce-rationale-v1",
     label: "Delivery-consistent service recovery",
@@ -287,8 +331,22 @@ export default function Home() {
     resolves: ["refund-rationale"],
   }), []);
   const engine = useMemo(
-    () => createCommerceSimulationEngine({ resolutionEvidenceProvider: learningProvider }),
-    [learningProvider],
+    () => {
+      const store = new InMemoryAuthorizationArtifactStore();
+      const adapter = (substrate: ExecutionSubstrate) => new AvailabilityGatedExecutionAdapter(
+        new SimulatedExecutionAdapter(substrate, store),
+        () => substrate === "WEBMCP" || substrate === "DOM" || substrate === "VISION"
+          ? executionAvailability.enabled(substrate)
+          : false,
+      );
+      return createCommerceSimulationEngine({
+        resolutionEvidenceProvider: learningProvider,
+        store,
+        executionAdapter: adapter("WEBMCP"),
+        additionalAdapters: [adapter("DOM"), adapter("VISION")],
+      });
+    },
+    [executionAvailability, learningProvider],
   );
   const [session, setSession] = useState<CommerceSession>(() => engine.createSession());
   const [evolution, setEvolution] = useState(() => learningProvider.snapshot());
@@ -413,6 +471,11 @@ export default function Home() {
           onReenter={() => void run((current) => engine.addReasoningEvidenceAndReenter(current))}
           onExecute={() => void run((current) => engine.executeAndVerify(current))}
           onReset={() => { setSession(engine.createSession()); setError(undefined); }}
+          substrateAvailability={substrateAvailability}
+          onSubstrateAvailability={(substrate, enabled) => {
+            setSubstrateAvailability(executionAvailability.set(substrate, enabled));
+            setError(undefined);
+          }}
         /></aside>
         <div className="control-room-stack">
           <ControlRoom scenario={activeScenario} />

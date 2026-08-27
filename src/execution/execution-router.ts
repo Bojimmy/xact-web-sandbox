@@ -6,6 +6,7 @@ import type {
 
 export interface ExecutionRouterSelection {
   adapter: ExecutionAdapter | null; // null → no capable adapter (fail closed)
+  effect: AuthorizedEffect | null; // same artifact + payload, routed substrate only
   reason: string; // human-readable selection trace
 }
 
@@ -43,7 +44,10 @@ export class DeterministicExecutionRouter implements ExecutionRouter {
 
     for (const substrate of this.priority) {
       const adapter = bySubstrate.get(substrate);
-      if (adapter && adapter.canHandle(effect)) {
+      // Routing changes only HOW the already-bound effect is delivered. The
+      // artifact and payload are preserved exactly; adapters cannot alter them.
+      const routedEffect: AuthorizedEffect = { ...effect, substrate };
+      if (adapter && adapter.canHandle(routedEffect)) {
         const prefix = unavailable.length
           ? `${unavailable.join(" unavailable → ")} unavailable → `
           : "";
@@ -52,6 +56,7 @@ export class DeterministicExecutionRouter implements ExecutionRouter {
           : "policy-preferred structured substrate";
         return {
           adapter,
+          effect: routedEffect,
           reason: `${prefix}${substrate} selected — capability available + ${note}`,
         };
       }
@@ -60,6 +65,7 @@ export class DeterministicExecutionRouter implements ExecutionRouter {
 
     return {
       adapter: null,
+      effect: null,
       reason: `${unavailable.join(" unavailable → ")} unavailable — no capable adapter (fail closed)`,
     };
   }

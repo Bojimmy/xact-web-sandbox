@@ -6,6 +6,7 @@ import type {
   ExecutionResult,
   ExecutionSubstrate,
   ExecutionValidation,
+  ExecutionObservation,
 } from "./contracts";
 import { validateAuthorizationArtifact } from "./artifact-guard";
 
@@ -54,10 +55,26 @@ export class SimulatedExecutionAdapter implements ExecutionAdapter {
     };
   }
 
-  async observe(_effect: AuthorizedEffect, execution: ExecutionResult): Promise<unknown> {
+  async observe(effect: AuthorizedEffect, execution: ExecutionResult): Promise<ExecutionObservation> {
     // The simulated "world" is the scenario state; the engine applies the effect
     // and this seam reports what the adapter can observe. A real adapter would
     // read actual post-execution state here.
-    return { substrate: this.substrate, receipt: execution.receipt };
+    return {
+      substrate: this.substrate,
+      receipt: execution.receipt,
+      target: executionTarget(effect.payload),
+      effectFingerprint: effect.artifact.effectFingerprint,
+      observedAtEpochMs: this.now(),
+    };
   }
+}
+
+function executionTarget(payload: unknown): string {
+  const target = payload && typeof payload === "object"
+    ? (payload as { target?: unknown }).target
+    : undefined;
+  if (typeof target !== "string" || target.length === 0) {
+    throw new Error("Execution payload has no bound target for observation.");
+  }
+  return target;
 }

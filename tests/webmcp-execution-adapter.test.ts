@@ -33,16 +33,22 @@ class FakeWebMCPClient implements WebMCPExecutionClient {
     return { receipt: "webmcp-receipt-1" };
   }
 
-  async observeAction(receipt: string): Promise<unknown> {
+  async observeAction(receipt: string) {
     this.observeCalls += 1;
-    return { receipt, observedAt: "2026-08-27T00:00:00.000Z", actual: "tool-call-recorded" };
+    return {
+      substrate: "WEBMCP" as const,
+      receipt,
+      target: "order:XC-MUTABLE/refund",
+      effectFingerprint: stableFingerprint({ type: "REFUND", amount: 42, rail: "ORIGINAL", target: "order:XC-MUTABLE/refund" }),
+      observedAtEpochMs: 1_788_000_000_000,
+    };
   }
 }
 
 function setupEffect(client: WebMCPExecutionClient) {
   const store = new InMemoryAuthorizationArtifactStore();
   const issuer = new AuthorizationArtifactIssuer(store);
-  const payload = { type: "REFUND", amount: 42, rail: "ORIGINAL" };
+  const payload = { type: "REFUND", amount: 42, rail: "ORIGINAL", target: "order:XC-MUTABLE/refund" };
   const artifact = issuer.issue({
     commitId: "commit:webmcp:1",
     effectFingerprint: stableFingerprint(payload),
@@ -69,9 +75,11 @@ test("WebMCP adapter executes a valid authorized effect and observes the actual 
 
   const observed = await adapter.observe(effect, execution);
   assert.deepEqual(observed, {
+    substrate: "WEBMCP",
     receipt: "webmcp-receipt-1",
-    observedAt: "2026-08-27T00:00:00.000Z",
-    actual: "tool-call-recorded",
+    target: "order:XC-MUTABLE/refund",
+    effectFingerprint: stableFingerprint(effect.payload),
+    observedAtEpochMs: 1_788_000_000_000,
   });
   assert.equal(client.observeCalls, 1);
 });
@@ -124,7 +132,13 @@ test("browser WebMCP client feature-detects the standard document API and reads 
         calls.push({ tool: tool.name, input: JSON.parse(input) });
         return tool.name === "request_action"
           ? { receipt: "browser-webmcp-receipt-1" }
-          : { receipt: "browser-webmcp-receipt-1", actual: "sandbox-record" };
+          : {
+              substrate: "WEBMCP",
+              receipt: "browser-webmcp-receipt-1",
+              target: "order:XC-MUTABLE/refund",
+              effectFingerprint: stableFingerprint(effect.payload),
+              observedAtEpochMs: 1_788_000_000_000,
+            };
       },
     },
   });
@@ -135,7 +149,13 @@ test("browser WebMCP client feature-detects the standard document API and reads 
   const observed = await client.observeAction(requested.receipt);
 
   assert.equal(requested.receipt, "browser-webmcp-receipt-1");
-  assert.deepEqual(observed, { receipt: "browser-webmcp-receipt-1", actual: "sandbox-record" });
+  assert.deepEqual(observed, {
+    substrate: "WEBMCP",
+    receipt: "browser-webmcp-receipt-1",
+    target: "order:XC-MUTABLE/refund",
+    effectFingerprint: stableFingerprint(effect.payload),
+    observedAtEpochMs: 1_788_000_000_000,
+  });
   assert.deepEqual(calls, [
     {
       tool: "request_action",

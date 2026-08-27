@@ -21,6 +21,18 @@ export interface ExecutionResult {
   error?: string;
 }
 
+/**
+ * A typed, post-execution record returned by an execution substrate. It is
+ * evidence of what the substrate observed, never a restatement of intent.
+ */
+export interface ExecutionObservation {
+  substrate: ExecutionSubstrate;
+  receipt: unknown;
+  target: string;
+  effectFingerprint: string;
+  observedAtEpochMs: number;
+}
+
 /** Read-only guard result. `checks` is the human-readable audit trace. */
 export interface ExecutionValidation {
   valid: boolean;
@@ -50,5 +62,5 @@ export interface ExecutionAdapter {
   execute(effect: AuthorizedEffect): Promise<ExecutionResult>;
 
   /** Read what ACTUALLY happened (post-execution state) for independent verification. */
-  observe(effect: AuthorizedEffect, execution: ExecutionResult): Promise<unknown>;
+  observe(effect: AuthorizedEffect, execution: ExecutionResult): Promise<ExecutionObservation>;
 }
