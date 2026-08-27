@@ -12,6 +12,21 @@
 | Review state | Draft; not merged |
 | Artifact scope | Evidence-only handoff; this document is added after the review commit and does not change the application under review |
 
+## Review outcome
+
+Verdict: **PASS WITH CHANGES**.
+
+The architecture is approved and Phase 2 is authorized after two bounded
+corrections on the Phase 1 branch:
+
+1. lock R/U/C to **Resolved / Unresolved / Commit Constraints**, with conflict
+   represented only as a condition within C; and
+2. distinguish `REJECTED` as final under current inputs from `ESCALATED` as a
+   non-executable re-entry path for additional resolution or authority.
+
+This handoff remains pinned to the original review commit for auditability. The
+corrections are published as a later Phase 1 follow-up commit.
+
 Direct references:
 
 - Repository: <https://github.com/Bojimmy/xact-web-sandbox>

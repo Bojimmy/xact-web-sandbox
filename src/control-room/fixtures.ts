@@ -22,7 +22,7 @@ export const scenarios: ControlRoomScenario[] = [
         { label: "Refund limit", value: "$75.00", source: "verified", provenance: "Commerce Policy v3.4" },
       ],
       unresolved: [],
-      conflicts: [{ label: "Commit context", detail: "Refund must return to the original payment rail." }],
+      commitConstraints: [{ label: "Original rail required", detail: "Refund must return to the original payment rail.", condition: "required" }],
     },
     evidence: [
       { id: "ev_101", claim: "Order was delivered six days late", source: "Orders API / delivery record", kind: "derived", boundAt: "10:42:12.006" },
@@ -38,6 +38,7 @@ export const scenarios: ControlRoomScenario[] = [
       baseHash: "8b7c…e21a",
       currentHash: "8b7c…e21a",
     },
+    decision: { finality: "PASSED", label: "Effect may proceed", nextStep: "Select an execution substrate and verify the simulated effect." },
     execution: { selected: "WEBMCP", effect: "refund.create", executed: true, receipt: "rcpt_WM_729A" },
     trace: [
       { phase: "Resolve", outcome: "R3 · U0 · C1", detail: "Facts resolved from governed sources", at: "10:42:12.031", state: "complete" },
@@ -53,7 +54,7 @@ export const scenarios: ControlRoomScenario[] = [
     index: "02",
     label: "Rejected",
     title: "Refund exceeds verified authority",
-    description: "The requested amount conflicts with the actor’s policy limit. The execution router never receives an authorized effect.",
+    description: "The requested amount breaches the actor’s verified policy limit. This is a final denial under the current request, policy, and state.",
     status: "REJECTED",
     request: {
       id: "req_B220",
@@ -69,25 +70,26 @@ export const scenarios: ControlRoomScenario[] = [
         { label: "Requested amount", value: "$120.00", source: "reported", provenance: "Request payload" },
       ],
       unresolved: [],
-      conflicts: [{ label: "Authority exceeded", detail: "$120.00 request is $45.00 above the verified limit." }],
+      commitConstraints: [{ label: "Authority exceeded", detail: "$120.00 request is $45.00 above the verified limit.", condition: "limit" }],
     },
     evidence: [
       { id: "ev_201", claim: "Requested refund is $120.00", source: "Request payload", kind: "reported", boundAt: "11:07:43.111" },
       { id: "ev_202", claim: "Actor limit is $75.00", source: "Commerce Policy v3.4", kind: "verified", boundAt: "11:07:43.119" },
     ],
-    reasoning: { involved: false, summary: "Not invoked", output: "A policy conflict is deterministic; reasoning cannot expand authority." },
+    reasoning: { involved: false, summary: "Not invoked", output: "A policy-limit breach is deterministic; reasoning cannot expand authority." },
     commit: {
-      summary: "Policy authority fails closed before execution.",
+      summary: "Final denial under the current request, policy, and state.",
       policy: "FAIL · $120.00 > $75.00",
       capability: "PASS · refund:create",
       stateBinding: "PASS · candidate state is current",
       baseHash: "921d…110c",
       currentHash: "921d…110c",
     },
+    decision: { finality: "FINAL", label: "Final denial", nextStep: "Change the request, policy, or relevant state before asking Xact for a new decision." },
     execution: { selected: "NONE", effect: "No effect released", executed: false, receipt: "—" },
     trace: [
-      { phase: "Resolve", outcome: "R3 · U0 · C1", detail: "Policy conflict identified", at: "11:07:43.124", state: "complete" },
-      { phase: "Reason", outcome: "Skipped", detail: "Conflict is deterministic", at: "11:07:43.126", state: "complete" },
+      { phase: "Resolve", outcome: "R3 · U0 · C1", detail: "Policy-limit constraint identified", at: "11:07:43.124", state: "complete" },
+      { phase: "Reason", outcome: "Skipped", detail: "Constraint breach is deterministic", at: "11:07:43.126", state: "complete" },
       { phase: "Commit", outcome: "Rejected", detail: "Verified limit exceeded", at: "11:07:43.138", state: "blocked" },
       { phase: "Execute", outcome: "Blocked", detail: "No authorized effect emitted", at: "—", state: "pending" },
       { phase: "Verify", outcome: "Not run", detail: "No effect to verify", at: "—", state: "pending" },
@@ -99,7 +101,7 @@ export const scenarios: ControlRoomScenario[] = [
     index: "03",
     label: "Escalated",
     title: "Semantic judgment requires review",
-    description: "Resolved facts stay separate from one unresolved semantic question. O-Agent output returns as evidence, never as authority.",
+    description: "Additional resolution or authority is required. New governed evidence may re-enter Xact for a new Commit decision.",
     status: "ESCALATED",
     request: {
       id: "req_70EA",
@@ -114,7 +116,7 @@ export const scenarios: ControlRoomScenario[] = [
         { label: "SLA threshold", value: "30 min", source: "verified", provenance: "Enterprise SLA v2.1" },
       ],
       unresolved: [{ label: "Material impairment", detail: "Did the outage materially impair the customer’s scheduled launch?" }],
-      conflicts: [{ label: "Evidence gap", detail: "Customer report and system telemetry establish impact differently." }],
+      commitConstraints: [{ label: "Evidence gap", detail: "Customer report and system telemetry establish impact differently.", condition: "conflict" }],
     },
     evidence: [
       { id: "ev_301", claim: "Service unavailable for 47 minutes", source: "Status telemetry / incident 441", kind: "verified", boundAt: "12:18:02.440" },
@@ -123,13 +125,14 @@ export const scenarios: ControlRoomScenario[] = [
     ],
     reasoning: { involved: true, summary: "Invoked for U1 only", output: "Proposed finding: material impairment is plausible; confidence is not authorization." },
     commit: {
-      summary: "Evidence is structured, but policy requires human approval for this semantic class.",
+      summary: "Not denied: resolve the missing authority, then re-enter Xact for a new Commit decision.",
       policy: "HOLD · reviewer required",
       capability: "PASS · credit:create",
       stateBinding: "PASS · candidate state is current",
       baseHash: "118a…7f02",
       currentHash: "118a…7f02",
     },
+    decision: { finality: "REENTRY_ALLOWED", label: "Re-entry available", nextStep: "Resolve the missing semantics or authority, bind new evidence, and re-enter Xact for a new Commit decision." },
     execution: { selected: "NONE", effect: "Await governed review", executed: false, receipt: "—" },
     trace: [
       { phase: "Resolve", outcome: "R2 · U1 · C1", detail: "Semantic field isolated", at: "12:18:02.467", state: "complete" },
@@ -160,7 +163,7 @@ export const scenarios: ControlRoomScenario[] = [
         { label: "Refund limit", value: "$75.00", source: "verified", provenance: "Commerce Policy v3.4" },
       ],
       unresolved: [{ label: "Charge equivalence", detail: "Do the two payment records represent the same customer intent?" }],
-      conflicts: [{ label: "State drift", detail: "A concurrent refund changed refundable balance from $36.00 to $0.00." }],
+      commitConstraints: [{ label: "State drift", detail: "A concurrent refund changed refundable balance from $36.00 to $0.00.", condition: "freshness" }],
     },
     evidence: [
       { id: "ev_401", claim: "Duplicate $36.00 charge existed", source: "Payments API / ch_991", kind: "verified", boundAt: "14:03:54.014" },
@@ -176,6 +179,7 @@ export const scenarios: ControlRoomScenario[] = [
       baseHash: "ae10…29f1",
       currentHash: "ce44…9a70",
     },
+    decision: { finality: "RERESOLUTION_REQUIRED", label: "Fresh resolution required", nextStep: "Resolve against current state before proposing another candidate." },
     execution: { selected: "NONE", effect: "Candidate discarded", executed: false, receipt: "—" },
     trace: [
       { phase: "Resolve", outcome: "R2 · U1 · C0", detail: "One semantic field isolated", at: "14:03:54.041", state: "complete" },

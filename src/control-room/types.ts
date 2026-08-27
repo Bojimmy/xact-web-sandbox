@@ -1,4 +1,4 @@
-import type { DecisionStatus, FactSource } from "@/src/xact/contracts";
+import type { ConstraintCondition, DecisionStatus, FactSource } from "@/src/xact/contracts";
 import type { ExecutionSubstrate } from "@/src/execution/contracts";
 
 export type ScenarioId = "authorized" | "rejected" | "escalated" | "stale";
@@ -15,6 +15,10 @@ export interface DisplayFact {
 export interface DisplayIssue {
   label: string;
   detail: string;
+}
+
+export interface DisplayConstraint extends DisplayIssue {
+  condition: ConstraintCondition;
 }
 
 export interface EvidenceItem {
@@ -50,7 +54,7 @@ export interface ControlRoomScenario {
   resolution: {
     resolved: DisplayFact[];
     unresolved: DisplayIssue[];
-    conflicts: DisplayIssue[];
+    commitConstraints: DisplayConstraint[];
   };
   evidence: EvidenceItem[];
   reasoning: {
@@ -65,6 +69,11 @@ export interface ControlRoomScenario {
     stateBinding: string;
     baseHash: string;
     currentHash: string;
+  };
+  decision: {
+    finality: "PASSED" | "FINAL" | "REENTRY_ALLOWED" | "RERESOLUTION_REQUIRED";
+    label: string;
+    nextStep: string;
   };
   execution: {
     selected: ExecutionSubstrate | "NONE";

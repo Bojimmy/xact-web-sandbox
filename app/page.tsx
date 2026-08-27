@@ -77,6 +77,10 @@ function ControlRoom({ scenario }: { scenario: ControlRoomScenario }) {
           <span>Commit decision</span>
           <strong>{scenario.status}</strong>
           <small>{scenario.commit.summary}</small>
+          <div className="decision-disposition">
+            <span>{scenario.decision.label}</span>
+            <p>{scenario.decision.nextStep}</p>
+          </div>
         </div>
       </header>
 
@@ -106,9 +110,9 @@ function ControlRoom({ scenario }: { scenario: ControlRoomScenario }) {
               <article className="issue-row" key={item.label}><strong>{item.label}</strong><p>{item.detail}</p></article>
             )) : <EmptyState>No unresolved semantics</EmptyState>}
           </ResolutionColumn>
-          <ResolutionColumn letter="C" title="Commit context" tone="conflict" count={scenario.resolution.conflicts.length}>
-            {scenario.resolution.conflicts.map((item) => (
-              <article className="issue-row" key={item.label}><strong>{item.label}</strong><p>{item.detail}</p></article>
+          <ResolutionColumn letter="C" title="Commit Constraints" tone="constraints" count={scenario.resolution.commitConstraints.length}>
+            {scenario.resolution.commitConstraints.map((item) => (
+              <article className="issue-row" key={item.label}><span className="constraint-condition">{item.condition}</span><strong>{item.label}</strong><p>{item.detail}</p></article>
             ))}
           </ResolutionColumn>
         </div>

@@ -6,9 +6,9 @@
 Request
   ↓
 Resolution
-  ├─ R: resolved facts
-  ├─ U: unresolved semantics
-  └─ C: conflicts / commit-relevant constraints
+  ├─ R: Resolved
+  ├─ U: Unresolved
+  └─ C: Commit Constraints
   ↓
 Reason only if U requires interpretation
   ↓
@@ -58,6 +58,25 @@ The resolution ladder answers **what is unresolved?**
 The execution ladder answers **how should an authorized effect be caused?**
 
 The Commit boundary separates them.
+
+## Canonical R / U / C terminology
+
+- **R — Resolved:** facts established from reported, verified, or derived evidence.
+- **U — Unresolved:** semantics that still require interpretation or additional evidence.
+- **C — Commit Constraints:** conditions that must be evaluated at Commit, including limits, required capabilities, authority requirements, conflicts, and freshness bindings.
+
+Conflict is a condition represented within C. It is not an alternate expansion
+or meaning of the letter C.
+
+## Commit decision semantics
+
+- `AUTHORIZED` — Commit passed; an execution substrate may be selected.
+- `REJECTED` — final denial under the current request, policy, and state. A materially changed request or state requires a new decision.
+- `ESCALATED` — additional resolution or authority is required. The request may re-enter Xact with new governed evidence for a new Commit decision.
+- `STALE` — current state no longer matches the candidate binding. Fresh resolution is required before re-entry.
+
+Only `AUTHORIZED` may proceed to execution. `REJECTED`, `ESCALATED`, and
+`STALE` select no execution substrate.
 
 ## Replaceable interfaces
 
