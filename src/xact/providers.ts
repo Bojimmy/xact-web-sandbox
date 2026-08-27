@@ -1,4 +1,5 @@
 import type { ScenarioPack } from "../scenarios/contracts";
+import type { ExecutionObservation } from "../execution/contracts";
 import type {
   CommitCheck,
   DecisionCandidate,
@@ -60,6 +61,6 @@ export interface VerificationProvider<TInputs, TState, TEffect, TExecutionResult
     after: TState;
     execution: TExecutionResult;
     /** Independent post-execution observation from the selected substrate. */
-    observation: unknown;
+    observation: ExecutionObservation;
   }): ProviderResult<VerificationResult>;
 }

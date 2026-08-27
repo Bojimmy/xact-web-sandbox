@@ -6,6 +6,7 @@ import type {
   ExecutionAdapter,
   ExecutionResult,
   ExecutionValidation,
+  ExecutionObservation,
 } from "./contracts";
 
 /**
@@ -15,7 +16,7 @@ import type {
 export interface WebMCPExecutionClient {
   isAvailable(): boolean;
   requestAction(effect: AuthorizedEffect): Promise<{ receipt: unknown }>;
-  observeAction(receipt: unknown): Promise<unknown>;
+  observeAction(receipt: unknown): Promise<ExecutionObservation>;
 }
 
 /**
@@ -75,17 +76,14 @@ export class WebMCPExecutionAdapter implements ExecutionAdapter {
     }
   }
 
-  async observe(_effect: AuthorizedEffect, execution: ExecutionResult): Promise<unknown> {
+  async observe(_effect: AuthorizedEffect, execution: ExecutionResult): Promise<ExecutionObservation> {
     if (!execution.executed || execution.receipt === undefined) {
-      return { observed: false, reason: "No executed WebMCP receipt to observe." };
+      throw new Error("No executed WebMCP receipt to observe.");
     }
     try {
       return await this.client.observeAction(execution.receipt);
     } catch (cause) {
-      return {
-        observed: false,
-        reason: cause instanceof Error ? cause.message : "WebMCP observation failed.",
-      };
+      throw cause instanceof Error ? cause : new Error("WebMCP observation failed.");
     }
   }
 }

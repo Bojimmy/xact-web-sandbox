@@ -100,15 +100,14 @@ class CommerceSimulationVerificationProvider
     before: CommerceScenarioState;
     after: CommerceScenarioState;
     execution: ExecutionResult;
-    observation: unknown;
+    observation: import("../execution/contracts").ExecutionObservation;
   }): VerificationResult {
     const expectedAmount = candidate.proposedEffect.amount;
     const stateDelta = Number((after.refundedAmount - before.refundedAmount).toFixed(2));
     const receiptBound = Boolean(execution.receipt && after.lastReceipt === String(execution.receipt));
-    const observedReceipt = observation && typeof observation === "object"
-      ? (observation as { receipt?: unknown }).receipt
-      : undefined;
-    const observationBound = observedReceipt === execution.receipt;
+    const observationBound = observation.receipt === execution.receipt
+      && observation.effectFingerprint === stableFingerprint(candidate.proposedEffect)
+      && observation.target === candidate.proposedEffect.target;
     const exactAmount = stateDelta === expectedAmount;
     const forcedMismatch = !candidate.request.inputs.verificationShouldPass;
     const verified = execution.executed && receiptBound && observationBound && exactAmount && !forcedMismatch;
@@ -337,7 +336,7 @@ export class CommerceSimulationEngine {
     };
 
     const selection = await this.router.select(effect, this.executionAdapters);
-    if (!selection.adapter) {
+    if (!selection.adapter || !selection.effect) {
       return this.executionFailed(
         session,
         { executed: false, substrate: session.selectedSubstrate, error: selection.reason },
@@ -347,7 +346,7 @@ export class CommerceSimulationEngine {
 
     const validation = await selection.adapter.validate(
       artifact,
-      effect.payload,
+      selection.effect.payload,
       session.currentStateFingerprint,
     );
     if (!validation.valid) {
@@ -357,7 +356,7 @@ export class CommerceSimulationEngine {
       throw new Error(`Execution validation failed: ${validation.reason ?? "unknown guard failure"}`);
     }
 
-    const execution = await selection.adapter.execute(effect);
+    const execution = await selection.adapter.execute(selection.effect);
     if (!execution.executed) {
       return this.executionFailed(
         session,
@@ -372,7 +371,7 @@ export class CommerceSimulationEngine {
       authorizedCandidate.proposedEffect,
       execution.receipt,
     );
-    const observation = await selection.adapter.observe(effect, execution);
+    const observation = await selection.adapter.observe(selection.effect, execution);
     const checkpoint = this.telemetryProvider.checkpoint();
     const verification = await this.telemetryProvider.measure(
       "VERIFICATION",
@@ -395,6 +394,7 @@ export class CommerceSimulationEngine {
     return {
       ...session,
       phase: verification.verified ? "VERIFIED" : "VERIFICATION_FAILED",
+      selectedSubstrate: execution.substrate,
       currentState: after,
       currentStateFingerprint: commerceScenarioPack.stateFingerprint(after),
       execution,

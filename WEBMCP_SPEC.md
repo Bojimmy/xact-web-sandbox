@@ -60,3 +60,11 @@ Prefer the most deterministic available substrate after Commit authorization:
 `structured/local → WebMCP → DOM/accessibility → Vision → future adapter`
 
 Changing substrate does not itself justify invoking an O-Agent.
+
+## Cross-substrate invariant
+
+The execution router may route one already-authorized payload from WebMCP to
+DOM or Vision when availability changes. It preserves the same
+`AuthorizationArtifact`, effect fingerprint, target, actor, capability, and
+state binding; only the `substrate` on the execution envelope changes. See
+ADR 0007 for the typed observation and fallback contract.
