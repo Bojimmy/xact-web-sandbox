@@ -16,7 +16,7 @@ WebMCP, DOM/browser control, Vision, native APIs, and future adapters provide ex
 
 `Request → Resolve → Reason only if unresolved → Re-entry → Validate → Authorize → Commit → Select execution substrate → Execute → Verify → Audit`
 
-## V1 demos
+## Demonstrations
 
 - Authorized action
 - Policy rejection
@@ -25,15 +25,19 @@ WebMCP, DOM/browser control, Vision, native APIs, and future adapters provide ex
 
 See `PROJECT.md`, `ARCHITECTURE.md`, and `PUBLIC_BOUNDARY.md` before implementation.
 
-## Phase 1 — Xact Control Room
+## Phase 2 — Mutable Scenario Engine
 
-The first application surface is a single-page, deterministic Control Room for
-the Commerce V1 scenario pack. Switch between `AUTHORIZED`, `REJECTED`,
-`ESCALATED`, and `STALE` to inspect the complete public-safe path from request
-and R/U/C through evidence, Commit, execution routing, trace, and verification.
+The Control Room now runs a deterministic, public-safe Commerce V1 runtime.
+Change the request or simulated authority state, resolve a state-bound
+candidate, mutate current state, re-enter with structured evidence when U
+requires interpretation, and request a new Commit decision.
 
-The fixtures are presentation data only. They do not implement, imitate, or
-expose production Xact resolution or authorization internals.
+The happy path selects a simulated WebMCP substrate only after `AUTHORIZED`,
+applies a simulated effect, and verifies the observed result. Every
+non-authorized decision selects `NONE` and cannot execute.
+
+The runtime contains explicit demonstration rules only. It does not implement,
+imitate, or expose production Xact resolution or authorization internals.
 
 ```bash
 npm install

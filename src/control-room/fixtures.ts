@@ -22,7 +22,7 @@ export const scenarios: ControlRoomScenario[] = [
         { label: "Refund limit", value: "$75.00", source: "verified", provenance: "Commerce Policy v3.4" },
       ],
       unresolved: [],
-      commitConstraints: [{ label: "Original rail required", detail: "Refund must return to the original payment rail.", condition: "required" }],
+      commitConstraints: [{ label: "Original rail required", detail: "Refund must return to the original payment rail.", condition: "required", satisfied: true }],
     },
     evidence: [
       { id: "ev_101", claim: "Order was delivered six days late", source: "Orders API / delivery record", kind: "derived", boundAt: "10:42:12.006" },
@@ -33,6 +33,7 @@ export const scenarios: ControlRoomScenario[] = [
     commit: {
       summary: "Authority, evidence, and state binding all pass.",
       policy: "PASS · $42.00 ≤ $75.00",
+      authority: "PASS · actor authority allowed",
       capability: "PASS · refund:create",
       stateBinding: "PASS · candidate state is current",
       baseHash: "8b7c…e21a",
@@ -70,7 +71,7 @@ export const scenarios: ControlRoomScenario[] = [
         { label: "Requested amount", value: "$120.00", source: "reported", provenance: "Request payload" },
       ],
       unresolved: [],
-      commitConstraints: [{ label: "Authority exceeded", detail: "$120.00 request is $45.00 above the verified limit.", condition: "limit" }],
+      commitConstraints: [{ label: "Authority exceeded", detail: "$120.00 request is $45.00 above the verified limit.", condition: "limit", satisfied: false }],
     },
     evidence: [
       { id: "ev_201", claim: "Requested refund is $120.00", source: "Request payload", kind: "reported", boundAt: "11:07:43.111" },
@@ -80,6 +81,7 @@ export const scenarios: ControlRoomScenario[] = [
     commit: {
       summary: "Final denial under the current request, policy, and state.",
       policy: "FAIL · $120.00 > $75.00",
+      authority: "PASS · actor authority allowed",
       capability: "PASS · refund:create",
       stateBinding: "PASS · candidate state is current",
       baseHash: "921d…110c",
@@ -116,7 +118,7 @@ export const scenarios: ControlRoomScenario[] = [
         { label: "SLA threshold", value: "30 min", source: "verified", provenance: "Enterprise SLA v2.1" },
       ],
       unresolved: [{ label: "Material impairment", detail: "Did the outage materially impair the customer’s scheduled launch?" }],
-      commitConstraints: [{ label: "Evidence gap", detail: "Customer report and system telemetry establish impact differently.", condition: "conflict" }],
+      commitConstraints: [{ label: "Evidence gap", detail: "Customer report and system telemetry establish impact differently.", condition: "conflict", satisfied: false }],
     },
     evidence: [
       { id: "ev_301", claim: "Service unavailable for 47 minutes", source: "Status telemetry / incident 441", kind: "verified", boundAt: "12:18:02.440" },
@@ -127,6 +129,7 @@ export const scenarios: ControlRoomScenario[] = [
     commit: {
       summary: "Not denied: resolve the missing authority, then re-enter Xact for a new Commit decision.",
       policy: "HOLD · reviewer required",
+      authority: "HOLD · additional authority required",
       capability: "PASS · credit:create",
       stateBinding: "PASS · candidate state is current",
       baseHash: "118a…7f02",
@@ -163,7 +166,7 @@ export const scenarios: ControlRoomScenario[] = [
         { label: "Refund limit", value: "$75.00", source: "verified", provenance: "Commerce Policy v3.4" },
       ],
       unresolved: [{ label: "Charge equivalence", detail: "Do the two payment records represent the same customer intent?" }],
-      commitConstraints: [{ label: "State drift", detail: "A concurrent refund changed refundable balance from $36.00 to $0.00.", condition: "freshness" }],
+      commitConstraints: [{ label: "State drift", detail: "A concurrent refund changed refundable balance from $36.00 to $0.00.", condition: "freshness", satisfied: false }],
     },
     evidence: [
       { id: "ev_401", claim: "Duplicate $36.00 charge existed", source: "Payments API / ch_991", kind: "verified", boundAt: "14:03:54.014" },
@@ -174,6 +177,7 @@ export const scenarios: ControlRoomScenario[] = [
     commit: {
       summary: "Candidate binding no longer matches current state. Effect is discarded.",
       policy: "PASS · amount within limit",
+      authority: "PASS · actor authority allowed",
       capability: "PASS · refund:create",
       stateBinding: "FAIL · base hash mismatch",
       baseHash: "ae10…29f1",

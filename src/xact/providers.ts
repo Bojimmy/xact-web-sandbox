@@ -1,17 +1,55 @@
-import type { DecisionRequest, DecisionResult } from "./contracts";
+import type { ScenarioPack } from "../scenarios/contracts";
+import type {
+  CommitCheck,
+  DecisionCandidate,
+  DecisionResult,
+  EvidenceRecord,
+} from "./contracts";
 
-export interface DecisionProvider {
-  evaluate(request: DecisionRequest): Promise<DecisionResult>;
+export type ProviderResult<T> = T | Promise<T>;
+
+export interface DecisionProvider<TInputs, TState, TEffect> {
+  resolve(inputs: TInputs, state: TState): ProviderResult<DecisionCandidate<TInputs, TEffect>>;
+  reenter(
+    candidate: DecisionCandidate<TInputs, TEffect>,
+    currentState: TState,
+    evidence: EvidenceRecord[],
+  ): ProviderResult<DecisionCandidate<TInputs, TEffect>>;
+  commit(
+    candidate: DecisionCandidate<TInputs, TEffect>,
+    currentState: TState,
+  ): ProviderResult<DecisionResult<TInputs, TEffect>>;
 }
 
-export interface PolicyProvider {
-  authorize(input: unknown): Promise<{ allowed: boolean; reason?: string }>;
+export interface AuthorizationAssessment {
+  outcome: "ALLOWED" | "DENIED" | "UNKNOWN";
+  reason: string;
+  checks: CommitCheck[];
 }
 
-export interface EvidenceProvider {
-  collect(input: unknown): Promise<unknown[]>;
+export interface PolicyProvider<TInputs, TState, TEffect> {
+  authorize(input: {
+    candidate: DecisionCandidate<TInputs, TEffect>;
+    currentState: TState;
+  }): ProviderResult<AuthorizationAssessment>;
 }
 
-export interface VerificationProvider {
-  verify(input: unknown): Promise<{ verified: boolean; reason?: string }>;
+export interface EvidenceProvider<TInputs, TEffect> {
+  collect(candidate: DecisionCandidate<TInputs, TEffect>): ProviderResult<EvidenceRecord[]>;
+}
+
+export interface VerificationResult {
+  verified: boolean;
+  reason: string;
+  checks: string[];
+}
+
+export interface VerificationProvider<TInputs, TState, TEffect, TExecutionResult> {
+  verify(input: {
+    pack: ScenarioPack<TInputs, TState, TEffect>;
+    candidate: DecisionCandidate<TInputs, TEffect>;
+    before: TState;
+    after: TState;
+    execution: TExecutionResult;
+  }): ProviderResult<VerificationResult>;
 }

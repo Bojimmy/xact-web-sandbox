@@ -3,7 +3,8 @@ import type { ExecutionSubstrate } from "@/src/execution/contracts";
 
 export type ScenarioId = "authorized" | "rejected" | "escalated" | "stale";
 export type StepState = "complete" | "active" | "blocked" | "pending";
-export type VerificationState = "VERIFIED" | "NOT_RUN" | "BLOCKED";
+export type VerificationState = "VERIFIED" | "FAILED" | "NOT_RUN" | "BLOCKED";
+export type ControlRoomStatus = DecisionStatus | "PENDING";
 
 export interface DisplayFact {
   label: string;
@@ -19,6 +20,7 @@ export interface DisplayIssue {
 
 export interface DisplayConstraint extends DisplayIssue {
   condition: ConstraintCondition;
+  satisfied?: boolean | "unknown";
 }
 
 export interface EvidenceItem {
@@ -38,12 +40,12 @@ export interface TraceStep {
 }
 
 export interface ControlRoomScenario {
-  id: ScenarioId;
+  id: ScenarioId | "runtime";
   index: string;
   label: string;
   title: string;
   description: string;
-  status: DecisionStatus;
+  status: ControlRoomStatus;
   request: {
     id: string;
     intent: string;
@@ -65,13 +67,14 @@ export interface ControlRoomScenario {
   commit: {
     summary: string;
     policy: string;
+    authority: string;
     capability: string;
     stateBinding: string;
     baseHash: string;
     currentHash: string;
   };
   decision: {
-    finality: "PASSED" | "FINAL" | "REENTRY_ALLOWED" | "RERESOLUTION_REQUIRED";
+    finality: "PENDING" | "PASSED" | "FINAL" | "REENTRY_ALLOWED" | "RERESOLUTION_REQUIRED";
     label: string;
     nextStep: string;
   };

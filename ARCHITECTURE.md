@@ -89,6 +89,36 @@ Only `AUTHORIZED` may proceed to execution. `REJECTED`, `ESCALATED`, and
 
 The challenge build uses a public-safe resolution simulation. Production Xact components must be replaceable behind the same contracts without redesigning the application.
 
+## Phase 2 runtime
+
+```text
+Commerce ScenarioPack
+  ↓
+SimulationDecisionProvider.resolve
+  ↓
+state-bound DecisionCandidate (R / U / C + evidence)
+  ↓
+optional structured reasoning evidence → re-entry
+  ↓
+SimulationDecisionProvider.commit(current state)
+  ↓
+DecisionResult
+  ├─ AUTHORIZED → SimulatedExecutionAdapter → VerificationProvider
+  └─ REJECTED / ESCALATED / STALE → NONE
+  ↓
+Control Room projection
+```
+
+`SimulationDecisionProvider` is a replaceable clean-room adapter. Scenario
+rules are explicit demo data owned by `ScenarioPack`; the provider does not
+claim to reproduce production resolution, scoring, matching, or authorization.
+
+Resolve produces a candidate bound to a state hash. Commit independently reads
+current state and evaluates freshness before semantic re-entry or authority.
+Structured reasoning evidence may reduce U, but a new Commit decision remains
+mandatory. Execution receives only an already-authorized effect, and
+verification compares the observed post-effect state with that exact candidate.
+
 ## Architectural non-negotiables
 
 - Tool access is not authority.

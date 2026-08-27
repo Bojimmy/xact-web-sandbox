@@ -2,15 +2,25 @@
 
 ## Commerce V1
 
+Commerce V1 is a mutable `ScenarioPack` with an explicit demonstration limit,
+simulated authority and capability states, state hashing, a simulated effect,
+and exact post-effect verification. These rules are public fixtures, not
+production policy.
+
 ### 1. Authorized refund
 Valid request, verified policy, current state, authorized effect.
 
 Expected outcome: `AUTHORIZED → EXECUTED → VERIFIED`.
 
+Control Room path: load **Allowed**, Resolve, Commit, then Execute + verify.
+
 ### 2. Excess refund
 Requested refund exceeds verified policy authority.
 
 Expected outcome: `REJECTED`.
+
+Control Room path: change an allowed amount to an excessive amount, Resolve a
+new candidate, and Commit. The previous decision is invalidated on mutation.
 
 ### 3. Semantic escalation
 Most facts resolve deterministically. Only one semantic field is unresolved.
@@ -18,11 +28,24 @@ Most facts resolve deterministically. Only one semantic field is unresolved.
 Expected flow:
 `Resolve R → isolate U → O-Agent → structured evidence → Xact re-entry → independent validation → Commit`.
 
+Control Room path: load **Ambiguous**, Resolve, Commit to `ESCALATED`, add
+structured evidence and re-enter, then request a new Commit decision.
+
 ### 4. Stale-state rejection
 Reasoning occurs against valid state. Underlying state changes before Commit.
 
 Expected flow:
 `base_hash mismatch → STALE → no effect`.
+
+Control Room path: Resolve, change current state, then Commit. Freshness is
+checked against the current state and no execution substrate is selected.
+
+### 5. Unknown authority
+
+The simulated authority registry cannot establish authority.
+
+Expected outcome: `ESCALATED → NONE`; execution remains blocked until governed
+authority evidence can produce a newly resolved candidate and Commit decision.
 
 ## Expansion packs
 
