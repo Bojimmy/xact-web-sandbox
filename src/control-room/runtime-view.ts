@@ -36,6 +36,7 @@ function formatCheck(check: CommitCheck | undefined, fallback: string): string {
 }
 
 function titleFor(status: ControlRoomStatus, phase: CommerceSession["phase"]): string {
+  if (phase === "EXECUTION_FAILED") return "Authorized candidate did not execute";
   if (status === "AUTHORIZED") return "Current candidate is authorized";
   if (status === "REJECTED") return "Current request is finally denied";
   if (status === "ESCALATED") return "Additional evidence or authority required";
@@ -47,6 +48,13 @@ function titleFor(status: ControlRoomStatus, phase: CommerceSession["phase"]): s
 
 function decisionCopy(status: ControlRoomStatus, session: CommerceSession) {
   if (status === "AUTHORIZED") {
+    if (session.phase === "EXECUTION_FAILED") {
+      return {
+        finality: "PENDING" as const,
+        label: "Execution failed closed",
+        nextStep: "No effect was caused. Review the execution error and obtain a fresh Commit decision before retrying.",
+      };
+    }
     return {
       finality: "PASSED" as const,
       label: session.verification?.verified ? "Effect verified" : "Effect may proceed",
@@ -178,7 +186,13 @@ export function toControlRoomScenario(session: CommerceSession): ControlRoomScen
           summary: session.verification.reason,
           checks: session.verification.checks,
         }
-      : {
+      : session.phase === "EXECUTION_FAILED"
+        ? {
+            state: "FAILED",
+            summary: session.execution?.error ?? "Execution failed before an effect could be observed.",
+            checks: ["No execution receipt", "No simulated effect applied", "Verification success withheld"],
+          }
+        : {
           state: status === "REJECTED" || status === "STALE" ? "BLOCKED" : "NOT_RUN",
           summary: status === "AUTHORIZED"
             ? "Authorized effect has not executed yet."

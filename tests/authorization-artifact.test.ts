@@ -177,7 +177,7 @@ test("router selects deterministically by priority and explains the fallback", a
 });
 
 test("router fails closed when no adapter can handle the effect", async () => {
-  const { store, issuer } = setup();
+  const { issuer } = setup();
   const router = new DeterministicExecutionRouter();
   const artifact = issuer.issue({
     commitId: "c:1",

@@ -94,19 +94,24 @@ class CommerceSimulationEvidenceProvider
 class CommerceSimulationVerificationProvider
   implements VerificationProvider<CommerceScenarioInputs, CommerceScenarioState, RefundEffect, ExecutionResult>
 {
-  verify({ candidate, before, after, execution }: {
+  verify({ candidate, before, after, execution, observation }: {
     pack: typeof commerceScenarioPack;
     candidate: DecisionCandidate<CommerceScenarioInputs, RefundEffect>;
     before: CommerceScenarioState;
     after: CommerceScenarioState;
     execution: ExecutionResult;
+    observation: unknown;
   }): VerificationResult {
     const expectedAmount = candidate.proposedEffect.amount;
     const stateDelta = Number((after.refundedAmount - before.refundedAmount).toFixed(2));
     const receiptBound = Boolean(execution.receipt && after.lastReceipt === String(execution.receipt));
+    const observedReceipt = observation && typeof observation === "object"
+      ? (observation as { receipt?: unknown }).receipt
+      : undefined;
+    const observationBound = observedReceipt === execution.receipt;
     const exactAmount = stateDelta === expectedAmount;
     const forcedMismatch = !candidate.request.inputs.verificationShouldPass;
-    const verified = execution.executed && receiptBound && exactAmount && !forcedMismatch;
+    const verified = execution.executed && receiptBound && observationBound && exactAmount && !forcedMismatch;
 
     return {
       verified,
@@ -115,6 +120,7 @@ class CommerceSimulationVerificationProvider
         : "Execution occurred, but exact post-effect verification did not pass.",
       checks: [
         `Execution receipt ${receiptBound ? "bound" : "missing"}`,
+        `Observed receipt ${observationBound ? "matches" : "does not match"} execution record`,
         `Refund delta ${exactAmount ? "matches" : "does not match"} $${expectedAmount.toFixed(2)}`,
         forcedMismatch ? "Forced mismatch fixture is active" : "No forced mismatch",
       ],
@@ -307,6 +313,9 @@ export class CommerceSimulationEngine {
     if (session.decision?.status !== "AUTHORIZED" || session.selectedSubstrate === "NONE") {
       throw new Error("Execution is blocked until Commit returns AUTHORIZED.");
     }
+    if (session.execution) {
+      throw new Error("This AUTHORIZED decision has already been presented to execution; a fresh Commit decision is required.");
+    }
 
     if (
       session.currentStateFingerprint !== session.decision.currentStateFingerprint
@@ -329,7 +338,11 @@ export class CommerceSimulationEngine {
 
     const selection = await this.router.select(effect, this.executionAdapters);
     if (!selection.adapter) {
-      throw new Error(`No capable execution adapter: ${selection.reason}`);
+      return this.executionFailed(
+        session,
+        { executed: false, substrate: session.selectedSubstrate, error: selection.reason },
+        `Execution routing failed closed: ${selection.reason}`,
+      );
     }
 
     const validation = await selection.adapter.validate(
@@ -338,12 +351,19 @@ export class CommerceSimulationEngine {
       session.currentStateFingerprint,
     );
     if (!validation.valid) {
-      throw new Error(`Execution validation failed: ${validation.reason}`);
+      // A guard rejection is not an adapter runtime failure. It is a hard
+      // consequence-boundary block, so callers cannot mistake it for an
+      // attempted execution with an ambiguous outcome.
+      throw new Error(`Execution validation failed: ${validation.reason ?? "unknown guard failure"}`);
     }
 
     const execution = await selection.adapter.execute(effect);
     if (!execution.executed) {
-      throw new Error(execution.error ?? "Simulated execution failed.");
+      return this.executionFailed(
+        session,
+        execution,
+        `Execution adapter caused no effect: ${execution.error ?? "unknown adapter failure"}`,
+      );
     }
 
     const before = session.currentState;
@@ -352,7 +372,7 @@ export class CommerceSimulationEngine {
       authorizedCandidate.proposedEffect,
       execution.receipt,
     );
-    await selection.adapter.observe(effect, execution);
+    const observation = await selection.adapter.observe(effect, execution);
     const checkpoint = this.telemetryProvider.checkpoint();
     const verification = await this.telemetryProvider.measure(
       "VERIFICATION",
@@ -362,6 +382,7 @@ export class CommerceSimulationEngine {
         before,
         after,
         execution,
+        observation,
       }),
     );
     const executedTrace = this.append(
@@ -395,6 +416,25 @@ export class CommerceSimulationEngine {
     detail: string,
   ): RuntimeTraceEvent[] {
     return [...trace, { phase, outcome, detail, sequence: trace.length + 1 }];
+  }
+
+  /**
+   * An execution failure is deliberately not a new Commit decision. The prior
+   * AUTHORIZED decision remains inspectable, while the runtime records that no
+   * effect was caused and no verification success may be claimed.
+   */
+  private executionFailed(
+    session: CommerceSession,
+    execution: ExecutionResult,
+    detail: string,
+  ): CommerceSession {
+    return {
+      ...session,
+      phase: "EXECUTION_FAILED",
+      execution,
+      verification: undefined,
+      trace: this.append(session.trace, "Execute", "FAILED", detail),
+    };
   }
 
   private captureTelemetry(session: CommerceSession, checkpoint: number) {

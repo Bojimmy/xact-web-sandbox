@@ -59,5 +59,7 @@ export interface VerificationProvider<TInputs, TState, TEffect, TExecutionResult
     before: TState;
     after: TState;
     execution: TExecutionResult;
+    /** Independent post-execution observation from the selected substrate. */
+    observation: unknown;
   }): ProviderResult<VerificationResult>;
 }
