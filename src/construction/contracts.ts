@@ -89,3 +89,21 @@ export interface ConstructionRun {
   reasoningOperations: ConstructionOperation[];
   trace: string[];
 }
+
+export interface DeterministicScaleRun {
+  kind: "LIVE_CONSTRUCTION_SCALE_WORKLOAD";
+  totalOperations: number;
+  dependencyStages: number;
+  configuredWorkers: number;
+  peakActiveWorkers: number;
+  averageActiveWorkers: number;
+  schedulerTimeMs: number;
+  workerComputeTimeMs: number;
+  throughputOperationsPerSecond: number;
+  checksum: number;
+  environment: {
+    runtime: "BROWSER_WEB_WORKERS";
+    hardwareConcurrency?: number;
+    userAgent?: string;
+  };
+}
