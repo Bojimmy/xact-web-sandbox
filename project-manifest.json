@@ -1,0 +1,14 @@
+{
+  "project": "Xact Web Sandbox",
+  "created": "2026-08-27",
+  "phase": "Foundation",
+  "canonical_docs": [
+    "PROJECT.md",
+    "ARCHITECTURE.md",
+    "PUBLIC_BOUNDARY.md",
+    "AGENTS.md",
+    "WEBMCP_SPEC.md",
+    "SCENARIOS.md"
+  ],
+  "implementation_start": "IMPLEMENTATION_BRIEF.md"
+}
