@@ -56,8 +56,8 @@ export class SimulationDecisionProvider<TInputs, TState, TEffect>
     candidate: DecisionCandidate<TInputs, TEffect>,
     currentState: TState,
   ): Promise<DecisionResult<TInputs, TEffect>> {
-    const currentStateHash = this.pack.stateHash(currentState);
-    const freshnessCheck: CommitCheck = currentStateHash === candidate.baseStateHash
+    const currentStateFingerprint = this.pack.stateFingerprint(currentState);
+    const freshnessCheck: CommitCheck = currentStateFingerprint === candidate.baseStateFingerprint
       ? { key: "freshness", outcome: "PASS", detail: "Current state matches the candidate binding." }
       : { key: "freshness", outcome: "FAIL", detail: "Current state no longer matches the state used at Resolve." };
     const resolutionCheck: CommitCheck = candidate.resolution.unresolved.length
@@ -68,7 +68,7 @@ export class SimulationDecisionProvider<TInputs, TState, TEffect>
       return this.result(
         "STALE",
         candidate,
-        currentStateHash,
+        currentStateFingerprint,
         "Candidate state is stale. Fresh resolution is required before another Commit decision.",
         [freshnessCheck, resolutionCheck],
         true,
@@ -79,7 +79,7 @@ export class SimulationDecisionProvider<TInputs, TState, TEffect>
       return this.result(
         "ESCALATED",
         candidate,
-        currentStateHash,
+        currentStateFingerprint,
         "Additional resolution is required. Structured evidence may re-enter Xact for a new Commit decision.",
         [freshnessCheck, resolutionCheck],
         true,
@@ -96,7 +96,7 @@ export class SimulationDecisionProvider<TInputs, TState, TEffect>
       return this.result(
         "ESCALATED",
         candidate,
-        currentStateHash,
+        currentStateFingerprint,
         "Authority is unknown and fails closed. Additional authority evidence may re-enter Xact.",
         checks,
         true,
@@ -107,7 +107,7 @@ export class SimulationDecisionProvider<TInputs, TState, TEffect>
       return this.result(
         "REJECTED",
         candidate,
-        currentStateHash,
+        currentStateFingerprint,
         assessment.reason,
         checks,
         false,
@@ -117,7 +117,7 @@ export class SimulationDecisionProvider<TInputs, TState, TEffect>
     return this.result(
       "AUTHORIZED",
       candidate,
-      currentStateHash,
+      currentStateFingerprint,
       "All Commit checks pass against current state.",
       checks,
       false,
@@ -136,17 +136,17 @@ export class SimulationDecisionProvider<TInputs, TState, TEffect>
       state,
       [...resolutionEvidence, ...reasoningEvidence],
     );
-    const stateHash = this.pack.stateHash(state);
+    const stateFingerprint = this.pack.stateFingerprint(state);
 
     return {
       candidateId: `candidate:${this.pack.id}:v${this.pack.stateVersion(state)}:r${reentryCount}`,
       request: {
         scenarioId: this.pack.id,
-        intent: "Issue a refund under simulated Commerce V1 policy",
+        intent: this.pack.intent(inputs),
         inputs,
         proposedEffect: output.proposedEffect,
       },
-      baseStateHash: stateHash,
+      baseStateFingerprint: stateFingerprint,
       baseStateVersion: this.pack.stateVersion(state),
       resolution: output.resolution,
       evidence: output.evidence,
@@ -166,7 +166,7 @@ export class SimulationDecisionProvider<TInputs, TState, TEffect>
   private result(
     status: DecisionResult<TInputs, TEffect>["status"],
     candidate: DecisionCandidate<TInputs, TEffect>,
-    currentStateHash: string,
+    currentStateFingerprint: string,
     reason: string,
     checks: CommitCheck[],
     reentryAllowed: boolean,
@@ -178,7 +178,7 @@ export class SimulationDecisionProvider<TInputs, TState, TEffect>
       evidence: candidate.evidence,
       reason,
       checks,
-      currentStateHash,
+      currentStateFingerprint,
       reentryAllowed,
     };
   }

@@ -103,7 +103,8 @@ optional structured reasoning evidence → re-entry
 SimulationDecisionProvider.commit(current state)
   ↓
 DecisionResult
-  ├─ AUTHORIZED → SimulatedExecutionAdapter → VerificationProvider
+  ├─ AUTHORIZED → ExecutionRouter → SimulatedExecutionAdapter | WebMCPExecutionAdapter
+  │                  → independent observation → VerificationProvider
   └─ REJECTED / ESCALATED / STALE → NONE
   ↓
 Control Room projection

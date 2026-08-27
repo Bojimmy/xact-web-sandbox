@@ -34,7 +34,7 @@ test("authorization requires an explicit verified effect", () => {
 
 test("stale candidates fail the state binding and never execute", () => {
   const stale = scenarioById.stale;
-  assert.notEqual(stale.commit.baseHash, stale.commit.currentHash);
+  assert.notEqual(stale.commit.baseFingerprint, stale.commit.currentFingerprint);
   assert.match(stale.commit.stateBinding, /^FAIL/);
   assert.equal(stale.execution.executed, false);
 });

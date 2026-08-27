@@ -30,6 +30,29 @@ A WebMCP invocation may:
 
 A WebMCP invocation must never self-authorize a consequential effect.
 
+## Phase 3 transport contract
+
+`WebMCPExecutionAdapter` is a public, replaceable `ExecutionAdapter`. Before
+calling a browser tool it independently validates the exact
+`AuthorizationArtifact`; it atomically consumes that artifact's nonce directly
+before the transport request. WebMCP availability is capability information,
+not authority information.
+
+The browser client uses feature-detected `document.modelContext` and two
+page-provided tools:
+
+- `request_action({ authorizationArtifact, effect })` returns an execution receipt.
+- `get_execution_observation({ receipt })` returns the page's actual execution record.
+
+Both tools are beneath Commit. A page must not implement either tool as a
+self-authorizing escape hatch. Missing `modelContext`, missing tools, a missing
+receipt, or a transport exception means **no execution**. The runtime records
+the failure, applies no effect, and cannot report verification success.
+
+The default Control Room remains simulated. A live WebMCP demonstration needs
+a WebMCP-enabled, origin-isolated browser plus a page that registers these
+tools; the sandbox never treats an unavailable browser as a successful effect.
+
 ## Execution routing
 
 Prefer the most deterministic available substrate after Commit authorization:

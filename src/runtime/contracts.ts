@@ -11,6 +11,7 @@ export type RuntimePhase =
   | "REJECTED"
   | "ESCALATED"
   | "STALE"
+  | "EXECUTION_FAILED"
   | "VERIFIED"
   | "VERIFICATION_FAILED";
 
@@ -25,7 +26,7 @@ export interface SimulationSession<TInputs, TState, TEffect> {
   phase: RuntimePhase;
   inputs: TInputs;
   currentState: TState;
-  currentStateHash: string;
+  currentStateFingerprint: string;
   candidate?: DecisionCandidate<TInputs, TEffect>;
   decision?: DecisionResult<TInputs, TEffect>;
   selectedSubstrate: ExecutionSubstrate | "NONE";

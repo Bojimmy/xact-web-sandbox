@@ -41,6 +41,8 @@ export const commerceScenarioPack: ScenarioPack<
   label: "Commerce V1 / Mutable refund",
   preferredSubstrate,
 
+  intent: () => "Issue a refund under simulated Commerce V1 policy",
+
   createInitialInputs: () => ({
     refundAmount: 42,
     policyLimit: 75,
@@ -56,7 +58,7 @@ export const commerceScenarioPack: ScenarioPack<
     refundedAmount: 0,
   }),
 
-  stateHash: (state) =>
+  stateFingerprint: (state) =>
     `commerce:v${state.version}:balance=${state.refundableBalance.toFixed(2)}:refunded=${state.refundedAmount.toFixed(2)}`,
 
   stateVersion: (state) => state.version,
@@ -164,7 +166,7 @@ export const commerceScenarioPack: ScenarioPack<
         claim: `Refundable balance is ${money(state.refundableBalance)} at state v${state.version}.`,
         source: "Mutable scenario state",
         kind: "verified",
-        provenance: commerceScenarioPack.stateHash(state),
+        provenance: commerceScenarioPack.stateFingerprint(state),
       },
     ];
 

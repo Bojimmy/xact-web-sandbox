@@ -59,7 +59,7 @@ export interface DecisionRequest<TInputs = unknown> {
 export interface DecisionCandidate<TInputs = unknown, TEffect = unknown> {
   candidateId: string;
   request: DecisionRequest<TInputs>;
-  baseStateHash: string;
+  baseStateFingerprint: string;
   baseStateVersion: number;
   resolution: ResolutionState;
   evidence: EvidenceRecord[];
@@ -82,6 +82,24 @@ export interface DecisionResult<TInputs = unknown, TEffect = unknown> {
   evidence: EvidenceRecord[];
   reason: string;
   checks: CommitCheck[];
-  currentStateHash: string;
+  currentStateFingerprint: string;
   reentryAllowed: boolean;
+  /** Present iff status === "AUTHORIZED". Bounded evidence of one specific authorized consequence. */
+  artifact?: AuthorizationArtifact;
+}
+
+/**
+ * A bounded evidence record emitted by Commit and independently validated by
+ * execution. Deliberately not a "token" (no bearer semantics): it binds one
+ * authorized consequence to actor, effect, state, and lifetime.
+ */
+export interface AuthorizationArtifact {
+  commitId: string;
+  effectFingerprint: string;
+  baseStateFingerprint: string;
+  actor: string;
+  capability: string;
+  nonce: string;
+  issuedAtEpochMs: number;
+  expiresAtEpochMs: number;
 }
