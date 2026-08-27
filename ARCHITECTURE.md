@@ -174,3 +174,8 @@ it does not generate arbitrary code or receive shell/file authority. Its
 dependency-aware scheduler runs only authorized operations and separately
 measures worker utilization, dependency stages, critical path, scheduler time,
 and end-to-end verification. See ADR 0009.
+
+Experiment 6A.2 (ADR 0010) is deliberately separate from this structural
+proof: a browser Web Worker scale workload measures real deterministic work on
+a 10,011-operation, 47-stage graph. It may confirm, limit, or falsify the
+browser-worker scaling hypothesis without changing core Xact behavior.

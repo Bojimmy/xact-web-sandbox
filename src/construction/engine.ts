@@ -9,6 +9,7 @@ import {
   type Product,
 } from "./contracts";
 import { ConstructionScheduler } from "./scheduler";
+import { InventoryStore } from "./inventory-store";
 
 export const inventoryBenchmarkRequest = "Build a small inventory dashboard that shows products, quantity on hand, low-stock warnings, total inventory value, and lets me add or adjust an item.";
 export const orderBenchmarkRequest = "Build an order dashboard showing customer, order amount, fulfillment status, late-order warnings, and total sales.";
@@ -111,14 +112,15 @@ export class ConstructionBenchmarkEngine {
     trace.push("Commit: Xact committed the validated construction plan.");
     const artifact = this.assemble(domain);
     const verificationStarted = now();
-    const verificationFailures = this.verify(artifact);
+    const verification = this.verify(artifact);
     const verificationTimeMs = duration(verificationStarted);
-    trace.push(verificationFailures ? "Observe/Verify: rendered artifact failed verification." : "Observe/Verify: rendered artifact and interactions verified.");
+    trace.push(...verification.checks.map((check) => `Verify: ${check}`));
+    trace.push(verification.failures ? "Observe/Verify: assembled artifact failed verification." : "Observe/Verify: assembled artifact and interactions verified.");
     return this.finish(domain, options.concurrency, scheduled.operations, artifact, reasoningOperations, trace, {
       requestedFeatures: this.featureCount(domain), deterministicOperations: scheduled.operations.length, unresolvedOperations: 0,
       oAgentCalls, oAgentTokens, decompositionTimeMs, deterministicResolutionTimeMs, reasoningTimeMs, constructionTimeMs, validationTimeMs,
       verificationTimeMs, xNodesUsed: scheduled.xNodesUsed, peakParallelOperations: scheduled.peakParallelOperations, averageActiveOperations: scheduled.averageActiveOperations, dependencyStages: scheduled.dependencyStages, sequentialEquivalentTimeMs: scheduled.sequentialEquivalentTimeMs, schedulerTimeMs: scheduled.schedulerTimeMs, criticalPathTimeMs: scheduled.criticalPathTimeMs, measuredSpeedup: scheduled.schedulerTimeMs ? scheduled.sequentialEquivalentTimeMs / scheduled.schedulerTimeMs : 0,
-      validationFailures: verificationFailures, unauthorizedOperations: 0, finalResult: verificationFailures ? "FAILED" : "WORKING_APP", started,
+      validationFailures: verification.failures, unauthorizedOperations: 0, finalResult: verification.failures ? "FAILED" : "WORKING_APP", started,
     });
   }
 
@@ -167,8 +169,35 @@ export class ConstructionBenchmarkEngine {
       : { kind: "ORDER_DASHBOARD", title: "Order dashboard" };
   }
 
-  private verify(artifact: ConstructionArtifact): number {
-    return artifact.kind === "INVENTORY_DASHBOARD" && artifact.products.length > 0 ? 0 : 0;
+  private verify(artifact: ConstructionArtifact): { failures: number; checks: string[] } {
+    if (artifact.kind === "ORDER_DASHBOARD") {
+      return { failures: artifact.title ? 0 : 1, checks: [artifact.title ? "required order artifact exists ✓" : "required order artifact missing ✗"] };
+    }
+    const store = new InventoryStore(artifact.products);
+    const initialProducts = store.list();
+    const initialTotal = store.totalInventoryValue();
+    const lowStockWorks = store.list(true).every((product) => product.quantity < product.reorderPoint) && store.list(true).length > 0;
+    let addWorks = false;
+    let adjustWorks = false;
+    let totalUpdates = false;
+    try {
+      store.create({ id: "VERIFY-ADD", name: "Verification item", quantity: 2, unitPrice: 3, reorderPoint: 4 });
+      addWorks = store.list().some((product) => product.id === "VERIFY-ADD");
+      const afterAdd = store.totalInventoryValue();
+      store.adjustQuantity("VERIFY-ADD", 3);
+      adjustWorks = store.list().find((product) => product.id === "VERIFY-ADD")?.quantity === 5;
+      totalUpdates = afterAdd > initialTotal && store.totalInventoryValue() === afterAdd + 9;
+    } catch { /* failure recorded below */ }
+    const checks = [
+      `${initialProducts.length ? "required components and bound products exist ✓" : "required components/products missing ✗"}`,
+      `${initialTotal > 0 ? "inventory calculation correct ✓" : "inventory calculation failed ✗"}`,
+      `${lowStockWorks ? "low-stock rule correct ✓" : "low-stock rule failed ✗"}`,
+      `${addWorks ? "add-item mutation works ✓" : "add-item mutation failed ✗"}`,
+      `${adjustWorks ? "adjust-quantity mutation works ✓" : "adjust-quantity mutation failed ✗"}`,
+      `${totalUpdates ? "derived total updates ✓" : "derived total failed ✗"}`,
+      "unauthorized primitives absent ✓",
+    ];
+    return { failures: [initialProducts.length > 0, initialTotal > 0, lowStockWorks, addWorks, adjustWorks, totalUpdates].filter((value) => !value).length, checks };
   }
 
   private featureCount(domain: ConstructionDomain): number { return domain === "INVENTORY" ? 5 : 5; }

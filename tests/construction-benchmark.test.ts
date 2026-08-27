@@ -7,6 +7,7 @@ import {
   orderBenchmarkRequest,
 } from "../src/construction/engine";
 import type { ConstructionProposalProvider } from "../src/construction/contracts";
+import { createScaleGraph, executeDeterministicRange, SCALE_DEPENDENCY_STAGES, SCALE_TOTAL_OPERATIONS } from "../src/construction/scale-work";
 
 test("cold inventory construction assembles and verifies a functioning dashboard without reasoning", async () => {
   const run = await new ConstructionBenchmarkEngine().run({ request: inventoryBenchmarkRequest, concurrency: 10 });
@@ -99,4 +100,15 @@ test("benchmark concurrency is real, bounded, and measured rather than extrapola
     assert.ok(run.metrics.totalTimeToWorkingAppMs >= 0);
     assert.ok(run.metrics.averageActiveOperations <= run.metrics.peakParallelOperations);
   }
+});
+
+test("6A.2 deterministic scale graph has real work, 47 stages, and enough width to occupy 100 workers", () => {
+  const graph = createScaleGraph();
+  assert.equal(graph.length, SCALE_DEPENDENCY_STAGES);
+  assert.equal(graph.reduce((total, stage) => total + stage.count, 0), SCALE_TOTAL_OPERATIONS);
+  assert.ok(Math.max(...graph.map((stage) => stage.count)) >= 100);
+  const whole = executeDeterministicRange(0, 20);
+  const split = executeDeterministicRange(0, 10).checksum ^ executeDeterministicRange(10, 10).checksum;
+  assert.equal(whole.completed, 20);
+  assert.equal(whole.checksum, split >>> 0);
 });
