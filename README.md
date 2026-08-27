@@ -2,70 +2,101 @@
 
 **Xact — The Commit Layer for Agentic Web**
 
-> Reason when necessary. Execute Xactly.
+> *Reason when necessary. Execute Xactly.*
 
 Xact Web Sandbox is a public-safe demonstration of a deterministic consequence boundary for agentic web execution.
 
-## Core principle
+🔗 **Live Demo:** [https://xact-web-sandbox.bojimmy.chatgpt.site](https://xact-web-sandbox.bojimmy.chatgpt.site)
+
+---
+
+## Core Principle
 
 > **Reasoning may propose a consequence. Only Xact may commit one.**
+>
+> **WebMCP provides capability. Xact provides authority.**
 
 WebMCP, DOM/browser control, Vision, native APIs, and future adapters provide execution capability. They do not provide authority.
 
-## Canonical flow
+---
 
-`Request → Resolve → Reason only if unresolved → Re-entry → Validate → Authorize → Commit → Select execution substrate → Execute → Verify → Audit`
+## Canonical Flow
 
-## Demonstrations
+```
+Request → Resolve → Reason only if unresolved → Re-entry → Validate → Authorize → Commit → Select execution substrate → Execute → Verify → Audit
+```
 
-- Authorized action
-- Policy rejection
-- Semantic escalation
-- Stale-state rejection
+---
 
-See `PROJECT.md`, `ARCHITECTURE.md`, and `PUBLIC_BOUNDARY.md` before implementation.
+## Key Demonstrations
+
+- **Authorized Action:** Happy path execution where a consequence is authorized and safely committed.
+- **Policy Rejection:** A requested consequence exceeds verified authority or policy, so Commit is rejected before execution.
+- **Semantic Escalation:** Only genuinely unresolved meaning is sent to reasoning; structured evidence returns to Xact for independent re-entry and Commit.
+- **Stale-State Rejection:** Guarding against race conditions and invalidated environmental state.
+
+---
 
 ## Phase 2 — Mutable Scenario Engine
 
-The Control Room now runs a deterministic, public-safe Commerce V1 runtime.
-Change the request or simulated authority state, resolve a state-bound
-candidate, mutate current state, re-enter with structured evidence when U
-requires interpretation, and request a new Commit decision.
+The Control Room runs a deterministic, public-safe Commerce V1 runtime:
+- **State-Bound Candidate Resolution:** Change the request or simulated authority state, resolve candidates, and mutate active state.
+- **Structured Evidence Re-entry:** Re-enter with structured evidence when uncertainty (`U`) requires interpretation, then request a new Commit decision.
+- **Substrate Gating:** The happy path selects a simulated WebMCP substrate only after `AUTHORIZED`, applies a simulated effect, and verifies the observed result. Every non-authorized decision selects `NONE` and cannot execute.
 
-The happy path selects a simulated WebMCP substrate only after `AUTHORIZED`,
-applies a simulated effect, and verifies the observed result. Every
-non-authorized decision selects `NONE` and cannot execute.
+> [!NOTE]
+> The runtime contains explicit demonstration rules only. It does not implement, imitate, or expose production Xact resolution or authorization internals.
 
-The runtime contains explicit demonstration rules only. It does not implement,
-imitate, or expose production Xact resolution or authorization internals.
+### Telemetry Panel
+Live timings are measured from the public sandbox runtime for **Resolve**, **Policy**, **Commit**, optional **reasoning/re-entry**, and **Verification**. Historical Xact benchmark figures are displayed separately and are not presented as browser-sandbox measurements.
 
-### Xact telemetry
+### Evolution Panel
+Demonstrates a public-safe governed lifecycle:
+```
+OBSERVED → CANDIDATE → VALIDATED → APPROVED → ACTIVE
+```
+1. Complete an ambiguous first encounter.
+2. Promote the resulting candidate through each explicit lifecycle state.
+3. Replay the equivalent request — `ACTIVE` evidence moves the semantic field into resolved space (`R`) and leaves unresolved space (`U`) empty, while Commit remains independently required before execution.
 
-The telemetry panel reports actual timings from the running public sandbox for
-Resolve, Policy, Commit, optional reasoning/re-entry, and Verification. A
-separate reference card shows supplied historical Xact benchmark evidence and
-explicitly states that it is not a browser-sandbox measurement.
+---
 
-### Xact evolution
+## Project Documentation
 
-The Evolution panel demonstrates a public-safe governed lifecycle:
+For architectural specifications and boundary rules, refer to:
+- [`PROJECT.md`](./PROJECT.md) — Project constitution, north star, and invariants.
+- [`ARCHITECTURE.md`](./ARCHITECTURE.md) — System architecture and execution substrate contracts.
+- [`PUBLIC_BOUNDARY.md`](./PUBLIC_BOUNDARY.md) — Public disclosure boundaries and safety rules.
+- [`SCENARIOS.md`](./SCENARIOS.md) — Scenario catalog and test definitions.
+- [`DESIGN_SYSTEM.md`](./DESIGN_SYSTEM.md) — UI design tokens and component styling guidelines.
+- [`WEBMCP_SPEC.md`](./WEBMCP_SPEC.md) — WebMCP integration specification.
 
-`OBSERVED → CANDIDATE → VALIDATED → APPROVED → ACTIVE`
+---
 
-Complete an ambiguous first encounter, promote the resulting candidate through
-each explicit state, then replay the equivalent request. ACTIVE evidence moves
-the semantic field into R and leaves U empty, but Commit remains independently
-required before execution.
+## Development
+
+### Prerequisites
+- Node.js `>=22.13.0`
+
+### Quick Start
 
 ```bash
+# Install dependencies
 npm install
+
+# Start development server
 npm run dev
 ```
 
-Before review:
+### Validation & Build
 
 ```bash
+# Run tests
 npm test
+
+# Run linter
 npm run lint
+
+# Build production bundle
 npm run build
 ```
