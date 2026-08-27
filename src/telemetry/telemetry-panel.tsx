@@ -62,7 +62,7 @@ export function TelemetryPanel({ samples }: { samples: TelemetrySample[] }) {
             <div><dt>Median</dt><dd>{referenceXactBenchmark.medianDecisionLatencyUs.toFixed(1)} μs</dd></div>
             <div><dt>P95</dt><dd>{referenceXactBenchmark.p95DecisionLatencyUs.toFixed(1)} μs</dd></div>
             <div><dt>P99</dt><dd>{referenceXactBenchmark.p99DecisionLatencyUs.toFixed(1)} μs</dd></div>
-            <div><dt>Throughput</dt><dd>≈{referenceXactBenchmark.throughputDecisionsPerSecond.toLocaleString()}/sec</dd></div>
+            <div><dt>Decisions / second</dt><dd>≈{referenceXactBenchmark.throughputDecisionsPerSecond.toLocaleString()}</dd></div>
           </dl>
           <p>{referenceXactBenchmark.substrate} · {referenceXactBenchmark.iterations.toLocaleString()} iterations</p>
         </aside>
