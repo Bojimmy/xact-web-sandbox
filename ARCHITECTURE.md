@@ -179,3 +179,10 @@ Experiment 6A.2 (ADR 0010) is deliberately separate from this structural
 proof: a browser Web Worker scale workload measures real deterministic work on
 a 10,011-operation, 47-stage graph. It may confirm, limit, or falsify the
 browser-worker scaling hypothesis without changing core Xact behavior.
+
+Experiment 6A.3 (ADR 0011) measures deterministic and reasoning cost on a
+separate checksum-bound workload. `OAgentProvider` returns structured evidence
+only; its secure endpoint client carries no credential and neither it nor the
+cost telemetry can authorize, Commit, select an execution substrate, or cause
+an effect. Offline reasoning is explicitly labeled `SIMULATED_O_AGENT`; a
+server-attested model result is labeled `LIVE_SANDBOX_MEASUREMENT`.

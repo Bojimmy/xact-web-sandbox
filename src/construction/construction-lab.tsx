@@ -6,6 +6,7 @@ import { ConstructionBenchmarkEngine, inventoryBenchmarkRequest, orderBenchmarkR
 import { LearningSimulationProvider } from "../evolution/learning-simulation-provider";
 import type { PromotionState } from "../evolution/contracts";
 import { BrowserScaleWorkloadRunner } from "./browser-scale-runner";
+import { DeterministicReasoningCostPanel } from "../telemetry/deterministic-reasoning-cost-panel";
 
 const levels = [1, 10, 25, 50, 100] as const;
 
@@ -104,5 +105,6 @@ export function ConstructionLab() {
     {comparison.length ? <div className="construction-comparison"><h3>Measured concurrency comparison</h3><table><thead><tr><th>Configured</th><th>Stages</th><th>Peak / avg active</th><th>Scheduler time</th><th>Speedup</th><th>Result</th></tr></thead><tbody>{comparison.map((item) => <tr key={item.concurrency}><td>{item.concurrency}</td><td>{item.metrics.dependencyStages}</td><td>{item.metrics.peakParallelOperations} / {item.metrics.averageActiveOperations.toFixed(1)}</td><td>{formatMs(item.metrics.schedulerTimeMs)}</td><td>{item.metrics.measuredSpeedup.toFixed(2)}×</td><td>{item.metrics.finalResult}</td></tr>)}</tbody></table><p>These are measured local runs. They are not the reference Xact decision-rate benchmark.</p></div> : null}
     {scaleError ? <p className="runtime-error">{scaleError}</p> : null}
     {scaleRuns.length ? <div className="construction-comparison scale-comparison"><h3>Experiment 6A.2 — deterministic scale workload</h3><table><thead><tr><th>Configured workers</th><th>Peak / avg active</th><th>Operations / stages</th><th>Scheduler time</th><th>Throughput</th><th>Speedup vs 1</th></tr></thead><tbody>{scaleRuns.map((item) => { const baseline = scaleRuns.find((run) => run.configuredWorkers === 1); const speedup = baseline ? baseline.schedulerTimeMs / item.schedulerTimeMs : 0; return <tr key={item.configuredWorkers}><td>{item.configuredWorkers}</td><td>{item.peakActiveWorkers} / {item.averageActiveWorkers.toFixed(1)}</td><td>{item.totalOperations.toLocaleString()} / {item.dependencyStages}</td><td>{formatMs(item.schedulerTimeMs)}</td><td>{item.throughputOperationsPerSecond.toFixed(0)} ops/s</td><td>{speedup.toFixed(2)}×</td></tr>; })}</tbody></table><p>Actual browser Web Worker runs. Hardware concurrency: {scaleRuns[0].environment.hardwareConcurrency ?? "unknown"}. No reference-benchmark figures are used here.</p></div> : null}
+    <DeterministicReasoningCostPanel />
   </section>;
 }
