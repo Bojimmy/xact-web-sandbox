@@ -1,7 +1,7 @@
 {
   "project": "Xact Web Sandbox",
   "created": "2026-08-27",
-  "phase": "Foundation",
+  "phase": "Phase 1 — Xact Control Room",
   "canonical_docs": [
     "PROJECT.md",
     "ARCHITECTURE.md",
@@ -10,5 +10,10 @@
     "WEBMCP_SPEC.md",
     "SCENARIOS.md"
   ],
-  "implementation_start": "IMPLEMENTATION_BRIEF.md"
+  "implementation_start": "IMPLEMENTATION_BRIEF.md",
+  "application_surface": "app/page.tsx",
+  "scenario_fixtures": "src/control-room/fixtures.ts",
+  "architecture_decisions": [
+    "docs/adr/0001-phase-1-control-room-fixtures.md"
+  ]
 }

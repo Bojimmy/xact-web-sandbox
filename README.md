@@ -24,3 +24,26 @@ WebMCP, DOM/browser control, Vision, native APIs, and future adapters provide ex
 - Stale-state rejection
 
 See `PROJECT.md`, `ARCHITECTURE.md`, and `PUBLIC_BOUNDARY.md` before implementation.
+
+## Phase 1 — Xact Control Room
+
+The first application surface is a single-page, deterministic Control Room for
+the Commerce V1 scenario pack. Switch between `AUTHORIZED`, `REJECTED`,
+`ESCALATED`, and `STALE` to inspect the complete public-safe path from request
+and R/U/C through evidence, Commit, execution routing, trace, and verification.
+
+The fixtures are presentation data only. They do not implement, imitate, or
+expose production Xact resolution or authorization internals.
+
+```bash
+npm install
+npm run dev
+```
+
+Before review:
+
+```bash
+npm test
+npm run lint
+npm run build
+```

@@ -11,7 +11,7 @@ Reference feel: operational control room, modern infrastructure console, trace i
 - REQUEST
 - R — Resolved
 - U — Unresolved
-- C — Conflict / Commit context
+- C — Commit Constraints
 - EVIDENCE
 - PROVENANCE
 - AUTHORITY
@@ -28,6 +28,12 @@ The primary visual state may show:
 - ESCALATED
 - STALE
 - VERIFIED
+
+Conflict is displayed as a condition within C, never as the meaning of C.
+
+`REJECTED` must read as a final denial under current inputs. `ESCALATED` must
+show a governed re-entry path for additional resolution or authority. Both are
+non-executable until a later Commit returns `AUTHORIZED`.
 
 ## UX goal
 

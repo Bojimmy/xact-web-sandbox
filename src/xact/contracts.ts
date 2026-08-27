@@ -18,16 +18,25 @@ export interface UnresolvedField {
   reason: string;
 }
 
-export interface Conflict {
+export type ConstraintCondition =
+  | "required"
+  | "limit"
+  | "conflict"
+  | "authority"
+  | "freshness";
+
+export interface CommitConstraint {
   key: string;
-  values: unknown[];
+  description: string;
+  condition: ConstraintCondition;
+  values?: unknown[];
   provenance?: string[];
 }
 
 export interface ResolutionState {
   resolved: ResolvedFact[];
   unresolved: UnresolvedField[];
-  conflicts: Conflict[];
+  commitConstraints: CommitConstraint[];
 }
 
 export interface DecisionRequest {
