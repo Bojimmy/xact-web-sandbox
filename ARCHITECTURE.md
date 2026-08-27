@@ -165,3 +165,12 @@ verification behavior.
 The scenario-specific case key is supplied at composition time. The learning
 provider contains no production extraction, matching, scoring, validation,
 promotion, confidence, or Rule Pack logic.
+
+## Experimental construction benchmark
+
+`XACT CONSTRUCTION LAB` is an isolated Phase 6A proof branch. It interprets a
+fixed, allowlisted construction plan into a deterministic local app artifact;
+it does not generate arbitrary code or receive shell/file authority. Its
+dependency-aware scheduler runs only authorized operations and separately
+measures worker utilization, dependency stages, critical path, scheduler time,
+and end-to-end verification. See ADR 0009.
