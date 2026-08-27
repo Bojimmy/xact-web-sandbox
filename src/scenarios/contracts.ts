@@ -11,9 +11,10 @@ export interface ScenarioPack<TInputs, TState, TEffect> {
   readonly id: string;
   readonly label: string;
   readonly preferredSubstrate: ExecutionSubstrate;
+  intent(inputs: TInputs): string;
   createInitialInputs(): TInputs;
   createInitialState(): TState;
-  stateHash(state: TState): string;
+  stateFingerprint(state: TState): string;
   stateVersion(state: TState): number;
   resolve(
     inputs: TInputs,

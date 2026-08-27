@@ -70,8 +70,8 @@ export interface ControlRoomScenario {
     authority: string;
     capability: string;
     stateBinding: string;
-    baseHash: string;
-    currentHash: string;
+    baseFingerprint: string;
+    currentFingerprint: string;
   };
   decision: {
     finality: "PENDING" | "PASSED" | "FINAL" | "REENTRY_ALLOWED" | "RERESOLUTION_REQUIRED";

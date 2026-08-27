@@ -45,9 +45,9 @@ test("rejects a candidate as stale when current state changes after Resolve", as
   let session = engine.createSession();
 
   session = await engine.resolve(session);
-  const baseHash = session.candidate?.baseStateHash;
+  const baseFingerprint = session.candidate?.baseStateFingerprint;
   session = engine.simulateConcurrentChange(session);
-  assert.notEqual(session.currentStateHash, baseHash);
+  assert.notEqual(session.currentStateFingerprint, baseFingerprint);
 
   session = await engine.commit(session);
 
@@ -127,7 +127,7 @@ test("blocks an authorized effect when state changes after Commit", async () => 
   session = {
     ...session,
     currentState: changedState,
-    currentStateHash: commerceScenarioPack.stateHash(changedState),
+    currentStateFingerprint: commerceScenarioPack.stateFingerprint(changedState),
   };
 
   await assert.rejects(() => engine.executeAndVerify(session), /fresh Commit decision/);

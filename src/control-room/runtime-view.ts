@@ -116,7 +116,7 @@ export function toControlRoomScenario(session: CommerceSession): ControlRoomScen
     status,
     request: {
       id: candidate?.candidateId ?? "runtime_unresolved",
-      intent: "Issue a refund under simulated Commerce V1 policy",
+      intent: candidate?.request.intent ?? "Simulated Commerce V1 request",
       actor: "support.agent / mutable",
       target: "order #XC-MUTABLE",
       proposedEffect: `Issue ${money(session.inputs.refundAmount)} to original payment method`,
@@ -129,7 +129,7 @@ export function toControlRoomScenario(session: CommerceSession): ControlRoomScen
         detail: constraint.description,
         condition: constraint.condition,
         satisfied: constraint.key === "candidate-freshness" && candidate
-          ? candidate.baseStateHash === session.currentStateHash
+          ? candidate.baseStateFingerprint === session.currentStateFingerprint
           : constraint.satisfied,
       })),
     },
@@ -155,8 +155,8 @@ export function toControlRoomScenario(session: CommerceSession): ControlRoomScen
       authority: formatCheck(authorityCheck, "PENDING · not evaluated"),
       capability: formatCheck(capabilityCheck, "PENDING · not evaluated"),
       stateBinding: formatCheck(freshnessCheck, candidate ? "PENDING · compare at Commit" : "PENDING · resolve first"),
-      baseHash: candidate?.baseStateHash ?? "—",
-      currentHash: session.currentStateHash,
+      baseFingerprint: candidate?.baseStateFingerprint ?? "—",
+      currentFingerprint: session.currentStateFingerprint,
     },
     decision: decisionSemantics,
     execution: {

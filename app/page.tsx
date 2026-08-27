@@ -130,7 +130,7 @@ function RuntimeControls({
       <div className="state-card">
         <div><span>Current state</span><strong>v{session.currentState.version}</strong></div>
         <div><span>Refundable</span><strong>${session.currentState.refundableBalance.toFixed(2)}</strong></div>
-        <code title={session.currentStateHash}>{session.currentStateHash}</code>
+        <code title={session.currentStateFingerprint}>{session.currentStateFingerprint}</code>
       </div>
 
       <div className="runtime-actions">
@@ -243,9 +243,9 @@ function ControlRoom({ scenario }: { scenario: ControlRoomScenario }) {
             <div><span>State binding</span><strong>{scenario.commit.stateBinding}</strong></div>
           </div>
           <div className="hash-compare">
-            <div><span>Base hash</span><code>{scenario.commit.baseHash}</code></div>
+            <div><span>Base fingerprint</span><code>{scenario.commit.baseFingerprint}</code></div>
             <span className="hash-link" aria-hidden="true">↔</span>
-            <div><span>Current hash</span><code>{scenario.commit.currentHash}</code></div>
+            <div><span>Current fingerprint</span><code>{scenario.commit.currentFingerprint}</code></div>
           </div>
           <div className="execution-route">
             <div><span>Selected substrate</span><strong>{scenario.execution.selected}</strong></div>

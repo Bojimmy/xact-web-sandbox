@@ -1,12 +1,14 @@
 import type { AuthorizedEffect, ExecutionAdapter, ExecutionResult } from "../execution/contracts";
 import { SimulatedExecutionAdapter } from "../execution/simulated-adapter";
+import { DeterministicExecutionRouter, type ExecutionRouter } from "../execution/execution-router";
+import { AuthorizationArtifactIssuer, InMemoryAuthorizationArtifactStore, stableFingerprint } from "../xact/authorization-artifact";
 import {
   commerceScenarioPack,
   type CommerceScenarioInputs,
   type CommerceScenarioState,
   type RefundEffect,
 } from "../scenarios/commerce-v1";
-import type { DecisionCandidate, EvidenceRecord } from "../xact/contracts";
+import type { AuthorizationArtifact, DecisionCandidate, EvidenceRecord } from "../xact/contracts";
 import type {
   AuthorizationAssessment,
   EvidenceProvider,
@@ -124,13 +126,20 @@ export class CommerceSimulationEngine {
   private readonly provider: SimulationDecisionProvider<CommerceScenarioInputs, CommerceScenarioState, RefundEffect>;
   private readonly evidenceProvider = new CommerceSimulationEvidenceProvider();
   private readonly verificationProvider = new CommerceSimulationVerificationProvider();
-  private readonly executionAdapter: ExecutionAdapter;
+  private readonly executionAdapters: ExecutionAdapter[];
+  private readonly router: ExecutionRouter;
+  private readonly store: InMemoryAuthorizationArtifactStore;
+  private readonly issuer: AuthorizationArtifactIssuer;
   private readonly telemetryProvider: TelemetryProvider;
   private readonly resolutionEvidenceProvider?: ResolutionEvidenceProvider<CommerceScenarioInputs>;
 
   constructor(options: CommerceEngineOptions = {}) {
-    this.executionAdapter = options.executionAdapter
-      ?? new SimulatedExecutionAdapter(commerceScenarioPack.preferredSubstrate);
+    this.store = options.store ?? new InMemoryAuthorizationArtifactStore();
+    this.issuer = new AuthorizationArtifactIssuer(this.store);
+    const defaultAdapter = options.executionAdapter
+      ?? new SimulatedExecutionAdapter(commerceScenarioPack.preferredSubstrate, this.store);
+    this.executionAdapters = [defaultAdapter, ...(options.additionalAdapters ?? [])];
+    this.router = options.router ?? new DeterministicExecutionRouter();
     this.telemetryProvider = options.telemetryProvider ?? new PerformanceTelemetryProvider();
     this.resolutionEvidenceProvider = options.resolutionEvidenceProvider;
     this.provider = new SimulationDecisionProvider(
@@ -146,7 +155,7 @@ export class CommerceSimulationEngine {
       phase: "READY",
       inputs: { ...commerceScenarioPack.createInitialInputs(), ...overrides },
       currentState,
-      currentStateHash: commerceScenarioPack.stateHash(currentState),
+      currentStateFingerprint: commerceScenarioPack.stateFingerprint(currentState),
       selectedSubstrate: "NONE",
       telemetry: [],
       trace: [{ phase: "Input", outcome: "Ready", detail: "Mutable Commerce V1 inputs initialized.", sequence: 1 }],
@@ -201,7 +210,10 @@ export class CommerceSimulationEngine {
     }
 
     const checkpoint = this.telemetryProvider.checkpoint();
-    const decision = await this.provider.commit(session.candidate, session.currentState);
+    const baseDecision = await this.provider.commit(session.candidate, session.currentState);
+    const decision = baseDecision.status === "AUTHORIZED"
+      ? { ...baseDecision, artifact: this.issueArtifact(baseDecision.candidate) }
+      : baseDecision;
     const selectedSubstrate = decision.status === "AUTHORIZED"
       ? commerceScenarioPack.preferredSubstrate
       : "NONE";
@@ -214,7 +226,7 @@ export class CommerceSimulationEngine {
       execution: undefined,
       verification: undefined,
       telemetry: this.captureTelemetry(session, checkpoint),
-      currentStateHash: commerceScenarioPack.stateHash(session.currentState),
+      currentStateFingerprint: commerceScenarioPack.stateFingerprint(session.currentState),
       trace: this.append(
         session.trace,
         "Commit",
@@ -277,7 +289,7 @@ export class CommerceSimulationEngine {
     return {
       ...session,
       currentState,
-      currentStateHash: commerceScenarioPack.stateHash(currentState),
+      currentStateFingerprint: commerceScenarioPack.stateFingerprint(currentState),
       decision: undefined,
       selectedSubstrate: "NONE",
       execution: undefined,
@@ -297,20 +309,39 @@ export class CommerceSimulationEngine {
     }
 
     if (
-      session.currentStateHash !== session.decision.currentStateHash
-      || commerceScenarioPack.stateHash(session.currentState) !== session.decision.currentStateHash
+      session.currentStateFingerprint !== session.decision.currentStateFingerprint
+      || commerceScenarioPack.stateFingerprint(session.currentState) !== session.decision.currentStateFingerprint
     ) {
       throw new Error("Current state changed after Commit; a fresh Commit decision is required.");
     }
 
     const authorizedCandidate = session.decision.candidate;
+    const artifact = session.decision.artifact;
+    if (!artifact) {
+      throw new Error("An AUTHORIZED decision must carry an AuthorizationArtifact before execution.");
+    }
 
     const effect: AuthorizedEffect = {
-      commitId: authorizedCandidate.candidateId,
+      artifact,
       substrate: session.selectedSubstrate,
       payload: authorizedCandidate.proposedEffect,
     };
-    const execution = await this.executionAdapter.execute(effect);
+
+    const selection = await this.router.select(effect, this.executionAdapters);
+    if (!selection.adapter) {
+      throw new Error(`No capable execution adapter: ${selection.reason}`);
+    }
+
+    const validation = await selection.adapter.validate(
+      artifact,
+      effect.payload,
+      session.currentStateFingerprint,
+    );
+    if (!validation.valid) {
+      throw new Error(`Execution validation failed: ${validation.reason}`);
+    }
+
+    const execution = await selection.adapter.execute(effect);
     if (!execution.executed) {
       throw new Error(execution.error ?? "Simulated execution failed.");
     }
@@ -321,6 +352,7 @@ export class CommerceSimulationEngine {
       authorizedCandidate.proposedEffect,
       execution.receipt,
     );
+    await selection.adapter.observe(effect, execution);
     const checkpoint = this.telemetryProvider.checkpoint();
     const verification = await this.telemetryProvider.measure(
       "VERIFICATION",
@@ -343,7 +375,7 @@ export class CommerceSimulationEngine {
       ...session,
       phase: verification.verified ? "VERIFIED" : "VERIFICATION_FAILED",
       currentState: after,
-      currentStateHash: commerceScenarioPack.stateHash(after),
+      currentStateFingerprint: commerceScenarioPack.stateFingerprint(after),
       execution,
       verification,
       telemetry: this.captureTelemetry(session, checkpoint),
@@ -368,10 +400,23 @@ export class CommerceSimulationEngine {
   private captureTelemetry(session: CommerceSession, checkpoint: number) {
     return [...session.telemetry, ...this.telemetryProvider.samplesSince(checkpoint)];
   }
+
+  private issueArtifact(candidate: DecisionCandidate<CommerceScenarioInputs, RefundEffect>): AuthorizationArtifact {
+    return this.issuer.issue({
+      commitId: candidate.candidateId,
+      effectFingerprint: stableFingerprint(candidate.proposedEffect),
+      baseStateFingerprint: candidate.baseStateFingerprint,
+      actor: "support.agent",
+      capability: "refund:create",
+    });
+  }
 }
 
 export interface CommerceEngineOptions {
   executionAdapter?: ExecutionAdapter;
+  additionalAdapters?: ExecutionAdapter[];
+  router?: ExecutionRouter;
+  store?: InMemoryAuthorizationArtifactStore;
   telemetryProvider?: TelemetryProvider;
   resolutionEvidenceProvider?: ResolutionEvidenceProvider<CommerceScenarioInputs>;
 }
