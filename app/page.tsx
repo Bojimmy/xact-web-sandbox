@@ -9,6 +9,7 @@ import type { PromotionState } from "@/src/evolution/contracts";
 import { createCommerceSimulationEngine, type CommerceSession } from "@/src/runtime/commerce-engine";
 import type { AuthorityState, CommerceScenarioInputs } from "@/src/scenarios/commerce-v1";
 import { TelemetryPanel } from "@/src/telemetry/telemetry-panel";
+import { ConstructionLab } from "@/src/construction/construction-lab";
 import { AvailabilityGatedExecutionAdapter } from "@/src/execution/availability-gated-adapter";
 import { SimulatedExecutionAdapter } from "@/src/execution/simulated-adapter";
 import { InMemoryAuthorizationArtifactStore } from "@/src/xact/authorization-artifact";
@@ -490,6 +491,7 @@ export default function Home() {
               onReset={resetEvolution}
             />
           </div>
+          <ConstructionLab />
         </div>
       </div>
       <footer className="footer"><span>Xact Web Sandbox / Phase 2+</span><span>Reason when necessary. Execute Xactly.</span><span>Measured runtime · Governed evolution simulation</span></footer>

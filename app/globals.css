@@ -126,6 +126,46 @@ button { color: inherit; }
 .simulation-note strong { display: block; font-size: 10px; letter-spacing: .03em; margin-bottom: 4px; text-transform: uppercase; }
 .simulation-note p { color: #75817c; font-size: 10px; line-height: 1.5; margin: 0; }
 
+.construction-lab { background: #f9fbf6; border: 1px solid var(--line); margin: 0 38px 34px; padding: 22px; }
+.construction-lab h2 { font-size: 22px; letter-spacing: -.03em; margin: 4px 0; }
+.construction-heading { align-items: start; display: flex; gap: 20px; justify-content: space-between; }
+.construction-heading p { color: var(--muted); font-size: 11px; margin: 6px 0 0; max-width: 620px; }
+.construction-actions { display: flex; flex-wrap: wrap; gap: 7px; margin: 18px 0; }
+.construction-actions button, .inventory-add button { background: var(--deep); border: 1px solid var(--deep); color: white; cursor: pointer; font-family: var(--mono); font-size: 8px; padding: 9px 11px; }
+.construction-actions button:nth-child(n + 3) { background: transparent; color: var(--ink); border-color: #b9c4bc; }
+.construction-actions button:disabled { cursor: not-allowed; opacity: .45; }
+.construction-metrics { display: grid; gap: 8px; grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.construction-metrics article { background: white; border: 1px solid var(--line); display: grid; gap: 7px; min-height: 78px; padding: 12px; }
+.construction-metrics span, .construction-run-meta span { color: var(--muted); font-family: var(--mono); font-size: 8px; letter-spacing: .08em; text-transform: uppercase; }
+.construction-metrics strong { font-family: var(--mono); font-size: 18px; }
+.construction-run-meta { align-items: center; border-bottom: 1px solid var(--line); display: flex; gap: 12px; margin-top: 20px; padding: 0 0 10px; }
+.construction-run-meta strong { color: var(--authorized); font-family: var(--mono); font-size: 10px; }
+.parallelism-panel { background: #edf2ea; border-left: 2px solid var(--authorized); margin: 14px 0; padding: 12px; }
+.parallelism-panel h3 { font-family: var(--mono); font-size: 9px; letter-spacing: .1em; margin: 0 0 9px; text-transform: uppercase; }
+.parallelism-panel dl { display: grid; gap: 8px; grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 0; }
+.parallelism-panel dt { color: var(--muted); font-family: var(--mono); font-size: 7px; text-transform: uppercase; }
+.parallelism-panel dd { font-family: var(--mono); font-size: 11px; margin: 3px 0 0; }
+.construction-graph { display: flex; flex-wrap: wrap; gap: 6px; margin: 14px 0; }
+.operation-node { background: #e7efe5; border-left: 2px solid var(--authorized); display: grid; gap: 3px; min-width: 122px; padding: 8px; }
+.operation-node.unresolved { background: #fbf0d9; border-color: var(--escalated); }
+.operation-node span { color: #63726b; font-family: var(--mono); font-size: 8px; }
+.operation-node strong { font-size: 9px; }
+.operation-node small { color: var(--muted); font-family: var(--mono); font-size: 7px; }
+.construction-graph > p, .construction-empty { color: var(--muted); font-size: 11px; }
+.construction-trace { color: #5f6d66; font-size: 10px; line-height: 1.55; margin: 14px 0; padding-left: 18px; }
+.construction-artifact, .construction-comparison { background: white; border: 1px solid var(--line); margin-top: 18px; padding: 16px; }
+.construction-artifact h3, .construction-comparison h3 { font-size: 15px; margin: 3px 0; }
+.construction-artifact .construction-heading > strong { color: var(--authorized); font-family: var(--mono); font-size: 12px; }
+.inventory-toolbar { align-items: center; display: flex; font-size: 10px; gap: 12px; justify-content: space-between; margin: 12px 0; }
+.inventory-toolbar input { accent-color: var(--deep); }
+.construction-artifact table, .construction-comparison table { border-collapse: collapse; font-size: 10px; width: 100%; }
+.construction-artifact th, .construction-artifact td, .construction-comparison th, .construction-comparison td { border-bottom: 1px solid #e1e6e1; padding: 8px; text-align: left; }
+.construction-artifact td b { color: #aa5a1b; font-family: var(--mono); font-size: 8px; }
+.construction-artifact td button { background: transparent; border: 1px solid #bcc7c0; cursor: pointer; margin-right: 4px; padding: 2px 6px; }
+.inventory-add { display: grid; gap: 6px; grid-template-columns: 2fr repeat(3, 1fr) auto; margin-top: 12px; }
+.inventory-add input { border: 1px solid #cbd4cd; min-width: 0; padding: 8px; }
+.construction-comparison p { color: var(--muted); font-size: 9px; margin: 10px 0 0; }
+
 .control-room { min-width: 0; padding: 34px 38px 44px; }
 .control-room-stack { min-width: 0; }
 .request-header { align-items: end; display: grid; gap: 30px; grid-template-columns: minmax(0, 1fr) minmax(270px, 35%); margin-bottom: 24px; }
