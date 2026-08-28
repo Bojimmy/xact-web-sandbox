@@ -1,12 +1,12 @@
 import { referenceEvolutionResults } from "./reference-results";
 import type { EvolutionSnapshot, PromotionState } from "./contracts";
 
-const lifecycle: PromotionState[] = ["OBSERVED", "CANDIDATE", "VALIDATED", "APPROVED", "ACTIVE"];
+const lifecycle: PromotionState[] = ["OBSERVED", "CANDIDATE", "VALIDATED", "APPROVED", "ACTIVATED"];
 const nextLabel: Partial<Record<PromotionState, string>> = {
   OBSERVED: "Create candidate",
   CANDIDATE: "Validate candidate",
   VALIDATED: "Approve candidate",
-  APPROVED: "Promote to ACTIVE",
+  APPROVED: "Activate capability",
 };
 
 export function EvolutionPanel({
@@ -36,7 +36,7 @@ export function EvolutionPanel({
 
       <div className="evolution-principle">
         <strong>Learning improves resolution.</strong>
-        <span>It never grants authority. Every ACTIVE pattern still flows through Validate → Authorize → Commit.</span>
+        <span>It resolves U → R. Every ACTIVATED pattern still flows through Validate → Authorize → Commit.</span>
       </div>
 
       <div className="lifecycle-row" aria-label="Governed promotion lifecycle">
@@ -50,7 +50,7 @@ export function EvolutionPanel({
       <div className="evolution-actions">
         {!candidate
           ? <button type="button" onClick={onStart} disabled={busy}>Start first encounter</button>
-          : candidate.state !== "ACTIVE"
+          : candidate.state !== "ACTIVATED"
             ? <button type="button" onClick={onAdvance} disabled={busy}>{nextLabel[candidate.state]}</button>
             : <button type="button" className="replay-action" onClick={onReplay} disabled={busy}>Replay equivalent request</button>}
         <button type="button" className="quiet-action" onClick={onReset} disabled={busy}>Reset evolution</button>
@@ -75,7 +75,7 @@ export function EvolutionPanel({
           <div><span>First encounter</span>{snapshot.beforeTrace.length
             ? <ol>{snapshot.beforeTrace.map((item) => <li key={item}>{item}</li>)}</ol>
             : <p>Complete the ambiguity → evidence → re-entry → Commit path.</p>}</div>
-          <div><span>Equivalent encounter after ACTIVE</span>{snapshot.afterTrace.length
+          <div><span>Equivalent encounter after ACTIVATED</span>{snapshot.afterTrace.length
             ? <ol>{snapshot.afterTrace.map((item) => <li key={item}>{item}</li>)}</ol>
             : <p>Promote through governance, then replay the equivalent request.</p>}</div>
         </div>

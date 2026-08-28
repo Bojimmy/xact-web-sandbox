@@ -43,8 +43,8 @@ not the browser sandbox. Live measurements must come from the running public
 simulation and may not be substituted with reference values.
 
 The public learning simulation may expose `OBSERVED`, `CANDIDATE`, `VALIDATED`,
-`APPROVED`, and `ACTIVE`. It may inject deterministic resolution evidence only
-after an explicit governed transition to `ACTIVE`; it may never modify Commit
+`APPROVED`, and `ACTIVATED`. It may inject deterministic resolution evidence only
+after an explicit governed transition to `ACTIVATED`; it may never modify Commit
 authority or execution capability.
 
 ## Build rule

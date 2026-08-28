@@ -217,7 +217,7 @@ not imply it measured it.
 Lead with the three-clock before/after and the checksum witness:
 
 ```text
-BEFORE ACTIVE LEARNING                    AFTER ACTIVE LEARNING
+BEFORE ACTIVATED LEARNING                 AFTER ACTIVATED LEARNING
 Decision (REFERENCE)      ~9 μs           Decision (REFERENCE)      ~9 μs
 Deterministic build       0.48 s          Deterministic build       0.53 s   (same work, within noise)
 O-Agent reasoning         109.9 s         O-Agent reasoning         13.9 s

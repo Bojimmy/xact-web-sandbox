@@ -40,7 +40,7 @@ test("requires every governed lifecycle transition in order", () => {
   assert.equal(learning.snapshot().candidate?.state, "OBSERVED");
   assert.throws(() => learning.transition("APPROVED"), /next governed state/);
 
-  for (const state of ["CANDIDATE", "VALIDATED", "APPROVED", "ACTIVE"] as const) {
+  for (const state of ["CANDIDATE", "VALIDATED", "APPROVED", "ACTIVATED"] as const) {
     learning.transition(state);
     assert.equal(learning.snapshot().candidate?.state, state);
   }
@@ -69,7 +69,7 @@ test("does not inject deterministic evidence until governance activates the cand
     }
   }
 
-  learning.transition("ACTIVE");
+  learning.transition("ACTIVATED");
   const evidence = await learning.collect({ caseKey: "case-a" });
 
   assert.equal(evidence.length, 1);
@@ -88,7 +88,7 @@ test("reports simulated coverage improvement without presenting it as reference 
   });
 
   learning.observe({ evidenceId: "evidence-demo", claim: "Resolved.", beforeTrace: [] });
-  for (const state of ["CANDIDATE", "VALIDATED", "APPROVED", "ACTIVE"] as const) {
+  for (const state of ["CANDIDATE", "VALIDATED", "APPROVED", "ACTIVATED"] as const) {
     learning.transition(state);
   }
   learning.recordReplay(["R: semantic-field", "U: none", "O-Agent: not invoked", "Commit: still required"]);
@@ -117,7 +117,7 @@ test("captures measured deterministic and reasoning stages from the live runtime
   assert.ok(session.telemetry.every((sample) => sample.durationUs >= 0));
 });
 
-test("active learning resolves an equivalent case but does not bypass Commit", async () => {
+test("activated learning resolves an equivalent case but does not bypass Commit", async () => {
   const learning = new LearningSimulationProvider<CommerceScenarioInputs>({
     candidateId: "commerce-rationale-v1",
     label: "Delivery-consistent service recovery",
@@ -130,7 +130,7 @@ test("active learning resolves an equivalent case but does not bypass Commit", a
     claim: "The public demo rationale is consistent with the simulated delivery record.",
     beforeTrace: ["U: refund-rationale", "O-Agent: invoked"],
   });
-  for (const state of ["CANDIDATE", "VALIDATED", "APPROVED", "ACTIVE"] as const) {
+  for (const state of ["CANDIDATE", "VALIDATED", "APPROVED", "ACTIVATED"] as const) {
     learning.transition(state);
   }
 
@@ -148,7 +148,7 @@ test("active learning resolves an equivalent case but does not bypass Commit", a
   assert.equal(session.decision?.status, "AUTHORIZED");
 });
 
-test("active learning cannot convert unknown authority into authorization", async () => {
+test("activated learning cannot convert unknown authority into authorization", async () => {
   const learning = new LearningSimulationProvider<CommerceScenarioInputs>({
     candidateId: "commerce-rationale-v1",
     label: "Delivery-consistent service recovery",
@@ -157,7 +157,7 @@ test("active learning cannot convert unknown authority into authorization", asyn
     resolves: ["refund-rationale"],
   });
   learning.observe({ evidenceId: "evidence-demo", claim: "Resolved.", beforeTrace: [] });
-  for (const state of ["CANDIDATE", "VALIDATED", "APPROVED", "ACTIVE"] as const) {
+  for (const state of ["CANDIDATE", "VALIDATED", "APPROVED", "ACTIVATED"] as const) {
     learning.transition(state);
   }
 

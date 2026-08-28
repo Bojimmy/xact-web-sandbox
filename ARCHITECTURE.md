@@ -150,15 +150,15 @@ First encounter: Resolve → U → simulated O-Agent evidence → re-entry → C
                                                           ↓
                                                    OBSERVED pattern
                                                           ↓
-                                CANDIDATE → VALIDATED → APPROVED → ACTIVE
+                                CANDIDATE → VALIDATED → APPROVED → ACTIVATED
                                                           ↓
 Equivalent encounter: Resolve with governed evidence → U = 0 → Commit required
 ```
 
 `LearningSimulationProvider` is a public-safe in-memory lifecycle simulator.
 It can observe structured evidence, but it returns no deterministic resolution
-evidence until governance explicitly reaches `ACTIVE`. State transitions are
-sequential and cannot be skipped. ACTIVE evidence improves only Resolution;
+evidence until governance explicitly reaches `ACTIVATED`. State transitions are
+sequential and cannot be skipped. ACTIVATED evidence improves only Resolution;
 it does not modify policy, authority, capability, freshness, execution, or
 verification behavior.
 

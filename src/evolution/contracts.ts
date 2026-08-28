@@ -5,7 +5,7 @@ export type PromotionState =
   | "CANDIDATE"
   | "VALIDATED"
   | "APPROVED"
-  | "ACTIVE";
+  | "ACTIVATED";
 
 export interface LearningCandidate {
   id: string;
@@ -16,7 +16,7 @@ export interface LearningCandidate {
   evidence: EvidenceRecord;
   validationStatus: "NOT_RUN" | "PASSED";
   approvalStatus: "PENDING" | "APPROVED";
-  promotionStatus: "INACTIVE" | "ACTIVE";
+  promotionStatus: "INACTIVE" | "ACTIVATED";
 }
 
 export interface EvolutionCoveragePoint {
