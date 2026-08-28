@@ -172,6 +172,13 @@ export function toControlRoomScenario(session: CommerceSession): ControlRoomScen
       effect: proposedEffect ? `${proposedEffect.type.toLowerCase()} ${money(proposedEffect.amount)}` : "No candidate effect",
       executed: Boolean(session.execution?.executed),
       receipt: session.execution?.receipt ? String(session.execution.receipt) : "—",
+      authorization: decision?.artifact && proposedEffect
+        ? {
+            commitId: decision.artifact.commitId,
+            effectFingerprint: decision.artifact.effectFingerprint,
+            target: proposedEffect.target,
+          }
+        : undefined,
     },
     trace: session.trace.map((event) => ({
       phase: event.phase,

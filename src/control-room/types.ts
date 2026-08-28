@@ -83,6 +83,12 @@ export interface ControlRoomScenario {
     effect: string;
     executed: boolean;
     receipt: string;
+    /** Present only after Commit issues a bounded AuthorizationArtifact. */
+    authorization?: {
+      commitId: string;
+      effectFingerprint: string;
+      target: string;
+    };
   };
   trace: TraceStep[];
   verification: {

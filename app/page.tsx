@@ -12,6 +12,10 @@ import { TelemetryPanel } from "@/src/telemetry/telemetry-panel";
 import { ConstructionLab } from "@/src/construction/construction-lab";
 import { AvailabilityGatedExecutionAdapter } from "@/src/execution/availability-gated-adapter";
 import { SimulatedExecutionAdapter } from "@/src/execution/simulated-adapter";
+import { BrowserDOMExecutionClient } from "@/src/execution/browser-dom-client";
+import { DOMExecutionAdapter } from "@/src/execution/dom-execution-adapter";
+import { BrowserWebMCPExecutionClient } from "@/src/execution/browser-webmcp-client";
+import { WebMCPExecutionAdapter } from "@/src/execution/webmcp-execution-adapter";
 import { InMemoryAuthorizationArtifactStore } from "@/src/xact/authorization-artifact";
 import type { ExecutionSubstrate } from "@/src/execution/contracts";
 
@@ -317,6 +321,22 @@ function ControlRoom({ scenario }: { scenario: ControlRoomScenario }) {
           <ul>{scenario.verification.checks.map((check) => <li key={check}>{check}</li>)}</ul>
         </div>
       </section>
+      {scenario.execution.authorization && !scenario.execution.executed ? <section className="section-block execution-target" aria-labelledby="authorized-target-title">
+        <div className="section-title-row compact"><div><span className="section-kicker">05 / Exact target</span><h2 id="authorized-target-title">Substrate-bound activation surface</h2></div><span className="boundary-chip">Artifact-bound</span></div>
+        <p>This target exists only after Commit. An adapter must preserve its bound target and effect fingerprint; it cannot select a replacement.</p>
+        <button
+          type="button"
+          data-xact-target={scenario.execution.authorization.target}
+          data-xact-effect-fingerprint={scenario.execution.authorization.effectFingerprint}
+          data-xact-commit-id={scenario.execution.authorization.commitId}
+          onClick={(event) => {
+            const target = event.currentTarget;
+            const commitId = target.getAttribute("data-xact-commit-id");
+            if (!commitId) return;
+            target.setAttribute("data-xact-receipt", `dom_receipt_${commitId.replace(/[^a-zA-Z0-9]/g, "_")}`);
+          }}
+        >Issue authorized refund</button>
+      </section> : null}
     </div>
   );
 }
@@ -335,7 +355,11 @@ export default function Home() {
     () => {
       const store = new InMemoryAuthorizationArtifactStore();
       const adapter = (substrate: ExecutionSubstrate) => new AvailabilityGatedExecutionAdapter(
-        new SimulatedExecutionAdapter(substrate, store),
+        substrate === "WEBMCP"
+          ? new WebMCPExecutionAdapter(new BrowserWebMCPExecutionClient(), store)
+          : substrate === "DOM"
+            ? new DOMExecutionAdapter(new BrowserDOMExecutionClient(), store)
+            : new SimulatedExecutionAdapter(substrate, store),
         () => substrate === "WEBMCP" || substrate === "DOM" || substrate === "VISION"
           ? executionAvailability.enabled(substrate)
           : false,
