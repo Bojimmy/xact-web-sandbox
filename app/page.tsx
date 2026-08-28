@@ -19,6 +19,7 @@ import { WebMCPExecutionAdapter } from "@/src/execution/webmcp-execution-adapter
 import { WebMCPDispatchRegistry } from "@/src/execution/webmcp-dispatch";
 import { InMemoryAuthorizationArtifactStore } from "@/src/xact/authorization-artifact";
 import type { ExecutionSubstrate } from "@/src/execution/contracts";
+import { createServiceCreditEngine } from "@/src/runtime/service-operations-engine";
 
 const sourceLabels = { reported: "Reported", verified: "Verified", derived: "Derived" };
 
@@ -349,6 +350,10 @@ export default function Home() {
   const domClient = useMemo(() => new BrowserDOMExecutionClient(), []);
   const webMCPClient = useMemo(() => new BrowserWebMCPExecutionClient(undefined, "request_action", "get_execution_observation", dispatches), [dispatches]);
   const webMCPToolHost = useMemo(() => new BrowserWebMCPToolHost(dispatches, domClient), [dispatches, domClient]);
+  const serviceCreditEngine = useMemo(() => createServiceCreditEngine(artifactStore, [
+    new WebMCPExecutionAdapter(webMCPClient, artifactStore),
+    new DOMExecutionAdapter(domClient, artifactStore),
+  ]), [artifactStore, domClient, webMCPClient]);
   const [substrateAvailability, setSubstrateAvailability] = useState(() => executionAvailability.snapshot());
   const learningProvider = useMemo(() => new LearningSimulationProvider<CommerceScenarioInputs>({
     candidateId: "learning:commerce-rationale-v1",
@@ -529,7 +534,7 @@ export default function Home() {
               onReset={resetEvolution}
             />
           </div>
-          <ConstructionLab />
+          <ConstructionLab serviceCreditEngine={serviceCreditEngine} />
         </div>
       </div>
       <footer className="footer"><span>Xact Web Sandbox / Phase 2+</span><span>Reason when necessary. Execute Xactly.</span><span>Measured runtime · Governed evolution simulation</span></footer>

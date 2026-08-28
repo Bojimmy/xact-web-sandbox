@@ -6,6 +6,8 @@ interface TargetElement {
   disabled?: boolean;
   click(): void;
   getAttribute(name: string): string | null;
+  setAttribute?(name: string, value: string): void;
+  removeAttribute?(name: string): void;
 }
 
 interface DOMDocumentLike {
@@ -30,7 +32,11 @@ export class BrowserDOMExecutionClient implements DOMExecutionClient {
   async activate(effect: AuthorizedEffect): Promise<{ receipt: unknown }> {
     const element = this.elementFor(effect);
     if (element.disabled) throw new Error("Authorized DOM target is disabled.");
-    element.click();
+    // The DOM handler must see an adapter-prepared nonce before it may publish
+    // a receipt. A user click has no such dispatch marker and remains inert.
+    element.setAttribute?.("data-xact-dispatch-nonce", effect.artifact.nonce);
+    try { element.click(); }
+    finally { element.removeAttribute?.("data-xact-dispatch-nonce"); }
     const receipt = element.getAttribute("data-xact-receipt");
     if (!receipt) throw new Error("DOM target did not publish an execution receipt.");
     return { receipt };
