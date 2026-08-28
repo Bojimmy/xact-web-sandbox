@@ -12,6 +12,11 @@ import {
 } from "./contracts";
 import { ConstructionScheduler } from "./scheduler";
 import { ServiceOperationsStore } from "./service-operations-store";
+import {
+  recognizeGovernedCapability,
+  type CapabilityRecognitionResult,
+  type GovernedCapabilityDescriptor,
+} from "../flagship/capability-vocabulary";
 
 export const serviceOperationsBenchmarkRequest = "Build a Service Operations Console that shows customer, account status, available actions, service-credit requests, plan changes, and audit history.";
 export const serviceOperationsSemanticRequest = "Build a Service Operations Console with a related semantic composition that requires governed evidence.";
@@ -68,6 +73,16 @@ function duration(started: number): number { return Math.max(0, now() - started)
  */
 export class ConstructionBenchmarkEngine {
   private readonly scheduler = new ConstructionScheduler();
+
+  /**
+   * Typed, inert extension point for Xact Foundry (ADR 0016). A construction
+   * Node recognizes and validates a governed capability descriptor against the
+   * closed vocabulary — it never composes a tool, effect, or artifact. The
+   * result's `composed` field is typed `false`.
+   */
+  recognizeCapability(descriptor: GovernedCapabilityDescriptor): CapabilityRecognitionResult {
+    return recognizeGovernedCapability(descriptor);
+  }
 
   async run(options: ConstructionRunOptions): Promise<ConstructionRun> {
     const started = now();
