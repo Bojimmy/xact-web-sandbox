@@ -10,8 +10,10 @@ import {
   WebMCPExecutionAdapter,
   type WebMCPExecutionClient,
 } from "../src/execution/webmcp-execution-adapter";
-import type { AuthorizedEffect } from "../src/execution/contracts";
-import { BrowserWebMCPExecutionClient } from "../src/execution/browser-webmcp-client";
+import type { AuthorizedEffect, ExecutionObservation } from "../src/execution/contracts";
+import { BrowserDOMExecutionClient } from "../src/execution/browser-dom-client";
+import { BrowserWebMCPExecutionClient, BrowserWebMCPToolHost } from "../src/execution/browser-webmcp-client";
+import { WebMCPDispatchRegistry } from "../src/execution/webmcp-dispatch";
 import { createCommerceSimulationEngine } from "../src/runtime/commerce-engine";
 
 class FakeWebMCPClient implements WebMCPExecutionClient {
@@ -43,6 +45,12 @@ class FakeWebMCPClient implements WebMCPExecutionClient {
       observedAtEpochMs: 1_788_000_000_000,
     };
   }
+}
+
+class ObservationFailingWebMCPClient implements WebMCPExecutionClient {
+  isAvailable() { return true; }
+  async requestAction() { return { receipt: "ambiguous-webmcp-receipt" }; }
+  async observeAction(): Promise<ExecutionObservation> { throw new Error("Post-effect tool observation timed out"); }
 }
 
 function setupEffect(client: WebMCPExecutionClient) {
@@ -171,6 +179,96 @@ test("browser WebMCP client feature-detects the standard document API and reads 
 test("browser WebMCP client does not pretend an absent modelContext is available", () => {
   const client = new BrowserWebMCPExecutionClient({});
   assert.equal(client.isAvailable(), false);
+});
+
+test("a present WebMCP substrate with an absent action tool fails distinctly from substrate unavailability", async () => {
+  const store = new InMemoryAuthorizationArtifactStore();
+  const client = new BrowserWebMCPExecutionClient({
+    modelContext: {
+      async getTools() { return []; },
+      async executeTool() { throw new Error("must not execute without a discovered tool"); },
+    },
+  });
+  const engine = createCommerceSimulationEngine({
+    store,
+    executionAdapter: new WebMCPExecutionAdapter(client, store),
+  });
+  let session = await engine.resolve(engine.createSession());
+  session = await engine.commit(session);
+  session = await engine.executeAndVerify(session);
+
+  assert.equal(session.phase, "EXECUTION_FAILED");
+  assert.equal(session.execution?.executed, false);
+  assert.equal(session.execution?.receipt, undefined);
+  assert.match(session.execution?.error ?? "", /Required WebMCP tool is unavailable/i);
+  assert.match(session.trace.at(-1)?.detail ?? "", /tool is unavailable/i);
+});
+
+test("registered WebMCP action rejects direct input and claims only an adapter-prepared dispatch", async () => {
+  const { effect } = setupEffect(new FakeWebMCPClient(true));
+  const tools = new Map<string, { execute(input: unknown): Promise<unknown> }>();
+  const attributes = new Map<string, string>();
+  const element = {
+    click() {
+      attributes.set("data-xact-receipt", "registered-webmcp-receipt");
+      attributes.set("data-xact-effect-fingerprint", stableFingerprint(effect.payload));
+    },
+    getAttribute(name: string) { return attributes.get(name) ?? null; },
+  };
+  const modelContext = {
+    async getTools() { return []; },
+    async executeTool() { return null; },
+    async registerTool(tool: { name?: string; execute(input: unknown): Promise<unknown> }) {
+      tools.set(tool.name ?? "", tool);
+    },
+  };
+  const registry = new WebMCPDispatchRegistry();
+  const host = new BrowserWebMCPToolHost(
+    registry,
+    new BrowserDOMExecutionClient({ querySelector: () => element }),
+    { modelContext },
+  );
+  const dispose = await host.register();
+  const action = tools.get("request_action")!;
+  const observe = tools.get("get_execution_observation")!;
+  const input = { authorizationArtifact: effect.artifact, effect: effect.payload };
+
+  await assert.rejects(() => action.execute(input), /no matching Xact-prepared dispatch/i);
+  assert.equal(attributes.size, 0);
+  registry.prepare(effect);
+  const result = await action.execute(input) as { receipt: string };
+  const observation = await observe.execute({ receipt: result.receipt });
+
+  assert.equal(result.receipt, "registered-webmcp-receipt");
+  assert.deepEqual(observation, {
+    substrate: "WEBMCP",
+    receipt: "registered-webmcp-receipt",
+    target: "order:XC-MUTABLE/refund",
+    effectFingerprint: stableFingerprint(effect.payload),
+    observedAtEpochMs: (observation as { observedAtEpochMs: number }).observedAtEpochMs,
+  });
+  dispose();
+});
+
+test("failed WebMCP observation with a receipt is ambiguous, not a no-effect failure", async () => {
+  const store = new InMemoryAuthorizationArtifactStore();
+  const engine = createCommerceSimulationEngine({
+    store,
+    executionAdapter: new WebMCPExecutionAdapter(new ObservationFailingWebMCPClient(), store),
+  });
+  let session = await engine.resolve(engine.createSession());
+  session = await engine.commit(session);
+  const balanceBefore = session.currentState.refundableBalance;
+  const nonce = session.decision?.artifact?.nonce;
+  session = await engine.executeAndVerify(session);
+
+  assert.equal(session.phase, "OBSERVATION_FAILED");
+  assert.equal(session.execution?.executed, true);
+  assert.equal(session.execution?.receipt, "ambiguous-webmcp-receipt");
+  assert.equal(session.verification, undefined);
+  assert.equal(session.currentState.refundableBalance, balanceBefore);
+  assert.equal(store.nonceConsumed(nonce ?? ""), true);
+  assert.equal(session.trace.at(-1)?.outcome, "OBSERVATION_FAILED");
 });
 
 test("unavailable WebMCP records a failed-closed runtime outcome without applying an effect", async () => {

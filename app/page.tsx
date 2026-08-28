@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toControlRoomScenario } from "@/src/control-room/runtime-view";
 import type { ControlRoomScenario } from "@/src/control-room/types";
 import { EvolutionPanel } from "@/src/evolution/evolution-panel";
@@ -12,6 +12,11 @@ import { TelemetryPanel } from "@/src/telemetry/telemetry-panel";
 import { ConstructionLab } from "@/src/construction/construction-lab";
 import { AvailabilityGatedExecutionAdapter } from "@/src/execution/availability-gated-adapter";
 import { SimulatedExecutionAdapter } from "@/src/execution/simulated-adapter";
+import { BrowserDOMExecutionClient } from "@/src/execution/browser-dom-client";
+import { DOMExecutionAdapter } from "@/src/execution/dom-execution-adapter";
+import { BrowserWebMCPExecutionClient, BrowserWebMCPToolHost } from "@/src/execution/browser-webmcp-client";
+import { WebMCPExecutionAdapter } from "@/src/execution/webmcp-execution-adapter";
+import { WebMCPDispatchRegistry } from "@/src/execution/webmcp-dispatch";
 import { InMemoryAuthorizationArtifactStore } from "@/src/xact/authorization-artifact";
 import type { ExecutionSubstrate } from "@/src/execution/contracts";
 
@@ -317,12 +322,33 @@ function ControlRoom({ scenario }: { scenario: ControlRoomScenario }) {
           <ul>{scenario.verification.checks.map((check) => <li key={check}>{check}</li>)}</ul>
         </div>
       </section>
+      {scenario.execution.authorization && !scenario.execution.executed ? <section className="section-block execution-target" aria-labelledby="authorized-target-title">
+        <div className="section-title-row compact"><div><span className="section-kicker">05 / Exact target</span><h2 id="authorized-target-title">Substrate-bound activation surface</h2></div><span className="boundary-chip">Artifact-bound</span></div>
+        <p>This target exists only after Commit. An adapter must preserve its bound target and effect fingerprint; it cannot select a replacement.</p>
+        <button
+          type="button"
+          data-xact-target={scenario.execution.authorization.target}
+          data-xact-effect-fingerprint={scenario.execution.authorization.effectFingerprint}
+          data-xact-commit-id={scenario.execution.authorization.commitId}
+          onClick={(event) => {
+            const target = event.currentTarget;
+            const commitId = target.getAttribute("data-xact-commit-id");
+            if (!commitId) return;
+            target.setAttribute("data-xact-receipt", `dom_receipt_${commitId.replace(/[^a-zA-Z0-9]/g, "_")}`);
+          }}
+        >Issue authorized refund</button>
+      </section> : null}
     </div>
   );
 }
 
 export default function Home() {
   const executionAvailability = useMemo(() => new SubstrateAvailability(), []);
+  const artifactStore = useMemo(() => new InMemoryAuthorizationArtifactStore(), []);
+  const dispatches = useMemo(() => new WebMCPDispatchRegistry(), []);
+  const domClient = useMemo(() => new BrowserDOMExecutionClient(), []);
+  const webMCPClient = useMemo(() => new BrowserWebMCPExecutionClient(undefined, "request_action", "get_execution_observation", dispatches), [dispatches]);
+  const webMCPToolHost = useMemo(() => new BrowserWebMCPToolHost(dispatches, domClient), [dispatches, domClient]);
   const [substrateAvailability, setSubstrateAvailability] = useState(() => executionAvailability.snapshot());
   const learningProvider = useMemo(() => new LearningSimulationProvider<CommerceScenarioInputs>({
     candidateId: "learning:commerce-rationale-v1",
@@ -333,22 +359,34 @@ export default function Home() {
   }), []);
   const engine = useMemo(
     () => {
-      const store = new InMemoryAuthorizationArtifactStore();
       const adapter = (substrate: ExecutionSubstrate) => new AvailabilityGatedExecutionAdapter(
-        new SimulatedExecutionAdapter(substrate, store),
+        substrate === "WEBMCP"
+          ? new WebMCPExecutionAdapter(webMCPClient, artifactStore)
+          : substrate === "DOM"
+            ? new DOMExecutionAdapter(domClient, artifactStore)
+            : new SimulatedExecutionAdapter(substrate, artifactStore),
         () => substrate === "WEBMCP" || substrate === "DOM" || substrate === "VISION"
           ? executionAvailability.enabled(substrate)
           : false,
       );
       return createCommerceSimulationEngine({
         resolutionEvidenceProvider: learningProvider,
-        store,
+        store: artifactStore,
         executionAdapter: adapter("WEBMCP"),
         additionalAdapters: [adapter("DOM"), adapter("VISION")],
       });
     },
-    [executionAvailability, learningProvider],
+    [artifactStore, domClient, executionAvailability, learningProvider, webMCPClient],
   );
+  useEffect(() => {
+    let dispose: () => void = () => {};
+    let disposed = false;
+    void webMCPToolHost.register().then((release) => {
+      if (disposed) release();
+      else dispose = release;
+    });
+    return () => { disposed = true; dispose(); };
+  }, [webMCPToolHost]);
   const [session, setSession] = useState<CommerceSession>(() => engine.createSession());
   const [evolution, setEvolution] = useState(() => learningProvider.snapshot());
   const [busy, setBusy] = useState(false);

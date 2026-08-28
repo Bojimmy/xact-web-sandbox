@@ -16,6 +16,8 @@ export interface ReasoningEvidence {
 }
 
 export interface ReasoningResult {
+  /** Attested by the protected endpoint for this individual reasoning call. */
+  provider: string;
   evidence: readonly ReasoningEvidence[];
   inputTokens: number;
   outputTokens: number;
@@ -31,7 +33,7 @@ export interface OAgentProvider {
 function validateResult(value: unknown): ReasoningResult {
   if (!value || typeof value !== "object") throw new Error("O-Agent provider returned no structured result.");
   const candidate = value as Partial<ReasoningResult>;
-  if (!Array.isArray(candidate.evidence) || !Number.isFinite(candidate.inputTokens) || !Number.isFinite(candidate.outputTokens) || !Number.isFinite(candidate.latencyMs)) {
+  if (typeof candidate.provider !== "string" || candidate.provider.length === 0 || !Array.isArray(candidate.evidence) || !Number.isFinite(candidate.inputTokens) || !Number.isFinite(candidate.outputTokens) || !Number.isFinite(candidate.latencyMs)) {
     throw new Error("O-Agent provider returned an invalid structured result.");
   }
   if (candidate.evidence.some((item) => !item || typeof item.claim !== "string" || !Array.isArray(item.resolves) || Array.from(item.resolves).some((field: unknown) => typeof field !== "string"))) {
@@ -49,6 +51,7 @@ export class SimulatedOAgentProvider implements OAgentProvider {
     const started = performance.now();
     const fields = request.unresolved.filter((field) => typeof field === "string" && field.length > 0);
     return {
+      provider: this.providerName,
       evidence: fields.map((field) => ({ claim: `Public-safe simulated evidence resolves ${field}.`, resolves: [field] })),
       inputTokens: 12 + fields.length * 3,
       outputTokens: 8 + fields.length * 2,
@@ -77,8 +80,11 @@ export class SecureEndpointOAgentProvider implements OAgentProvider {
       body: JSON.stringify(request),
     });
     if (!response.ok) throw new Error(`Secure O-Agent endpoint unavailable (${response.status}).`);
-    const payload = await response.json() as { kind?: ReasoningTelemetryKind; result?: unknown };
+    const payload = await response.json() as { kind?: ReasoningTelemetryKind; provider?: unknown; result?: unknown };
     if (payload.kind !== "LIVE_SANDBOX_MEASUREMENT") throw new Error("Secure O-Agent endpoint did not attest a live measurement.");
-    return validateResult(payload.result);
+    return validateResult({
+      ...(payload.result && typeof payload.result === "object" ? payload.result : {}),
+      provider: payload.provider,
+    });
   }
 }

@@ -366,12 +366,21 @@ export class CommerceSimulationEngine {
     }
 
     const before = session.currentState;
+    let observation: import("../execution/contracts").ExecutionObservation;
+    try {
+      observation = await selection.adapter.observe(selection.effect, execution);
+    } catch (cause) {
+      return this.observationFailed(
+        session,
+        execution,
+        `Execution receipt exists, but post-effect observation failed: ${cause instanceof Error ? cause.message : "unknown observation error"}`,
+      );
+    }
     const after = commerceScenarioPack.applyEffect(
       before,
       authorizedCandidate.proposedEffect,
       execution.receipt,
     );
-    const observation = await selection.adapter.observe(selection.effect, execution);
     const checkpoint = this.telemetryProvider.checkpoint();
     const verification = await this.telemetryProvider.measure(
       "VERIFICATION",
@@ -434,6 +443,32 @@ export class CommerceSimulationEngine {
       execution,
       verification: undefined,
       trace: this.append(session.trace, "Execute", "FAILED", detail),
+    };
+  }
+
+  /**
+   * Observation failure is deliberately distinct from no execution. The effect
+   * may already have happened; its nonce stays spent and verification success
+   * is withheld until a fresh decision/reconciliation path is taken.
+   */
+  private observationFailed(
+    session: CommerceSession,
+    execution: ExecutionResult,
+    detail: string,
+  ): CommerceSession {
+    const executedTrace = this.append(
+      session.trace,
+      "Execute",
+      execution.substrate,
+      "The adapter reported an execution receipt; consequence state is not yet independently known.",
+    );
+    return {
+      ...session,
+      phase: "OBSERVATION_FAILED",
+      selectedSubstrate: execution.substrate,
+      execution,
+      verification: undefined,
+      trace: this.append(executedTrace, "Verify", "OBSERVATION_FAILED", detail),
     };
   }
 

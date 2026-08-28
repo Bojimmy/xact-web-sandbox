@@ -25,11 +25,17 @@ The sandbox must also remain honest when a browser does not expose WebMCP.
 4. A receipt is accepted only when the page's `request_action` returns one;
    observation is a separate read of the page's execution record. Intended
    payload is never substituted for an observation.
-5. Missing `modelContext`, missing tools, a missing receipt, or a transport
-   exception is a non-execution outcome. The runtime records
-   `EXECUTION_FAILED`, applies no scenario effect, withholds verification
-   success, and requires a new Commit decision before another attempt.
-6. A guard rejection (expired/tampered/replayed/effect-mismatched/stale)
+5. Missing `modelContext` is a **substrate-unavailable** outcome; missing
+   `request_action` or `get_execution_observation` is a distinct
+   **capability-surface gap**. Both are non-execution outcomes: the runtime
+   records `EXECUTION_FAILED`, applies no scenario effect, and exposes which
+   layer blocked the request.
+6. A missing receipt or transport exception is also a non-execution outcome.
+   A failed observation *after* a receipt is different: the effect may have
+   occurred, so the runtime records `OBSERVATION_FAILED`, keeps the nonce
+   spent, applies no assumed scenario state, withholds verification success,
+   and requires reconciliation plus a fresh Commit decision before retry.
+7. A guard rejection (expired/tampered/replayed/effect-mismatched/stale)
    remains a hard consequence-boundary block, not an execution attempt.
 
 ## Consequences
@@ -37,8 +43,9 @@ The sandbox must also remain honest when a browser does not expose WebMCP.
 - The default Control Room remains public-safe and simulated; passing a
   `WebMCPExecutionAdapter` to `CommerceSimulationEngine` is an explicit,
   replaceable integration choice.
-- DOM and Vision remain unimplemented placeholders. No fallback automatically
-  occurs merely because WebMCP is unavailable.
+- DOM and Vision are independent adapters governed by ADR 0007/0008. The
+  router may select them as explicit fallback capability routes; this never
+  changes the artifact, effect, authority, or verification requirements.
 - A live demonstration requires a WebMCP-enabled, origin-isolated browser and
   a page that registers the two tools. This repository does not claim that an
   unavailable browser has executed an effect.
@@ -46,6 +53,7 @@ The sandbox must also remain honest when a browser does not expose WebMCP.
 ## Verification
 
 The test suite covers successful structured transport/observation, feature
-detection, missing WebMCP, transport failure, replay suppression, no state
-mutation on failure, and verification that includes the independent observed
-receipt.
+detection, the distinction between missing WebMCP and missing tools, direct
+tool calls rejected without an Xact-prepared dispatch, replay suppression,
+ambiguous observation after a receipt, and verification that includes the
+independent observed receipt.

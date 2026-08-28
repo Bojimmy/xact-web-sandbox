@@ -37,6 +37,7 @@ function formatCheck(check: CommitCheck | undefined, fallback: string): string {
 
 function titleFor(status: ControlRoomStatus, phase: CommerceSession["phase"]): string {
   if (phase === "EXECUTION_FAILED") return "Authorized candidate did not execute";
+  if (phase === "OBSERVATION_FAILED") return "Execution outcome requires reconciliation";
   if (status === "AUTHORIZED") return "Current candidate is authorized";
   if (status === "REJECTED") return "Current request is finally denied";
   if (status === "ESCALATED") return "Additional evidence or authority required";
@@ -53,6 +54,13 @@ function decisionCopy(status: ControlRoomStatus, session: CommerceSession) {
         finality: "PENDING" as const,
         label: "Execution failed closed",
         nextStep: "No effect was caused. Review the execution error and obtain a fresh Commit decision before retrying.",
+      };
+    }
+    if (session.phase === "OBSERVATION_FAILED") {
+      return {
+        finality: "PENDING" as const,
+        label: "Execution outcome ambiguous",
+        nextStep: "A receipt exists but observation failed. Verification is withheld; reconcile current state and obtain a fresh Commit decision before any retry.",
       };
     }
     return {
@@ -172,6 +180,13 @@ export function toControlRoomScenario(session: CommerceSession): ControlRoomScen
       effect: proposedEffect ? `${proposedEffect.type.toLowerCase()} ${money(proposedEffect.amount)}` : "No candidate effect",
       executed: Boolean(session.execution?.executed),
       receipt: session.execution?.receipt ? String(session.execution.receipt) : "—",
+      authorization: decision?.artifact && proposedEffect
+        ? {
+            commitId: decision.artifact.commitId,
+            effectFingerprint: decision.artifact.effectFingerprint,
+            target: proposedEffect.target,
+          }
+        : undefined,
     },
     trace: session.trace.map((event) => ({
       phase: event.phase,
@@ -192,6 +207,12 @@ export function toControlRoomScenario(session: CommerceSession): ControlRoomScen
             summary: session.execution?.error ?? "Execution failed before an effect could be observed.",
             checks: ["No execution receipt", "No simulated effect applied", "Verification success withheld"],
           }
+        : session.phase === "OBSERVATION_FAILED"
+          ? {
+              state: "AMBIGUOUS",
+              summary: "An execution receipt exists, but post-effect observation failed. No verified success is claimed.",
+              checks: ["Execution receipt present", "Post-effect observation unavailable", "Nonce remains spent", "Fresh Commit required before retry"],
+            }
         : {
           state: status === "REJECTED" || status === "STALE" ? "BLOCKED" : "NOT_RUN",
           summary: status === "AUTHORIZED"

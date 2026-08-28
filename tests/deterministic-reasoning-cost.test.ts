@@ -24,7 +24,7 @@ class LiveFixtureProvider implements OAgentProvider {
   readonly telemetryKind = "LIVE_SANDBOX_MEASUREMENT" as const;
   readonly providerName = "Live fixture provider";
   async reason(request: ReasoningRequest): Promise<ReasoningResult> {
-    return { evidence: request.unresolved.map((field) => ({ claim: `Evidence for ${field}`, resolves: [field] })), inputTokens: 5, outputTokens: 3, latencyMs: 2 };
+    return { provider: this.providerName, evidence: request.unresolved.map((field) => ({ claim: `Evidence for ${field}`, resolves: [field] })), inputTokens: 5, outputTokens: 3, latencyMs: 2 };
   }
 }
 
@@ -57,6 +57,7 @@ test("offline simulated O-Agent output is explicitly labeled and shares the prov
 test("secure endpoint provider accepts only an attested live structured result and exposes no credential", async () => {
   const provider = new SecureEndpointOAgentProvider("/api/o-agent", async () => new Response(JSON.stringify({
     kind: "LIVE_SANDBOX_MEASUREMENT",
+    provider: "kimi",
     result: { evidence: [{ claim: "Bounded evidence", resolves: ["field"] }], inputTokens: 4, outputTokens: 2, latencyMs: 1 },
   }), { status: 200 }));
 
@@ -69,6 +70,7 @@ test("secure endpoint provider accepts only an attested live structured result a
 test("secure endpoint provider refuses to relabel simulated reasoning as live", async () => {
   const provider = new SecureEndpointOAgentProvider("/api/o-agent", async () => new Response(JSON.stringify({
     kind: "SIMULATED_O_AGENT",
+    provider: "ollama",
     result: { evidence: [], inputTokens: 0, outputTokens: 0, latencyMs: 0 },
   }), { status: 200 }));
 
