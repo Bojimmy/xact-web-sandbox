@@ -150,7 +150,7 @@ export class ConstructionBenchmarkEngine {
     const unresolved: ConstructionOperation[] = domain === "ORDER" && !activeComposition ? [{
       id: "order:composition", primitive: "ComponentComposition" as const, inputs: { domain: "order", layout: "unresolved" },
       dependencies: ["order:page"], classification: "UNRESOLVED" as const, status: "PENDING" as const,
-      reason: "No ACTIVE governed composition is available for the related order dashboard.",
+      reason: "No ACTIVATED governed composition is available for the related order dashboard.",
     }] : [];
     return [...resolved, ...unresolved];
   }

@@ -180,6 +180,24 @@ Deterministic %  ↑
 This is the live, measured form of "reasoning used to reduce the future need
 for reasoning."
 
+## The three clocks (presentation model)
+
+Keep the three compute regimes visually distinct so the Reference decision
+number can never be read as sandbox work:
+
+| Clock | Measures | Provenance | Result |
+|-------|----------|-----------|--------|
+| Decision | Xact authorizes one candidate | **REFERENCE** — real Xact Core; displayed, not sandbox-measured | ~9 μs |
+| Work | deterministic construction execution | **LIVE** sandbox | ~0.5 s |
+| Reasoning | O-Agent resolves U nodes | **LIVE** (secure provider) | 110 s → 14 s |
+
+Only the Work and Reasoning clocks are measured here. The Decision clock is a
+labeled reference shown for scale; the sandbox has no real Xact Core and must
+not imply it measured it.
+
+> **Xact decides in microseconds, deterministic work executes in ~milliseconds,
+> reasoning takes seconds — and learning shrinks the seconds, not the work.**
+
 ## Boundary and honesty rules
 
 - The `6A.2` concurrency result is untouched and separately labeled.
@@ -196,14 +214,22 @@ for reasoning."
 
 ## Visualization (the deliverable)
 
-Lead with the time-accounting bar and the two-mode table:
+Lead with the three-clock before/after and the checksum witness:
 
 ```text
-TOTAL BUILD TIME
-Xact deterministic work   ███ 0.9s   (0 tokens)
-Real O-Agent reasoning    ███████████████ 4.7s   (12,842 in / 2,311 out tokens)
-Verification              ██ 0.5s
+BEFORE ACTIVATED LEARNING                 AFTER ACTIVATED LEARNING
+Decision (REFERENCE)      ~9 μs           Decision (REFERENCE)      ~9 μs
+Deterministic build       0.48 s          Deterministic build       0.53 s   (same work, within noise)
+O-Agent reasoning         109.9 s         O-Agent reasoning         13.9 s
+Tokens                    5,032           Tokens                    665
+
+checksum 698530768  ==  checksum 698530768
 ```
+
+Then a "where the time went" bar and the two-mode table. Encoded conclusion:
+the work did not get cheaper because we skipped work — it got faster because
+Xact stopped asking an LLM questions it had already learned to answer
+deterministically.
 
 | Metric | Naive Reasoning | Xact Hybrid |
 |--------|----------------:|------------:|

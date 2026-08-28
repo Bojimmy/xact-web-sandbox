@@ -38,10 +38,10 @@ evidence may resolve.
 
 The lifecycle is strictly sequential:
 
-`OBSERVED → CANDIDATE → VALIDATED → APPROVED → ACTIVE`
+`OBSERVED → CANDIDATE → VALIDATED → APPROVED → ACTIVATED`
 
 Observation stores evidence but cannot affect Resolution. Only an explicit
-transition from `APPROVED` to `ACTIVE` makes governed resolution evidence
+transition from `APPROVED` to `ACTIVATED` makes governed resolution evidence
 available for an equivalent request. The provider cannot supply authority,
 select an execution substrate, execute an effect, or alter verification.
 
@@ -59,7 +59,7 @@ results remain separately labeled reference evidence.
   rules.
 - Evolution logic is not coupled to Commerce; Commerce supplies only an
   explicit key at the application composition boundary.
-- The O-Agent cannot directly modify active deterministic behavior.
+- The O-Agent cannot directly modify activated deterministic behavior.
 - A promoted pattern improves Resolution only and can never grant consequence
   authority.
 - Production extraction, matching, scoring, validation, promotion, confidence,

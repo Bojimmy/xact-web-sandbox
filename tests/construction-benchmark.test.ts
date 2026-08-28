@@ -81,7 +81,7 @@ test("an O-Agent proposal cannot expand the approved construction primitive regi
   assert.equal(run.metrics.xNodesUsed, 0);
 });
 
-test("ACTIVE governed composition removes the related-build unresolved operation without changing Commit", async () => {
+test("ACTIVATED governed composition removes the related-build unresolved operation without changing Commit", async () => {
   const run = await new ConstructionBenchmarkEngine().run({ request: orderBenchmarkRequest, concurrency: 50, activeComposition: true });
 
   assert.equal(run.metrics.finalResult, "WORKING_APP");

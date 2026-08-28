@@ -14,8 +14,8 @@ const nextState: Record<PromotionState, PromotionState | undefined> = {
   OBSERVED: "CANDIDATE",
   CANDIDATE: "VALIDATED",
   VALIDATED: "APPROVED",
-  APPROVED: "ACTIVE",
-  ACTIVE: undefined,
+  APPROVED: "ACTIVATED",
+  ACTIVATED: undefined,
 };
 
 export class LearningSimulationProvider<TInputs> implements ResolutionEvidenceProvider<TInputs> {
@@ -26,8 +26,8 @@ export class LearningSimulationProvider<TInputs> implements ResolutionEvidencePr
   constructor(private readonly definition: LearningSimulationDefinition<TInputs>) {}
 
   observe(observation: LearningObservation): EvolutionSnapshot {
-    if (this.candidate?.state === "ACTIVE") {
-      throw new Error("An active simulated pattern must be reset before observing a new candidate.");
+    if (this.candidate?.state === "ACTIVATED") {
+      throw new Error("An activated simulated pattern must be reset before observing a new candidate.");
     }
 
     this.beforeTrace = [...observation.beforeTrace];
@@ -66,20 +66,20 @@ export class LearningSimulationProvider<TInputs> implements ResolutionEvidencePr
     this.candidate = {
       ...this.candidate,
       state: target,
-      validationStatus: target === "VALIDATED" || target === "APPROVED" || target === "ACTIVE"
+      validationStatus: target === "VALIDATED" || target === "APPROVED" || target === "ACTIVATED"
         ? "PASSED"
         : this.candidate.validationStatus,
-      approvalStatus: target === "APPROVED" || target === "ACTIVE"
+      approvalStatus: target === "APPROVED" || target === "ACTIVATED"
         ? "APPROVED"
         : this.candidate.approvalStatus,
-      promotionStatus: target === "ACTIVE" ? "ACTIVE" : "INACTIVE",
+      promotionStatus: target === "ACTIVATED" ? "ACTIVATED" : "INACTIVE",
     };
     return this.snapshot();
   }
 
   collect(inputs: TInputs): EvidenceRecord[] {
     if (
-      this.candidate?.state !== "ACTIVE"
+      this.candidate?.state !== "ACTIVATED"
       || this.definition.caseKey(inputs) !== this.candidate.equivalentCaseKey
     ) {
       return [];
@@ -87,16 +87,16 @@ export class LearningSimulationProvider<TInputs> implements ResolutionEvidencePr
 
     return [{
       ...this.candidate.evidence,
-      id: `${this.candidate.evidence.id}:active`,
-      source: "Active Governed Simulation Pattern",
-      provenance: "Public-safe governed simulation; explicitly approved and promoted to ACTIVE.",
+      id: `${this.candidate.evidence.id}:activated`,
+      source: "Activated Governed Simulation Pattern",
+      provenance: "Public-safe governed simulation; explicitly approved and promoted to ACTIVATED.",
       resolves: [...this.candidate.resolves],
     }];
   }
 
   recordReplay(afterTrace: string[]): EvolutionSnapshot {
-    if (this.candidate?.state !== "ACTIVE") {
-      throw new Error("Replay evidence may be recorded only after promotion is ACTIVE.");
+    if (this.candidate?.state !== "ACTIVATED") {
+      throw new Error("Replay evidence may be recorded only after promotion is ACTIVATED.");
     }
     this.afterTrace = [...afterTrace];
     return this.snapshot();
@@ -110,7 +110,7 @@ export class LearningSimulationProvider<TInputs> implements ResolutionEvidencePr
   }
 
   snapshot(): EvolutionSnapshot {
-    const active = this.candidate?.state === "ACTIVE";
+    const activated = this.candidate?.state === "ACTIVATED";
     return {
       kind: "PUBLIC_SAFE_SIMULATION",
       candidate: this.candidate
@@ -122,8 +122,8 @@ export class LearningSimulationProvider<TInputs> implements ResolutionEvidencePr
         : undefined,
       coverage: [
         { label: "First encounter", deterministicCoveragePercent: 80, reasoningFrequencyPercent: 20, cohortSize: 5 },
-        ...(active
-          ? [{ label: "After governed promotion", deterministicCoveragePercent: 100, reasoningFrequencyPercent: 0, cohortSize: 5 }]
+        ...(activated
+          ? [{ label: "After governed activation", deterministicCoveragePercent: 100, reasoningFrequencyPercent: 0, cohortSize: 5 }]
           : []),
       ],
       beforeTrace: [...this.beforeTrace],

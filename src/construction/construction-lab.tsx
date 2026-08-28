@@ -88,16 +88,16 @@ export function ConstructionLab() {
       setEvolution(learning.observe({ evidenceId: "construction:composition-evidence", claim: "Bounded order composition was observed in a governed construction run.", beforeTrace: ["Cold order request: one composition U"] }));
       return;
     }
-    const next: Partial<Record<PromotionState, PromotionState>> = { OBSERVED: "CANDIDATE", CANDIDATE: "VALIDATED", VALIDATED: "APPROVED", APPROVED: "ACTIVE" };
+    const next: Partial<Record<PromotionState, PromotionState>> = { OBSERVED: "CANDIDATE", CANDIDATE: "VALIDATED", VALIDATED: "APPROVED", APPROVED: "ACTIVATED" };
     const target = next[evolution.candidate.state];
     if (target) setEvolution(learning.transition(target));
   };
-  const active = evolution.candidate?.state === "ACTIVE";
+  const active = evolution.candidate?.state === "ACTIVATED";
   const metrics = run?.metrics;
 
   return <section className="construction-lab" id="construction-lab" aria-labelledby="construction-title">
     <header className="construction-heading"><div><span className="section-kicker">07 / Experimental proof branch</span><h2 id="construction-title">XACT CONSTRUCTION LAB</h2><p>Allowlisted primitives, deterministic workers, and measured public-safe construction runs.</p></div><span className="simulation-boundary">Live construction benchmark</span></header>
-    <div className="construction-actions"><button type="button" onClick={() => void execute(inventoryBenchmarkRequest)} disabled={busy}>Pass 1 · Run cold inventory</button><button type="button" onClick={() => void execute(orderBenchmarkRequest)} disabled={busy}>Inspect related U</button><button type="button" onClick={advance} disabled={busy || active}>{active ? "Composition ACTIVE" : evolution.candidate ? `Promote ${evolution.candidate.state}` : "Pass 2 · Start governed evolution"}</button><button type="button" onClick={() => void execute(orderBenchmarkRequest, active)} disabled={busy || !active}>Pass 3 · Run hot order</button><button type="button" onClick={() => void benchmark()} disabled={busy}>6A.1 · Compare structural scheduler</button><button type="button" onClick={() => void runScale()} disabled={busy || !scaleRunner.available()}>6A.2 · Run deterministic scale workload</button><button type="button" onClick={() => setShowAI((value) => !value)}>{showAI ? "Show all operations" : "Show me what required AI"}</button></div>
+    <div className="construction-actions"><button type="button" onClick={() => void execute(inventoryBenchmarkRequest)} disabled={busy}>Pass 1 · Run cold inventory</button><button type="button" onClick={() => void execute(orderBenchmarkRequest)} disabled={busy}>Inspect related U</button><button type="button" onClick={advance} disabled={busy || active}>{active ? "Composition ACTIVATED" : evolution.candidate ? `Promote ${evolution.candidate.state}` : "Pass 2 · Start governed evolution"}</button><button type="button" onClick={() => void execute(orderBenchmarkRequest, active)} disabled={busy || !active}>Pass 3 · Run hot order</button><button type="button" onClick={() => void benchmark()} disabled={busy}>6A.1 · Compare structural scheduler</button><button type="button" onClick={() => void runScale()} disabled={busy || !scaleRunner.available()}>6A.2 · Run deterministic scale workload</button><button type="button" onClick={() => setShowAI((value) => !value)}>{showAI ? "Show all operations" : "Show me what required AI"}</button></div>
     <div className="construction-metrics">{[
       ["Deterministic operations", metrics?.deterministicOperations ?? "—"], ["Reasoning events", metrics?.oAgentCalls ?? "—"], ["Tokens used", metrics?.oAgentTokens ?? "—"], ["Active X-Nodes", metrics?.peakParallelOperations ?? "—"], ["Total build time", metrics ? formatMs(metrics.totalTimeToWorkingAppMs) : "—"],
     ].map(([label, value]) => <article key={String(label)}><span>{label}</span><strong>{value}</strong></article>)}</div>

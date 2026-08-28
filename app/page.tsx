@@ -399,13 +399,13 @@ export default function Home() {
         ],
       }));
     } else if (
-      currentEvolution.candidate?.state === "ACTIVE"
+      currentEvolution.candidate?.state === "ACTIVATED"
       && next.candidate?.resolutionEvidence.length
     ) {
       setEvolution(learningProvider.recordReplay([
         `Resolve: R${next.candidate.resolution.resolved.length} / U${next.candidate.resolution.unresolved.length}`,
         "O-Agent: NOT INVOKED",
-        "Active pattern: resolution evidence only",
+        "ACTIVATED capability: resolution evidence only",
         `Commit: ${next.decision?.status ?? "PENDING"} after independent current-state checks`,
       ]));
     }
@@ -424,7 +424,7 @@ export default function Home() {
       OBSERVED: "CANDIDATE",
       CANDIDATE: "VALIDATED",
       VALIDATED: "APPROVED",
-      APPROVED: "ACTIVE",
+      APPROVED: "ACTIVATED",
     };
     if (!state || !next[state]) return;
     try {
