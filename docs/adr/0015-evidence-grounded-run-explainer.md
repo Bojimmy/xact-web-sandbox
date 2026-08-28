@@ -107,14 +107,27 @@ const prepared = prepareRunExplainer({
 // 2. PREVIEW — mount the storyboard; no render yet.
 <StoryboardPreview storyboard={prepared.storyboard} />
 
-// 3. RENDER — a consequence; requires its own Commit AuthorizationArtifact.
-const rendered = await renderApprovedExplainer(prepared, renderArtifact);
+// 3. RENDER — a consequence; requires its own Commit AuthorizationArtifact,
+//    validated through the ADR 0004 guard (issuance, effect/state binding,
+//    expiry, replay) and nonce-consumed atomically.
+const stateFingerprint = prepared.manifest.stateFingerprint.value;
+const rendered = await renderApprovedExplainer(
+  prepared,
+  mintedRenderArtifact(renderEffectPayload(prepared), stateFingerprint),
+  store,
+);
 
 // 4. Verify (optional) — bind the artifact to its inputs.
 verifyRender(rendered, { explainerId: prepared.explainerId, runId, storyboard: prepared.storyboard, narration: prepared.narration });
 
 // 5. PUBLISH — a DIFFERENT consequence; requires its own Commit AuthorizationArtifact.
-publishExplainer(rendered, publishArtifact, destination);
+publishExplainer(
+  rendered,
+  mintedPublishArtifact(publishEffectPayload(rendered, destination), stateFingerprint),
+  store,
+  destination,
+  stateFingerprint,
+);
 ```
 
 No refactor of the flagship, no cross-cutting dependency, no change to Stage 2A

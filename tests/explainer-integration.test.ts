@@ -7,15 +7,17 @@ import {
   StoryboardPreview,
   explainerTools,
   prepareRunExplainer,
+  publishEffectPayload,
   publishExplainer,
   renderApprovedExplainer,
+  renderEffectPayload,
   verifyRender,
 } from "../src/explainer";
 import type { AuthorizationArtifact } from "../src/xact/contracts";
+import { AuthorizationArtifactIssuer, InMemoryAuthorizationArtifactStore, stableFingerprint } from "../src/xact/authorization-artifact";
 import { createServiceCreditEngine, type ServiceCreditSession } from "../src/runtime/service-operations-engine";
 import { WebMCPExecutionAdapter, type WebMCPExecutionClient } from "../src/execution/webmcp-execution-adapter";
 import type { AuthorizedEffect, ExecutionObservation } from "../src/execution/contracts";
-import { InMemoryAuthorizationArtifactStore, stableFingerprint } from "../src/xact/authorization-artifact";
 
 class AvailableWebMCP implements WebMCPExecutionClient {
   private lastEffect?: AuthorizedEffect;
@@ -38,17 +40,17 @@ async function completedVerifiedRun(): Promise<ServiceCreditSession> {
   return session;
 }
 
-function artifact(capability: string): AuthorizationArtifact {
-  return {
-    commitId: "commit:explainer",
-    effectFingerprint: "fp",
-    baseStateFingerprint: "bs",
+let mintOrdinal = 0;
+
+function mintArtifact(store: InMemoryAuthorizationArtifactStore, capability: string, effectPayload: unknown, stateFingerprint: string): AuthorizationArtifact {
+  mintOrdinal += 1;
+  return new AuthorizationArtifactIssuer(store).issue({
+    commitId: `commit:${capability}:${mintOrdinal}`,
+    effectFingerprint: stableFingerprint(effectPayload),
+    baseStateFingerprint: stateFingerprint,
     actor: "support.agent",
     capability,
-    nonce: "nonce:1",
-    issuedAtEpochMs: 1,
-    expiresAtEpochMs: 9_000_000_000_000,
-  };
+  });
 }
 
 test("the public facade exposes exactly the surface Codex needs", () => {
@@ -56,6 +58,8 @@ test("the public facade exposes exactly the surface Codex needs", () => {
   assert.equal(typeof renderApprovedExplainer, "function");
   assert.equal(typeof publishExplainer, "function");
   assert.equal(typeof verifyRender, "function");
+  assert.equal(typeof renderEffectPayload, "function");
+  assert.equal(typeof publishEffectPayload, "function");
   assert.equal(typeof StoryboardPreview, "function");
   assert.equal(explainerTools.length, 3);
 });
@@ -85,8 +89,15 @@ test("the end-to-end Codex flow works from the facade alone and never touches th
   assert.ok(prepared.storyboard.cards.some((card) => card.visualType === "COMMIT"));
   assert.ok(prepared.storyboard.cards.some((card) => card.visualType === "EXECUTION"));
 
-  // render — its own Commit consequence.
-  const rendered = await renderApprovedExplainer(prepared, artifact(EXPLAINER_RENDER_CAPABILITY));
+  const store = new InMemoryAuthorizationArtifactStore();
+  const stateFingerprint = prepared.manifest.stateFingerprint.value;
+
+  // render — its own Commit consequence (full ADR 0004 guard).
+  const rendered = await renderApprovedExplainer(
+    prepared,
+    mintArtifact(store, EXPLAINER_RENDER_CAPABILITY, renderEffectPayload(prepared), stateFingerprint),
+    store,
+  );
   assert.equal(rendered.status, "RENDERED");
   assert.equal(verifyRender(rendered, {
     explainerId: prepared.explainerId,
@@ -96,7 +107,14 @@ test("the end-to-end Codex flow works from the facade alone and never touches th
   }).ok, true);
 
   // publish — a different consequence with its own Commit.
-  const published = publishExplainer(rendered, artifact(EXPLAINER_PUBLISH_CAPABILITY), "https://demo/xact/explainer");
+  const destination = "https://demo/xact/explainer";
+  const published = publishExplainer(
+    rendered,
+    mintArtifact(store, EXPLAINER_PUBLISH_CAPABILITY, publishEffectPayload(rendered, destination), stateFingerprint),
+    store,
+    destination,
+    stateFingerprint,
+  );
   assert.equal(published.kind, "EXPLAINER_PUBLISH_RESULT");
 
   // The run is untouched — the explainer is strictly downstream.
@@ -112,15 +130,31 @@ test("a render authorization cannot publish, and a publish authorization cannot 
     requestedCapability: "request_service_credit",
     session,
   });
+  const store = new InMemoryAuthorizationArtifactStore();
+  const stateFingerprint = prepared.manifest.stateFingerprint.value;
 
   await assert.rejects(
-    () => renderApprovedExplainer(prepared, artifact(EXPLAINER_PUBLISH_CAPABILITY)),
+    () => renderApprovedExplainer(
+      prepared,
+      mintArtifact(store, EXPLAINER_PUBLISH_CAPABILITY, { type: "PUBLISH_EXPLAINER", explainerId: prepared.explainerId, runId: prepared.runId, destination: "https://demo/xact" }, stateFingerprint),
+      store,
+    ),
     /capability 'explainer:render'/,
   );
 
-  const rendered = await renderApprovedExplainer(prepared, artifact(EXPLAINER_RENDER_CAPABILITY));
+  const rendered = await renderApprovedExplainer(
+    prepared,
+    mintArtifact(store, EXPLAINER_RENDER_CAPABILITY, renderEffectPayload(prepared), stateFingerprint),
+    store,
+  );
   assert.throws(
-    () => publishExplainer(rendered, artifact(EXPLAINER_RENDER_CAPABILITY), "https://demo/xact"),
+    () => publishExplainer(
+      rendered,
+      mintArtifact(store, EXPLAINER_RENDER_CAPABILITY, renderEffectPayload(prepared), stateFingerprint),
+      store,
+      "https://demo/xact",
+      stateFingerprint,
+    ),
     /capability 'explainer:publish'/,
   );
 });

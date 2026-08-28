@@ -1,4 +1,6 @@
 import type { AuthorizationArtifact } from "../xact/contracts";
+import type { AuthorizationArtifactStore } from "../xact/authorization-artifact";
+import { validateAuthorizationArtifact } from "../execution/artifact-guard";
 import {
   buildExplainerManifest,
   type ExplainerManifest,
@@ -7,7 +9,12 @@ import {
 import { generateScript, type NarrationScript } from "./narration-script";
 import { buildStoryboard, type Storyboard } from "./storyboard";
 import { HtmlSlideshowRenderer } from "./html-renderer";
-import type { ExplainerRenderer, RenderResult } from "./renderer";
+import {
+  renderFingerprint,
+  type ExplainerRenderer,
+  type RenderRequest,
+  type RenderResult,
+} from "./renderer";
 
 /**
  * WebMCP surface for the explainer (E6).
@@ -20,8 +27,9 @@ import type { ExplainerRenderer, RenderResult } from "./renderer";
  *   publish_explainer                 → CONSEQUENCE (external side effect) → its OWN Commit
  *
  * Preparation never grants render authority; render authority never grants
- * publish authority. Each consequence traverses the Commit path via an
- * AuthorizationArtifact with its own capability.
+ * publish authority. Render and publish traverse the same ADR 0004 artifact
+ * guard as execution (issuance, well-formedness, expiry, replay, effect
+ * binding, state freshness), plus atomic nonce consumption.
  */
 
 export type ExplainerToolName =
@@ -75,6 +83,55 @@ export interface PreparedExplainer {
   renderPlan: RenderPlan;
 }
 
+/** The effect payload a render Commit authorizes (bound to explainer + run). */
+export interface RenderConsequenceEffect {
+  type: "RENDER_EXPLAINER";
+  explainerId: string;
+  runId: string;
+  inputFingerprint: string;
+}
+
+/** The effect payload a publish Commit authorizes (bound to render + destination). */
+export interface PublishConsequenceEffect {
+  type: "PUBLISH_EXPLAINER";
+  explainerId: string;
+  runId: string;
+  destination: string;
+  renderId: string;
+  artifactRef: string;
+  renderFingerprint: string;
+}
+
+export function renderEffectPayload(prepared: PreparedExplainer): RenderConsequenceEffect {
+  return {
+    type: "RENDER_EXPLAINER",
+    explainerId: prepared.explainerId,
+    runId: prepared.runId,
+    inputFingerprint: renderFingerprint(renderRequest(prepared)),
+  };
+}
+
+export function publishEffectPayload(rendered: RenderResult, destination: string): PublishConsequenceEffect {
+  return {
+    type: "PUBLISH_EXPLAINER",
+    explainerId: rendered.explainerId,
+    runId: rendered.runId,
+    destination,
+    renderId: rendered.renderId,
+    artifactRef: rendered.artifactRef,
+    renderFingerprint: rendered.fingerprint,
+  };
+}
+
+function renderRequest(prepared: PreparedExplainer): RenderRequest {
+  return {
+    explainerId: prepared.explainerId,
+    runId: prepared.runId,
+    storyboard: prepared.storyboard,
+    narration: prepared.narration,
+  };
+}
+
 /**
  * READ: project a run into the explainer plan. No consequence, no artifact, no
  * authority — the returned plan cannot render or publish by itself.
@@ -102,21 +159,27 @@ export function prepareRunExplainer<TInputs, TState, TEffect>(
 
 /**
  * CONSEQUENCE: render the prepared explainer. Requires a Commit
- * AuthorizationArtifact for `explainer:render`. A publish artifact (or no
- * artifact) cannot render; failure blocks without effect.
+ * AuthorizationArtifact for `explainer:render`, validated through the ADR 0004
+ * guard and nonce-consumed atomically. A publish artifact (or an unissued,
+ * expired, replayed, mis-bound, or stale artifact) cannot render; failure
+ * blocks without effect.
  */
 export async function renderApprovedExplainer(
   prepared: PreparedExplainer,
   authorization: AuthorizationArtifact,
+  store: AuthorizationArtifactStore,
   renderer: ExplainerRenderer = new HtmlSlideshowRenderer(),
+  now: () => number = Date.now,
 ): Promise<RenderResult> {
-  assertConsequenceAuthorized(authorization, EXPLAINER_RENDER_CAPABILITY);
-  return renderer.render({
-    explainerId: prepared.explainerId,
-    runId: prepared.runId,
-    storyboard: prepared.storyboard,
-    narration: prepared.narration,
-  });
+  assertConsequenceAuthorized(
+    store,
+    authorization,
+    EXPLAINER_RENDER_CAPABILITY,
+    renderEffectPayload(prepared),
+    prepared.manifest.stateFingerprint.value,
+    now,
+  );
+  return renderer.render(renderRequest(prepared));
 }
 
 export interface PublishResult {
@@ -131,15 +194,25 @@ export interface PublishResult {
 /**
  * CONSEQUENCE: publish the rendered explainer. A DIFFERENT consequence than
  * render — it requires its own Commit AuthorizationArtifact for
- * `explainer:publish`. A render artifact cannot publish.
+ * `explainer:publish`, validated through the ADR 0004 guard and nonce-consumed
+ * atomically. A render artifact cannot publish.
  */
 export function publishExplainer(
   rendered: RenderResult,
   authorization: AuthorizationArtifact,
+  store: AuthorizationArtifactStore,
   destination: string,
+  stateFingerprint: string,
   now: () => number = Date.now,
 ): PublishResult {
-  assertConsequenceAuthorized(authorization, EXPLAINER_PUBLISH_CAPABILITY);
+  assertConsequenceAuthorized(
+    store,
+    authorization,
+    EXPLAINER_PUBLISH_CAPABILITY,
+    publishEffectPayload(rendered, destination),
+    stateFingerprint,
+    now,
+  );
   if (rendered.status !== "RENDERED") {
     throw new Error("Publishing requires a successfully rendered explainer.");
   }
@@ -153,18 +226,29 @@ export function publishExplainer(
   };
 }
 
+/**
+ * The render/publish authority gate. It first checks the consequence
+ * capability, then runs the full ADR 0004 artifact guard (authentic →
+ * well-formed → unexpired → unreplayed → effect-bound → state-fresh), then
+ * consumes the nonce atomically. This is the same guard the execution adapters
+ * enforce — not a weaker explainer-specific check.
+ */
 function assertConsequenceAuthorized(
+  store: AuthorizationArtifactStore,
   authorization: AuthorizationArtifact,
   capability: string,
-  now: () => number = Date.now,
+  payload: unknown,
+  currentStateFingerprint: string,
+  now: () => number,
 ): void {
   if (authorization.capability !== capability) {
     throw new Error(`This consequence requires a Commit AuthorizationArtifact with capability '${capability}'.`);
   }
-  if (authorization.expiresAtEpochMs <= now()) {
-    throw new Error("The Commit AuthorizationArtifact has expired.");
+  const validation = validateAuthorizationArtifact(store, authorization, payload, currentStateFingerprint, now);
+  if (!validation.valid) {
+    throw new Error(`Authorization artifact validation failed: ${validation.reason}`);
   }
-  if (!authorization.nonce) {
-    throw new Error("The Commit AuthorizationArtifact carries no nonce.");
+  if (!store.consumeNonce(authorization.nonce)) {
+    throw new Error("Nonce already consumed (replay blocked).");
   }
 }

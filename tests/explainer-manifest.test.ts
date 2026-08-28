@@ -257,3 +257,33 @@ test("the manifest is pure data with no authority surface", async () => {
   assert.equal("artifact" in manifest, false);
   assert.ok(Object.values(manifest).every((value) => typeof value !== "function"));
 });
+
+async function failedExecutionSession(): Promise<ServiceCreditSession> {
+  const store = new InMemoryAuthorizationArtifactStore();
+  // No adapters: Commit still authorizes, but execution routes to no capable
+  // adapter and fails closed without an effect.
+  const engine = createServiceCreditEngine(store, []);
+  let session = engine.createSession();
+  session = await engine.resolve(session);
+  session = await engine.commit(session);
+  assert.equal(session.decision?.status, "AUTHORIZED");
+  session = await engine.executeAndVerify(session);
+  assert.equal(session.phase, "EXECUTION_FAILED");
+  assert.equal(session.execution?.executed, false);
+  return session;
+}
+
+test("a failed execution is narrated as not-executed, never as a success", async () => {
+  const session = await failedExecutionSession();
+  const manifest = buildExplainerManifest({
+    runId: "run:failed-exec",
+    judgePrompt: "Apply a $42 service credit.",
+    requestedCapability: "request_service_credit",
+    session,
+  });
+
+  const executionClaim = manifestClaims(manifest).find((claim) => claim.claimType === "EXECUTION");
+  assert.ok(executionClaim);
+  assert.ok(executionClaim.fact.includes("did not execute"), executionClaim.fact);
+  assert.ok(!executionClaim.fact.includes("executed the authorized effect"));
+});

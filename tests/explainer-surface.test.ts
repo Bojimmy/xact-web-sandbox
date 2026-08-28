@@ -5,14 +5,16 @@ import {
   EXPLAINER_RENDER_CAPABILITY,
   explainerTools,
   prepareRunExplainer,
+  publishEffectPayload,
   publishExplainer,
   renderApprovedExplainer,
+  renderEffectPayload,
 } from "../src/explainer/explainer-surface";
 import type { AuthorizationArtifact } from "../src/xact/contracts";
+import { AuthorizationArtifactIssuer, InMemoryAuthorizationArtifactStore, stableFingerprint } from "../src/xact/authorization-artifact";
 import { createServiceCreditEngine, type ServiceCreditSession } from "../src/runtime/service-operations-engine";
 import { WebMCPExecutionAdapter, type WebMCPExecutionClient } from "../src/execution/webmcp-execution-adapter";
 import type { AuthorizedEffect, ExecutionObservation } from "../src/execution/contracts";
-import { InMemoryAuthorizationArtifactStore, stableFingerprint } from "../src/xact/authorization-artifact";
 
 class AvailableWebMCP implements WebMCPExecutionClient {
   private lastEffect?: AuthorizedEffect;
@@ -34,14 +36,27 @@ async function verifiedSession(): Promise<ServiceCreditSession> {
   return session;
 }
 
-function artifact(capability: string, overrides: Partial<AuthorizationArtifact> = {}): AuthorizationArtifact {
+let mintOrdinal = 0;
+
+function mintArtifact(store: InMemoryAuthorizationArtifactStore, capability: string, effectPayload: unknown, stateFingerprint: string): AuthorizationArtifact {
+  mintOrdinal += 1;
+  return new AuthorizationArtifactIssuer(store).issue({
+    commitId: `commit:${capability}:${mintOrdinal}`,
+    effectFingerprint: stableFingerprint(effectPayload),
+    baseStateFingerprint: stateFingerprint,
+    actor: "support.agent",
+    capability,
+  });
+}
+
+function rawArtifact(overrides: Partial<AuthorizationArtifact> = {}): AuthorizationArtifact {
   return {
-    commitId: "commit:1",
+    commitId: "commit:raw",
     effectFingerprint: "fp",
     baseStateFingerprint: "bs",
     actor: "support.agent",
-    capability,
-    nonce: "nonce:1",
+    capability: EXPLAINER_RENDER_CAPABILITY,
+    nonce: "nonce:raw",
     issuedAtEpochMs: 1,
     expiresAtEpochMs: 9_000_000_000_000,
     ...overrides,
@@ -82,7 +97,6 @@ test("prepare projects the run and has no authority surface", async () => {
   assert.equal(plan.storyboard.kind, "EXPLAINER_STORYBOARD");
   assert.equal(plan.renderPlan.outputKind, "HTML_SLIDESHOW");
 
-  // The plan is pure data; it cannot render or publish on its own.
   assert.equal("render" in plan, false);
   assert.equal("publish" in plan, false);
   assert.equal("commit" in plan, false);
@@ -92,43 +106,137 @@ test("prepare projects the run and has no authority surface", async () => {
 
 test("render requires its own Commit authorization and blocks on a publish artifact", async () => {
   const plan = await prepared();
+  const store = new InMemoryAuthorizationArtifactStore();
+  const stateFp = plan.manifest.stateFingerprint.value;
 
+  const publishArtifact = mintArtifact(store, EXPLAINER_PUBLISH_CAPABILITY, { type: "PUBLISH_EXPLAINER", explainerId: plan.explainerId, runId: plan.runId, destination: "https://demo/xact" }, stateFp);
   await assert.rejects(
-    () => renderApprovedExplainer(plan, artifact(EXPLAINER_PUBLISH_CAPABILITY)),
+    () => renderApprovedExplainer(plan, publishArtifact, store),
     /capability 'explainer:render'/,
   );
 
-  const rendered = await renderApprovedExplainer(plan, artifact(EXPLAINER_RENDER_CAPABILITY));
+  const renderArtifact = mintArtifact(store, EXPLAINER_RENDER_CAPABILITY, renderEffectPayload(plan), stateFp);
+  const rendered = await renderApprovedExplainer(plan, renderArtifact, store);
   assert.equal(rendered.status, "RENDERED");
   assert.equal(rendered.runId, "run:1");
 });
 
 test("publish requires its own Commit authorization and cannot use a render artifact", async () => {
   const plan = await prepared();
-  const rendered = await renderApprovedExplainer(plan, artifact(EXPLAINER_RENDER_CAPABILITY));
+  const store = new InMemoryAuthorizationArtifactStore();
+  const stateFp = plan.manifest.stateFingerprint.value;
+
+  const renderArtifact = mintArtifact(store, EXPLAINER_RENDER_CAPABILITY, renderEffectPayload(plan), stateFp);
+  const rendered = await renderApprovedExplainer(plan, renderArtifact, store);
 
   assert.throws(
-    () => publishExplainer(rendered, artifact(EXPLAINER_RENDER_CAPABILITY), "https://demo/xact"),
+    () => publishExplainer(rendered, renderArtifact, store, "https://demo/xact", stateFp),
     /capability 'explainer:publish'/,
   );
 
-  const published = publishExplainer(rendered, artifact(EXPLAINER_PUBLISH_CAPABILITY), "https://demo/xact", () => 5000);
+  const publishArtifact = mintArtifact(store, EXPLAINER_PUBLISH_CAPABILITY, publishEffectPayload(rendered, "https://demo/xact"), stateFp);
+  const published = publishExplainer(rendered, publishArtifact, store, "https://demo/xact", stateFp, () => 5000);
   assert.equal(published.kind, "EXPLAINER_PUBLISH_RESULT");
   assert.equal(published.destination, "https://demo/xact");
   assert.equal(published.publishedAtEpochMs, 5000);
   assert.equal(published.artifactRef, rendered.artifactRef);
 });
 
-test("expired or nonce-less authorizations block every consequence", async () => {
+test("the ADR 0004 guard blocks unissued, expired, and malformed artifacts", async () => {
   const plan = await prepared();
+  const store = new InMemoryAuthorizationArtifactStore();
+  const stateFp = plan.manifest.stateFingerprint.value;
 
+  // Unissued (never recorded in the store) → authentic FAIL.
   await assert.rejects(
-    () => renderApprovedExplainer(plan, artifact(EXPLAINER_RENDER_CAPABILITY, { expiresAtEpochMs: 1 })),
+    () => renderApprovedExplainer(plan, rawArtifact({ effectFingerprint: stableFingerprint(renderEffectPayload(plan)), baseStateFingerprint: stateFp }), store),
+    /not issued|validation failed/,
+  );
+
+  // Expired (recorded, but expires in the past) → unexpired FAIL.
+  store.record(rawArtifact({ commitId: "commit:expired", nonce: "nonce:expired", expiresAtEpochMs: 1 }));
+  await assert.rejects(
+    () => renderApprovedExplainer(plan, rawArtifact({ commitId: "commit:expired", nonce: "nonce:expired", expiresAtEpochMs: 1 }), store),
     /expired/,
   );
+
+  // Malformed (empty nonce) → well-formed FAIL.
+  store.record(rawArtifact({ commitId: "commit:malformed", nonce: "" }));
   await assert.rejects(
-    () => renderApprovedExplainer(plan, artifact(EXPLAINER_RENDER_CAPABILITY, { nonce: "" })),
-    /nonce/,
+    () => renderApprovedExplainer(plan, rawArtifact({ commitId: "commit:malformed", nonce: "" }), store),
+    /malformed/,
+  );
+});
+
+test("effect binding and state freshness are enforced by the full guard", async () => {
+  const plan = await prepared();
+  const store = new InMemoryAuthorizationArtifactStore();
+  const stateFp = plan.manifest.stateFingerprint.value;
+
+  // Effect-bound: a fingerprint that does not match the render payload.
+  const wrongEffect = mintArtifact(store, EXPLAINER_RENDER_CAPABILITY, { type: "RENDER_EXPLAINER", explainerId: "other", runId: "run:1" }, stateFp);
+  await assert.rejects(
+    () => renderApprovedExplainer(plan, wrongEffect, store),
+    /effect does not match|validation failed/,
+  );
+
+  // State-fresh: baseStateFingerprint does not match the run's current state.
+  const stale = mintArtifact(store, EXPLAINER_RENDER_CAPABILITY, renderEffectPayload(plan), "stale-state");
+  await assert.rejects(
+    () => renderApprovedExplainer(plan, stale, store),
+    /stale|validation failed/,
+  );
+});
+
+test("render authority is bound to the exact storyboard and narration inputs", async () => {
+  const plan = await prepared();
+  const store = new InMemoryAuthorizationArtifactStore();
+  const stateFp = plan.manifest.stateFingerprint.value;
+  const artifact = mintArtifact(store, EXPLAINER_RENDER_CAPABILITY, renderEffectPayload(plan), stateFp);
+  const changed = {
+    ...plan,
+    storyboard: { ...plan.storyboard, totalDurationMs: plan.storyboard.totalDurationMs + 1 },
+  };
+
+  await assert.rejects(
+    () => renderApprovedExplainer(changed, artifact, store),
+    /effect does not match|validation failed/,
+  );
+  assert.equal(store.nonceConsumed(artifact.nonce), false);
+});
+
+test("publish authority is bound to the exact rendered artifact", async () => {
+  const plan = await prepared();
+  const store = new InMemoryAuthorizationArtifactStore();
+  const stateFp = plan.manifest.stateFingerprint.value;
+  const rendered = await renderApprovedExplainer(
+    plan,
+    mintArtifact(store, EXPLAINER_RENDER_CAPABILITY, renderEffectPayload(plan), stateFp),
+    store,
+  );
+  const destination = "https://demo/xact";
+  const artifact = mintArtifact(store, EXPLAINER_PUBLISH_CAPABILITY, publishEffectPayload(rendered, destination), stateFp);
+  const changed = { ...rendered, artifactRef: "html://explainer/different-artifact" };
+
+  assert.throws(
+    () => publishExplainer(changed, artifact, store, destination, stateFp),
+    /effect does not match|validation failed/,
+  );
+  assert.equal(store.nonceConsumed(artifact.nonce), false);
+});
+
+test("the nonce is consumed atomically — a replay is blocked", async () => {
+  const plan = await prepared();
+  const store = new InMemoryAuthorizationArtifactStore();
+  const stateFp = plan.manifest.stateFingerprint.value;
+
+  const renderArtifact = mintArtifact(store, EXPLAINER_RENDER_CAPABILITY, renderEffectPayload(plan), stateFp);
+  await renderApprovedExplainer(plan, renderArtifact, store);
+
+  // Same artifact again → nonce already consumed.
+  await assert.rejects(
+    () => renderApprovedExplainer(plan, renderArtifact, store),
+    /already consumed|replay/,
   );
 });
 
@@ -143,10 +251,15 @@ test("prepare, render, and publish never mutate or authorize the underlying run"
     requestedCapability: "request_service_credit",
     session,
   });
-  const rendered = await renderApprovedExplainer(plan, artifact(EXPLAINER_RENDER_CAPABILITY));
-  publishExplainer(rendered, artifact(EXPLAINER_PUBLISH_CAPABILITY), "https://demo/xact");
+  const store = new InMemoryAuthorizationArtifactStore();
+  const stateFp = plan.manifest.stateFingerprint.value;
 
-  // The session is untouched — the explainer is strictly downstream.
+  const renderArtifact = mintArtifact(store, EXPLAINER_RENDER_CAPABILITY, renderEffectPayload(plan), stateFp);
+  const rendered = await renderApprovedExplainer(plan, renderArtifact, store);
+
+  const publishArtifact = mintArtifact(store, EXPLAINER_PUBLISH_CAPABILITY, publishEffectPayload(rendered, "https://demo/xact"), stateFp);
+  publishExplainer(rendered, publishArtifact, store, "https://demo/xact", stateFp);
+
   assert.equal(session.currentStateFingerprint, beforeFingerprint);
   assert.equal(session.phase, beforePhase);
 });

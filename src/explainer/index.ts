@@ -13,11 +13,11 @@
  *        ↓
  *   <StoryboardPreview storyboard={...} />   // preview (no render yet)
  *        ↓
- *   renderApprovedExplainer(prepared, renderArtifact)   // CONSEQUENCE → Commit
+ *   renderApprovedExplainer(prepared, renderArtifact, store)   // CONSEQUENCE → Commit
  *        ↓
  *   verifyRender(result, request)      // optional: confirm the artifact
  *        ↓
- *   publishExplainer(rendered, publishArtifact, destination)  // DIFFERENT consequence → its OWN Commit
+ *   publishExplainer(rendered, publishArtifact, store, destination, stateFingerprint)  // DIFFERENT consequence → its OWN Commit
  *
  * The explainer is strictly downstream: it never modifies or authorizes the run
  * it describes. Render and publish are distinct consequences, each gated by its
@@ -39,6 +39,8 @@ export {
   explainerTools,
   EXPLAINER_RENDER_CAPABILITY,
   EXPLAINER_PUBLISH_CAPABILITY,
+  renderEffectPayload,
+  publishEffectPayload,
 } from "./explainer-surface";
 export type {
   PreparedExplainer,
@@ -46,6 +48,8 @@ export type {
   ExplainerToolDescriptor,
   RenderPlan,
   PublishResult,
+  RenderConsequenceEffect,
+  PublishConsequenceEffect,
 } from "./explainer-surface";
 
 // Render verification (bind the artifact to its inputs).

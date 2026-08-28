@@ -688,7 +688,9 @@ export function manifestClaims(manifest: ExplainerManifest): ExplainerClaim[] {
     claims.push({
       claimId: `claim:${next()}`,
       claimType: "EXECUTION",
-      fact: `Xact executed the authorized effect on the ${event.substrate} substrate.`,
+      fact: event.executed
+        ? `Xact executed the authorized effect on the ${event.substrate} substrate.`
+        : `Xact did not execute the effect on the ${event.substrate} substrate${event.error ? `: ${event.error}` : "."}`,
       sourceEventIds: [event.ref.path],
       truth: event.ref.truth,
       verified: true,
