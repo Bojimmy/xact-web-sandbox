@@ -3,7 +3,7 @@ import type { ExecutionSubstrate } from "@/src/execution/contracts";
 
 export type ScenarioId = "authorized" | "rejected" | "escalated" | "stale";
 export type StepState = "complete" | "active" | "blocked" | "pending";
-export type VerificationState = "VERIFIED" | "FAILED" | "NOT_RUN" | "BLOCKED";
+export type VerificationState = "VERIFIED" | "FAILED" | "AMBIGUOUS" | "NOT_RUN" | "BLOCKED";
 export type ControlRoomStatus = DecisionStatus | "PENDING";
 
 export interface DisplayFact {

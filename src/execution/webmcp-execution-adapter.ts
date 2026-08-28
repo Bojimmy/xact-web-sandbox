@@ -15,6 +15,9 @@ import type {
  */
 export interface WebMCPExecutionClient {
   isAvailable(): boolean;
+  /** Optional in-page binding: tools may claim only a dispatch prepared by this adapter. */
+  prepareDispatch?(effect: AuthorizedEffect): void;
+  cancelDispatch?(effect: AuthorizedEffect): void;
   requestAction(effect: AuthorizedEffect): Promise<{ receipt: unknown }>;
   observeAction(receipt: unknown): Promise<ExecutionObservation>;
 }
@@ -49,7 +52,9 @@ export class WebMCPExecutionAdapter implements ExecutionAdapter {
     // Compare-and-mark happens immediately before the consequential request.
     // If the transport fails, the nonce deliberately remains spent: retrying a
     // potentially ambiguous consequence requires a fresh Commit decision.
+    this.client.prepareDispatch?.(effect);
     if (!this.store.consumeNonce(effect.artifact.nonce)) {
+      this.client.cancelDispatch?.(effect);
       return {
         executed: false,
         substrate: this.substrate,
@@ -68,6 +73,7 @@ export class WebMCPExecutionAdapter implements ExecutionAdapter {
       }
       return { executed: true, substrate: this.substrate, receipt: response.receipt };
     } catch (cause) {
+      this.client.cancelDispatch?.(effect);
       return {
         executed: false,
         substrate: this.substrate,

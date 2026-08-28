@@ -12,6 +12,7 @@ export type RuntimePhase =
   | "ESCALATED"
   | "STALE"
   | "EXECUTION_FAILED"
+  | "OBSERVATION_FAILED"
   | "VERIFIED"
   | "VERIFICATION_FAILED";
 

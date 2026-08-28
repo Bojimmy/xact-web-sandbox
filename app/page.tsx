@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toControlRoomScenario } from "@/src/control-room/runtime-view";
 import type { ControlRoomScenario } from "@/src/control-room/types";
 import { EvolutionPanel } from "@/src/evolution/evolution-panel";
@@ -14,8 +14,9 @@ import { AvailabilityGatedExecutionAdapter } from "@/src/execution/availability-
 import { SimulatedExecutionAdapter } from "@/src/execution/simulated-adapter";
 import { BrowserDOMExecutionClient } from "@/src/execution/browser-dom-client";
 import { DOMExecutionAdapter } from "@/src/execution/dom-execution-adapter";
-import { BrowserWebMCPExecutionClient } from "@/src/execution/browser-webmcp-client";
+import { BrowserWebMCPExecutionClient, BrowserWebMCPToolHost } from "@/src/execution/browser-webmcp-client";
 import { WebMCPExecutionAdapter } from "@/src/execution/webmcp-execution-adapter";
+import { WebMCPDispatchRegistry } from "@/src/execution/webmcp-dispatch";
 import { InMemoryAuthorizationArtifactStore } from "@/src/xact/authorization-artifact";
 import type { ExecutionSubstrate } from "@/src/execution/contracts";
 
@@ -343,6 +344,11 @@ function ControlRoom({ scenario }: { scenario: ControlRoomScenario }) {
 
 export default function Home() {
   const executionAvailability = useMemo(() => new SubstrateAvailability(), []);
+  const artifactStore = useMemo(() => new InMemoryAuthorizationArtifactStore(), []);
+  const dispatches = useMemo(() => new WebMCPDispatchRegistry(), []);
+  const domClient = useMemo(() => new BrowserDOMExecutionClient(), []);
+  const webMCPClient = useMemo(() => new BrowserWebMCPExecutionClient(undefined, "request_action", "get_execution_observation", dispatches), [dispatches]);
+  const webMCPToolHost = useMemo(() => new BrowserWebMCPToolHost(dispatches, domClient), [dispatches, domClient]);
   const [substrateAvailability, setSubstrateAvailability] = useState(() => executionAvailability.snapshot());
   const learningProvider = useMemo(() => new LearningSimulationProvider<CommerceScenarioInputs>({
     candidateId: "learning:commerce-rationale-v1",
@@ -353,26 +359,34 @@ export default function Home() {
   }), []);
   const engine = useMemo(
     () => {
-      const store = new InMemoryAuthorizationArtifactStore();
       const adapter = (substrate: ExecutionSubstrate) => new AvailabilityGatedExecutionAdapter(
         substrate === "WEBMCP"
-          ? new WebMCPExecutionAdapter(new BrowserWebMCPExecutionClient(), store)
+          ? new WebMCPExecutionAdapter(webMCPClient, artifactStore)
           : substrate === "DOM"
-            ? new DOMExecutionAdapter(new BrowserDOMExecutionClient(), store)
-            : new SimulatedExecutionAdapter(substrate, store),
+            ? new DOMExecutionAdapter(domClient, artifactStore)
+            : new SimulatedExecutionAdapter(substrate, artifactStore),
         () => substrate === "WEBMCP" || substrate === "DOM" || substrate === "VISION"
           ? executionAvailability.enabled(substrate)
           : false,
       );
       return createCommerceSimulationEngine({
         resolutionEvidenceProvider: learningProvider,
-        store,
+        store: artifactStore,
         executionAdapter: adapter("WEBMCP"),
         additionalAdapters: [adapter("DOM"), adapter("VISION")],
       });
     },
-    [executionAvailability, learningProvider],
+    [artifactStore, domClient, executionAvailability, learningProvider, webMCPClient],
   );
+  useEffect(() => {
+    let dispose: () => void = () => {};
+    let disposed = false;
+    void webMCPToolHost.register().then((release) => {
+      if (disposed) release();
+      else dispose = release;
+    });
+    return () => { disposed = true; dispose(); };
+  }, [webMCPToolHost]);
   const [session, setSession] = useState<CommerceSession>(() => engine.createSession());
   const [evolution, setEvolution] = useState(() => learningProvider.snapshot());
   const [busy, setBusy] = useState(false);
