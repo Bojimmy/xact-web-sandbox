@@ -115,3 +115,19 @@ May participate in future deterministic resolution
 - `OutcomeEvidence` must reference a `VerifiedConsequence` (an exact authorized
   effect was observed, not merely claimed), keeping "measure outcome"
   downstream of "verify consequence".
+
+## Stage 3 sandbox integration
+
+`TeachItPanel` projects this gate for one intentionally narrow, public-safe
+extension: `get_audit_history`. The request is first decomposed locally and
+checked against Door and Ledger. A request outside that ontology (for example,
+deleting a customer account) is refused before any O-Agent request, candidate,
+artifact, or effect exists.
+
+For an admissible proposal, the protected O-Agent endpoint receives only the
+genuine semantic U and returns evidence. It does not select the capability ID.
+`CapabilityConstructionEngine` then runs the construction consequence through
+the existing public-safe `Resolve → Commit → AuthorizationArtifact → LOCAL
+adapter → observe → verify` boundary. Only the resulting verified consequence
+may become `OutcomeEvidence`; only an explicit governance action may create a
+`PromotionDecision`; `ACTIVATED` remains resolution-only.

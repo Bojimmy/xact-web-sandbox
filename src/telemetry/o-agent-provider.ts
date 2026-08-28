@@ -70,7 +70,9 @@ export class SecureEndpointOAgentProvider implements OAgentProvider {
 
   constructor(
     private readonly endpoint = "/api/o-agent",
-    private readonly fetcher: typeof fetch = fetch,
+    // Store a wrapper, not Window.fetch itself: invoking an unbound browser
+    // fetch function throws "Illegal invocation" before any provider request.
+    private readonly fetcher: typeof fetch = (input, init) => fetch(input, init),
   ) {}
 
   async reason(request: ReasoningRequest): Promise<ReasoningResult> {
