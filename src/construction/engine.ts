@@ -6,18 +6,47 @@ import {
   type ConstructionProposalProvider,
   type ConstructionRun,
   type ConstructionRunMetrics,
-  type Product,
+  type ServiceAuditEvent,
+  type ServiceCustomer,
+  type ServiceOperationsToolDescriptor,
 } from "./contracts";
 import { ConstructionScheduler } from "./scheduler";
-import { InventoryStore } from "./inventory-store";
+import { ServiceOperationsStore } from "./service-operations-store";
 
-export const inventoryBenchmarkRequest = "Build a small inventory dashboard that shows products, quantity on hand, low-stock warnings, total inventory value, and lets me add or adjust an item.";
-export const orderBenchmarkRequest = "Build an order dashboard showing customer, order amount, fulfillment status, late-order warnings, and total sales.";
+export const serviceOperationsBenchmarkRequest = "Build a Service Operations Console that shows customer, account status, available actions, service-credit requests, plan changes, and audit history.";
+export const serviceOperationsSemanticRequest = "Build a Service Operations Console with a related semantic composition that requires governed evidence.";
 
-const inventoryProducts: Product[] = [
-  { id: "SKU-01", name: "Field notebook", quantity: 18, unitPrice: 12.5, reorderPoint: 10 },
-  { id: "SKU-02", name: "Signal lamp", quantity: 4, unitPrice: 39, reorderPoint: 6 },
-  { id: "SKU-03", name: "Canvas case", quantity: 11, unitPrice: 22, reorderPoint: 5 },
+const serviceCustomers: ServiceCustomer[] = [
+  {
+    id: "1042",
+    name: "Avery Chen",
+    accountStatus: "ACTIVE",
+    servicePlan: "Business Plus",
+    availableServiceCredit: 42,
+    availableActions: ["Request service credit", "Change service plan", "Review audit history"],
+  },
+  {
+    id: "2077",
+    name: "Morgan Reyes",
+    accountStatus: "PAST_DUE",
+    servicePlan: "Starter",
+    availableServiceCredit: 0,
+    availableActions: ["Review account status", "Review audit history"],
+  },
+];
+
+const serviceAuditHistory: ServiceAuditEvent[] = [
+  { id: "audit:1042:1", detail: "Account status verified as ACTIVE.", recordedAt: "2026-08-28T10:00:00.000Z" },
+  { id: "audit:1042:2", detail: "Service-credit eligibility reported at $42.00.", recordedAt: "2026-08-28T10:01:00.000Z" },
+];
+
+export const serviceOperationsTools: readonly ServiceOperationsToolDescriptor[] = [
+  { name: "get_customer", description: "Read the selected customer record.", kind: "READ", requiresCommit: false },
+  { name: "get_account_status", description: "Read the customer account status.", kind: "READ", requiresCommit: false },
+  { name: "list_available_actions", description: "Read actions available for the customer state.", kind: "READ", requiresCommit: false },
+  { name: "request_service_credit", description: "Request a service-credit consequence through Xact Commit.", kind: "CONSEQUENCE_REQUEST", requiresCommit: true },
+  { name: "change_service_plan", description: "Request a plan-change consequence through Xact Commit.", kind: "CONSEQUENCE_REQUEST", requiresCommit: true },
+  { name: "get_audit_history", description: "Read the recorded audit history.", kind: "READ", requiresCommit: false },
 ];
 
 export interface ConstructionRunOptions {
@@ -45,7 +74,7 @@ export class ConstructionBenchmarkEngine {
     const trace: string[] = [];
     const decompositionStarted = now();
     const domain = this.domainFor(options.request);
-    const operations = this.decompose(domain, Boolean(options.activeComposition));
+    const operations = this.decompose(domain, Boolean(options.activeComposition), options.request === serviceOperationsSemanticRequest);
     const decompositionTimeMs = duration(decompositionStarted);
     const reasoningOperations = operations.filter((operation) => operation.classification === "UNRESOLVED");
 
@@ -62,7 +91,7 @@ export class ConstructionBenchmarkEngine {
       if (!options.proposalProvider) {
         trace.push("Resolve: U remains; no constrained O-Agent proposal provider is configured.");
         return this.finish(domain, options.concurrency, authorized, undefined, reasoningOperations, trace, {
-          requestedFeatures: this.featureCount(domain), deterministicOperations: authorized.filter((operation) => operation.status === "AUTHORIZED").length,
+          requestedFeatures: this.featureCount(), deterministicOperations: authorized.filter((operation) => operation.status === "AUTHORIZED").length,
           unresolvedOperations: reasoningOperations.length, oAgentCalls, oAgentTokens, decompositionTimeMs,
           deterministicResolutionTimeMs, reasoningTimeMs, constructionTimeMs: 0, validationTimeMs: 0, verificationTimeMs: 0,
           xNodesUsed: 0, peakParallelOperations: 0, averageActiveOperations: 0, dependencyStages: 0, sequentialEquivalentTimeMs: 0, schedulerTimeMs: 0, criticalPathTimeMs: 0, measuredSpeedup: 0, validationFailures: 0, unauthorizedOperations: 0, finalResult: "ESCALATED", started,
@@ -76,7 +105,7 @@ export class ConstructionBenchmarkEngine {
         if (!this.validProposal(unresolved, response.proposal)) {
           trace.push(`Proposal rejected for ${unresolved.id}: it exceeds the approved primitive contract.`);
           return this.finish(domain, options.concurrency, authorized, undefined, reasoningOperations, trace, {
-            requestedFeatures: this.featureCount(domain), deterministicOperations: authorized.filter((operation) => operation.status === "AUTHORIZED").length,
+            requestedFeatures: this.featureCount(), deterministicOperations: authorized.filter((operation) => operation.status === "AUTHORIZED").length,
             unresolvedOperations: reasoningOperations.length, oAgentCalls, oAgentTokens, decompositionTimeMs,
             deterministicResolutionTimeMs, reasoningTimeMs: duration(reasoningStarted), constructionTimeMs: 0, validationTimeMs: 0, verificationTimeMs: 0,
             xNodesUsed: 0, peakParallelOperations: 0, averageActiveOperations: 0, dependencyStages: 0, sequentialEquivalentTimeMs: 0, schedulerTimeMs: 0, criticalPathTimeMs: 0, measuredSpeedup: 0, validationFailures: 0, unauthorizedOperations: 1, finalResult: "REJECTED", started,
@@ -100,7 +129,7 @@ export class ConstructionBenchmarkEngine {
     const validationTimeMs = duration(validationStarted);
     if (validationFailures) {
       return this.finish(domain, options.concurrency, scheduled.operations, undefined, reasoningOperations, trace, {
-        requestedFeatures: this.featureCount(domain), deterministicOperations: scheduled.operations.length, unresolvedOperations: 0,
+        requestedFeatures: this.featureCount(), deterministicOperations: scheduled.operations.length, unresolvedOperations: 0,
         oAgentCalls, oAgentTokens, decompositionTimeMs, deterministicResolutionTimeMs, reasoningTimeMs, constructionTimeMs, validationTimeMs,
         verificationTimeMs: 0, xNodesUsed: scheduled.xNodesUsed, peakParallelOperations: scheduled.peakParallelOperations, averageActiveOperations: scheduled.averageActiveOperations, dependencyStages: scheduled.dependencyStages, sequentialEquivalentTimeMs: scheduled.sequentialEquivalentTimeMs, schedulerTimeMs: scheduled.schedulerTimeMs, criticalPathTimeMs: scheduled.criticalPathTimeMs, measuredSpeedup: scheduled.schedulerTimeMs ? scheduled.sequentialEquivalentTimeMs / scheduled.schedulerTimeMs : 0,
         validationFailures, unauthorizedOperations: 0, finalResult: "FAILED", started,
@@ -110,14 +139,14 @@ export class ConstructionBenchmarkEngine {
 
     // Construction Commit is intentionally after validation and before rendering.
     trace.push("Commit: Xact committed the validated construction plan.");
-    const artifact = this.assemble(domain);
+    const artifact = this.assemble();
     const verificationStarted = now();
     const verification = this.verify(artifact);
     const verificationTimeMs = duration(verificationStarted);
     trace.push(...verification.checks.map((check) => `Verify: ${check}`));
     trace.push(verification.failures ? "Observe/Verify: assembled artifact failed verification." : "Observe/Verify: assembled artifact and interactions verified.");
     return this.finish(domain, options.concurrency, scheduled.operations, artifact, reasoningOperations, trace, {
-      requestedFeatures: this.featureCount(domain), deterministicOperations: scheduled.operations.length, unresolvedOperations: 0,
+      requestedFeatures: this.featureCount(), deterministicOperations: scheduled.operations.length, unresolvedOperations: 0,
       oAgentCalls, oAgentTokens, decompositionTimeMs, deterministicResolutionTimeMs, reasoningTimeMs, constructionTimeMs, validationTimeMs,
       verificationTimeMs, xNodesUsed: scheduled.xNodesUsed, peakParallelOperations: scheduled.peakParallelOperations, averageActiveOperations: scheduled.averageActiveOperations, dependencyStages: scheduled.dependencyStages, sequentialEquivalentTimeMs: scheduled.sequentialEquivalentTimeMs, schedulerTimeMs: scheduled.schedulerTimeMs, criticalPathTimeMs: scheduled.criticalPathTimeMs, measuredSpeedup: scheduled.schedulerTimeMs ? scheduled.sequentialEquivalentTimeMs / scheduled.schedulerTimeMs : 0,
       validationFailures: verification.failures, unauthorizedOperations: 0, finalResult: verification.failures ? "FAILED" : "WORKING_APP", started,
@@ -125,18 +154,17 @@ export class ConstructionBenchmarkEngine {
   }
 
   private domainFor(request: string): ConstructionDomain {
-    if (request === inventoryBenchmarkRequest) return "INVENTORY";
-    if (request === orderBenchmarkRequest) return "ORDER";
-    throw new Error("This experimental benchmark accepts only its two declared construction requests.");
+    if (request === serviceOperationsBenchmarkRequest || request === serviceOperationsSemanticRequest) return "SERVICE_OPERATIONS";
+    throw new Error("This experimental benchmark accepts only its two declared Service Operations construction requests.");
   }
 
-  private decompose(domain: ConstructionDomain, activeComposition: boolean): ConstructionOperation[] {
+  private decompose(domain: ConstructionDomain, activeComposition: boolean, semanticComposition: boolean): ConstructionOperation[] {
     const base = [
       ["route", "RouteCreation", []], ["page", "Page", ["route"]], ["header", "Header", ["page"]],
-      ["store", "LocalStore", ["page"]], ["schema", "ProductSchema", ["store"]], ["list", "List", ["schema"]],
-      ["aggregate", "Aggregate", ["schema"]], ["table", "Table", ["list"]], ["cards", "Card", ["aggregate"]],
-      ["form", "Form", ["schema"]], ["number-input", "NumberInput", ["form"]], ["add", "Create", ["form"]],
-      ["adjust", "Update", ["table"]], ["warning", "Badge", ["aggregate"]], ["binding", "StateBinding", ["table", "cards", "add", "adjust", "warning"]],
+      ["store", "LocalStore", ["page"]], ["schema", "CustomerSchema", ["store"]], ["customer", "Read", ["schema"]],
+      ["account", "Read", ["schema"]], ["actions", "ActionRegistry", ["schema"]], ["audit", "AuditTrail", ["store"]],
+      ["table", "Table", ["customer"]], ["cards", "Card", ["account", "actions"]], ["form", "Form", ["actions"]],
+      ["credit-request", "Button", ["form"]], ["plan-request", "Button", ["form"]], ["binding", "StateBinding", ["table", "cards", "credit-request", "plan-request", "audit"]],
       ["validation", "Validation", ["binding"]], ["tests", "Tests", ["validation"]], ["render", "RenderObserve", ["tests"]],
     ] as const;
     const resolved: ConstructionOperation[] = base.map(([id, primitive, dependencies]) => ({
@@ -147,10 +175,10 @@ export class ConstructionBenchmarkEngine {
       classification: "RESOLVED" as const,
       status: "PENDING" as const,
     }));
-    const unresolved: ConstructionOperation[] = domain === "ORDER" && !activeComposition ? [{
-      id: "order:composition", primitive: "ComponentComposition" as const, inputs: { domain: "order", layout: "unresolved" },
-      dependencies: ["order:page"], classification: "UNRESOLVED" as const, status: "PENDING" as const,
-      reason: "No ACTIVATED governed composition is available for the related order dashboard.",
+    const unresolved: ConstructionOperation[] = semanticComposition && !activeComposition ? [{
+      id: "service_operations:composition", primitive: "ComponentComposition" as const, inputs: { domain: "service_operations", layout: "unresolved" },
+      dependencies: ["service_operations:page"], classification: "UNRESOLVED" as const, status: "PENDING" as const,
+      reason: "No ACTIVATED governed composition is available for the related Service Operations Console.",
     }] : [];
     return [...resolved, ...unresolved];
   }
@@ -163,44 +191,42 @@ export class ConstructionBenchmarkEngine {
     return operations.some((operation) => operation.status !== "COMPLETE" || !constructionPrimitives.includes(operation.primitive)) ? 1 : 0;
   }
 
-  private assemble(domain: ConstructionDomain): ConstructionArtifact {
-    return domain === "INVENTORY"
-      ? { kind: "INVENTORY_DASHBOARD", title: "Inventory dashboard", products: inventoryProducts.map((product) => ({ ...product })) }
-      : { kind: "ORDER_DASHBOARD", title: "Order dashboard" };
+  private assemble(): ConstructionArtifact {
+    return {
+      kind: "SERVICE_OPERATIONS_CONSOLE",
+      title: "Service Operations Console",
+      customers: serviceCustomers.map((customer) => ({ ...customer, availableActions: [...customer.availableActions] })),
+      auditHistory: serviceAuditHistory.map((event) => ({ ...event })),
+      tools: serviceOperationsTools.map((tool) => ({ ...tool })),
+    };
   }
 
   private verify(artifact: ConstructionArtifact): { failures: number; checks: string[] } {
-    if (artifact.kind === "ORDER_DASHBOARD") {
-      return { failures: artifact.title ? 0 : 1, checks: [artifact.title ? "required order artifact exists ✓" : "required order artifact missing ✗"] };
-    }
-    const store = new InventoryStore(artifact.products);
-    const initialProducts = store.list();
-    const initialTotal = store.totalInventoryValue();
-    const lowStockWorks = store.list(true).every((product) => product.quantity < product.reorderPoint) && store.list(true).length > 0;
-    let addWorks = false;
-    let adjustWorks = false;
-    let totalUpdates = false;
-    try {
-      store.create({ id: "VERIFY-ADD", name: "Verification item", quantity: 2, unitPrice: 3, reorderPoint: 4 });
-      addWorks = store.list().some((product) => product.id === "VERIFY-ADD");
-      const afterAdd = store.totalInventoryValue();
-      store.adjustQuantity("VERIFY-ADD", 3);
-      adjustWorks = store.list().find((product) => product.id === "VERIFY-ADD")?.quantity === 5;
-      totalUpdates = afterAdd > initialTotal && store.totalInventoryValue() === afterAdd + 9;
-    } catch { /* failure recorded below */ }
+    const store = new ServiceOperationsStore(artifact.customers, artifact.auditHistory);
+    const customer = store.getCustomer("1042");
+    const accountStatus = store.getAccountStatus("1042");
+    const availableActions = store.listAvailableActions("1042");
+    const auditHistory = store.getAuditHistory("1042");
+    const toolNames = artifact.tools.map((tool) => tool.name);
+    const expectedToolNames = serviceOperationsTools.map((tool) => tool.name);
+    const exactToolManifest = toolNames.length === expectedToolNames.length && toolNames.every((name, index) => name === expectedToolNames[index]);
+    const consequenceToolsRequireCommit = artifact.tools
+      .filter((tool) => tool.kind === "CONSEQUENCE_REQUEST")
+      .every((tool) => tool.requiresCommit);
+    const noExecutableSurface = artifact.tools.every((tool) => !("execute" in tool));
     const checks = [
-      `${initialProducts.length ? "required components and bound products exist ✓" : "required components/products missing ✗"}`,
-      `${initialTotal > 0 ? "inventory calculation correct ✓" : "inventory calculation failed ✗"}`,
-      `${lowStockWorks ? "low-stock rule correct ✓" : "low-stock rule failed ✗"}`,
-      `${addWorks ? "add-item mutation works ✓" : "add-item mutation failed ✗"}`,
-      `${adjustWorks ? "adjust-quantity mutation works ✓" : "adjust-quantity mutation failed ✗"}`,
-      `${totalUpdates ? "derived total updates ✓" : "derived total failed ✗"}`,
-      "unauthorized primitives absent ✓",
+      `${customer?.name === "Avery Chen" ? "required customer record exists ✓" : "required customer record missing ✗"}`,
+      `${accountStatus === "ACTIVE" ? "account-status read is correct ✓" : "account-status read failed ✗"}`,
+      `${availableActions.includes("Request service credit") ? "available-actions binding is correct ✓" : "available-actions binding failed ✗"}`,
+      `${auditHistory.length > 0 ? "audit-history read is correct ✓" : "audit-history read failed ✗"}`,
+      `${exactToolManifest ? "six required capability descriptors exist ✓" : "capability manifest mismatch ✗"}`,
+      `${consequenceToolsRequireCommit ? "consequential capabilities require Commit ✓" : "consequential capability bypass detected ✗"}`,
+      `${noExecutableSurface ? "no executable capability surface exists ✓" : "unexpected executable surface detected ✗"}`,
     ];
-    return { failures: [initialProducts.length > 0, initialTotal > 0, lowStockWorks, addWorks, adjustWorks, totalUpdates].filter((value) => !value).length, checks };
+    return { failures: [customer?.name === "Avery Chen", accountStatus === "ACTIVE", availableActions.includes("Request service credit"), auditHistory.length > 0, exactToolManifest, consequenceToolsRequireCommit, noExecutableSurface].filter((value) => !value).length, checks };
   }
 
-  private featureCount(domain: ConstructionDomain): number { return domain === "INVENTORY" ? 5 : 5; }
+  private featureCount(): number { return 6; }
 
   private finish(
     domain: ConstructionDomain, concurrency: ConstructionRunOptions["concurrency"], operations: ConstructionOperation[], artifact: ConstructionArtifact | undefined,
