@@ -31,3 +31,17 @@ Before substantial implementation, state:
 - expected failure modes
 - smallest implementation that proves the concept
 - tests required at the consequence boundary
+
+## Agent skills
+
+### Issue tracker
+
+GitHub Issues via `gh`. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Use the five default triage labels. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context layout using root `CONTEXT.md` and `docs/adr/`. See `docs/agents/domain.md`.
