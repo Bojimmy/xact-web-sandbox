@@ -51,7 +51,7 @@ export class FlagshipLearningRunner {
     for (let index = 0; index < reasoningOperations; index += 1) {
       const node = `construction:semantic-${index + 1}`;
       const result = await this.provider.reason({ context: { workload: "flagship-learning-v1", phase: activated ? "rebuild" : "cold" }, unresolved: [node] });
-      trace.push({ node, provider: this.provider.providerName, provenance, latencyMs: result.latencyMs, inputTokens: result.inputTokens, outputTokens: result.outputTokens, evidence: result.evidence[0]?.claim ?? "No evidence returned" });
+      trace.push({ node, provider: result.provider, provenance, latencyMs: result.latencyMs, inputTokens: result.inputTokens, outputTokens: result.outputTokens, evidence: result.evidence[0]?.claim ?? "No evidence returned" });
     }
     return {
       phase: activated ? "REBUILD" : "COLD",
@@ -61,7 +61,7 @@ export class FlagshipLearningRunner {
       reasoningOperations,
       workTimeMs,
       reasoningTimeMs: Math.max(0, performance.now() - reasoningStarted),
-      provider: this.provider.providerName,
+      provider: [...new Set(trace.map((event) => event.provider))].join(", ") || this.provider.providerName,
       provenance,
       trace,
     };
