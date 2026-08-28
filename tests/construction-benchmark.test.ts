@@ -1,16 +1,17 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { InventoryStore } from "../src/construction/inventory-store";
+import { ServiceOperationsStore } from "../src/construction/service-operations-store";
 import {
   ConstructionBenchmarkEngine,
-  inventoryBenchmarkRequest,
-  orderBenchmarkRequest,
+  serviceOperationsBenchmarkRequest,
+  serviceOperationsSemanticRequest,
+  serviceOperationsTools,
 } from "../src/construction/engine";
 import type { ConstructionProposalProvider } from "../src/construction/contracts";
 import { createScaleGraph, executeDeterministicRange, SCALE_DEPENDENCY_STAGES, SCALE_TOTAL_OPERATIONS, SCALE_WORK_ROUNDS } from "../src/construction/scale-work";
 
-test("cold inventory construction assembles and verifies a functioning dashboard without reasoning", async () => {
-  const run = await new ConstructionBenchmarkEngine().run({ request: inventoryBenchmarkRequest, concurrency: 10 });
+test("cold Service Operations construction assembles and verifies the flagship console without reasoning", async () => {
+  const run = await new ConstructionBenchmarkEngine().run({ request: serviceOperationsBenchmarkRequest, concurrency: 10 });
 
   assert.equal(run.metrics.kind, "LIVE_CONSTRUCTION_BENCHMARK");
   assert.equal(run.metrics.finalResult, "WORKING_APP");
@@ -22,24 +23,26 @@ test("cold inventory construction assembles and verifies a functioning dashboard
   assert.ok(run.metrics.dependencyStages > 1);
   assert.ok(run.metrics.schedulerTimeMs >= 0);
   assert.ok(run.metrics.sequentialEquivalentTimeMs >= 0);
-  assert.equal(run.artifact?.kind, "INVENTORY_DASHBOARD");
+  assert.equal(run.artifact?.kind, "SERVICE_OPERATIONS_CONSOLE");
 });
 
-test("constructed inventory store lists, aggregates, creates, adjusts, and filters low stock", async () => {
-  const run = await new ConstructionBenchmarkEngine().run({ request: inventoryBenchmarkRequest, concurrency: 1 });
-  assert.equal(run.artifact?.kind, "INVENTORY_DASHBOARD");
-  const store = new InventoryStore(run.artifact?.products ?? []);
-  const initialValue = store.totalInventoryValue();
-  store.create({ id: "SKU-04", name: "Signal cord", quantity: 2, unitPrice: 5, reorderPoint: 3 });
-  store.adjustQuantity("SKU-01", -10);
+test("constructed console exposes the six Service Operations capabilities as data, not executable authority", async () => {
+  const run = await new ConstructionBenchmarkEngine().run({ request: serviceOperationsBenchmarkRequest, concurrency: 1 });
+  assert.equal(run.artifact?.kind, "SERVICE_OPERATIONS_CONSOLE");
+  const artifact = run.artifact!;
+  const store = new ServiceOperationsStore(artifact.customers, artifact.auditHistory);
 
-  assert.notEqual(store.totalInventoryValue(), initialValue);
-  assert.ok(store.list(true).some((product) => product.id === "SKU-01"));
-  assert.ok(store.list(true).some((product) => product.id === "SKU-04"));
+  assert.equal(store.getCustomer("1042")?.name, "Avery Chen");
+  assert.equal(store.getAccountStatus("1042"), "ACTIVE");
+  assert.ok(store.listAvailableActions("1042").includes("Request service credit"));
+  assert.equal(store.getAuditHistory("1042").length, 2);
+  assert.deepEqual(artifact.tools.map((tool) => tool.name), serviceOperationsTools.map((tool) => tool.name));
+  assert.ok(artifact.tools.filter((tool) => tool.kind === "CONSEQUENCE_REQUEST").every((tool) => tool.requiresCommit));
+  assert.ok(artifact.tools.every((tool) => !("execute" in tool)));
 });
 
 test("unresolved related composition escalates without an O-Agent provider and no workers run", async () => {
-  const run = await new ConstructionBenchmarkEngine().run({ request: orderBenchmarkRequest, concurrency: 25 });
+  const run = await new ConstructionBenchmarkEngine().run({ request: serviceOperationsSemanticRequest, concurrency: 25 });
 
   assert.equal(run.metrics.finalResult, "ESCALATED");
   assert.equal(run.metrics.unresolvedOperations, 1);
@@ -52,12 +55,12 @@ test("a constrained O-Agent proposal re-enters through validation and cannot add
   const provider: ConstructionProposalProvider = {
     async propose(operation) {
       return {
-        proposal: { operationId: operation.id, primitive: "ComponentComposition", inputs: { domain: "order", layout: "table-first" }, rationale: "Bounded composition proposal" },
+        proposal: { operationId: operation.id, primitive: "ComponentComposition", inputs: { domain: "service_operations", layout: "table-first" }, rationale: "Bounded composition proposal" },
         tokensUsed: 17,
       };
     },
   };
-  const run = await new ConstructionBenchmarkEngine().run({ request: orderBenchmarkRequest, concurrency: 25, proposalProvider: provider });
+  const run = await new ConstructionBenchmarkEngine().run({ request: serviceOperationsSemanticRequest, concurrency: 25, proposalProvider: provider });
 
   assert.equal(run.metrics.finalResult, "WORKING_APP");
   assert.equal(run.metrics.oAgentCalls, 1);
@@ -74,15 +77,15 @@ test("an O-Agent proposal cannot expand the approved construction primitive regi
       };
     },
   };
-  const run = await new ConstructionBenchmarkEngine().run({ request: orderBenchmarkRequest, concurrency: 1, proposalProvider: provider });
+  const run = await new ConstructionBenchmarkEngine().run({ request: serviceOperationsSemanticRequest, concurrency: 1, proposalProvider: provider });
 
   assert.equal(run.metrics.finalResult, "REJECTED");
   assert.equal(run.metrics.unauthorizedOperations, 1);
   assert.equal(run.metrics.xNodesUsed, 0);
 });
 
-test("ACTIVATED governed composition removes the related-build unresolved operation without changing Commit", async () => {
-  const run = await new ConstructionBenchmarkEngine().run({ request: orderBenchmarkRequest, concurrency: 50, activeComposition: true });
+test("ACTIVATED governed composition removes the Service Operations unresolved operation without changing Commit", async () => {
+  const run = await new ConstructionBenchmarkEngine().run({ request: serviceOperationsSemanticRequest, concurrency: 50, activeComposition: true });
 
   assert.equal(run.metrics.finalResult, "WORKING_APP");
   assert.equal(run.metrics.unresolvedOperations, 0);
@@ -93,7 +96,7 @@ test("ACTIVATED governed composition removes the related-build unresolved operat
 test("benchmark concurrency is real, bounded, and measured rather than extrapolated", async () => {
   const engine = new ConstructionBenchmarkEngine();
   for (const concurrency of [1, 10, 25, 50, 100] as const) {
-    const run = await engine.run({ request: inventoryBenchmarkRequest, concurrency });
+    const run = await engine.run({ request: serviceOperationsBenchmarkRequest, concurrency });
     assert.equal(run.metrics.finalResult, "WORKING_APP");
     assert.ok(run.metrics.peakParallelOperations <= concurrency);
     assert.ok(run.metrics.xNodesUsed <= Math.min(concurrency, run.metrics.totalOperations));

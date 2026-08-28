@@ -1,13 +1,13 @@
 export const constructionPrimitives = [
   "Page", "Header", "Card", "Table", "Button", "Form", "NumberInput", "Badge",
-  "ProductSchema", "LocalStore", "List", "Create", "Update", "Aggregate",
+  "CustomerSchema", "LocalStore", "List", "Read", "ActionRegistry", "AuditTrail",
   "RouteCreation", "ComponentComposition", "StateBinding", "Validation", "Tests", "Commit", "RenderObserve",
 ] as const;
 
 export type ConstructionPrimitive = (typeof constructionPrimitives)[number];
 export type ConstructionClassification = "RESOLVED" | "UNRESOLVED";
 export type ConstructionOperationStatus = "PENDING" | "AUTHORIZED" | "RUNNING" | "COMPLETE" | "BLOCKED";
-export type ConstructionDomain = "INVENTORY" | "ORDER";
+export type ConstructionDomain = "SERVICE_OPERATIONS";
 
 export interface ConstructionOperation {
   id: string;
@@ -31,26 +31,50 @@ export interface ConstructionProposalProvider {
   propose(operation: ConstructionOperation): Promise<{ proposal: ConstructionProposal; tokensUsed: number }>;
 }
 
-export interface Product {
+export interface ServiceCustomer {
   id: string;
   name: string;
-  quantity: number;
-  unitPrice: number;
-  reorderPoint: number;
+  accountStatus: "ACTIVE" | "PAST_DUE" | "SUSPENDED";
+  servicePlan: string;
+  availableServiceCredit: number;
+  availableActions: readonly string[];
 }
 
-export interface InventoryDashboardArtifact {
-  kind: "INVENTORY_DASHBOARD";
+export type ServiceOperationsToolName =
+  | "get_customer"
+  | "get_account_status"
+  | "list_available_actions"
+  | "request_service_credit"
+  | "change_service_plan"
+  | "get_audit_history";
+
+/**
+ * A constructed capability manifest is descriptive only. It has no callable
+ * execution surface: a later WebMCP host may expose these capabilities, but
+ * consequential requests remain artifact- and Commit-gated.
+ */
+export interface ServiceOperationsToolDescriptor {
+  name: ServiceOperationsToolName;
+  description: string;
+  kind: "READ" | "CONSEQUENCE_REQUEST";
+  requiresCommit: boolean;
+}
+
+export interface ServiceAuditEvent {
+  id: string;
+  detail: string;
+  recordedAt: string;
+}
+
+export interface ServiceOperationsConsoleArtifact {
+  kind: "SERVICE_OPERATIONS_CONSOLE";
   title: string;
-  products: Product[];
+  customers: ServiceCustomer[];
+  auditHistory: ServiceAuditEvent[];
+  tools: readonly ServiceOperationsToolDescriptor[];
 }
 
-export interface OrderDashboardArtifact {
-  kind: "ORDER_DASHBOARD";
-  title: string;
-}
-
-export type ConstructionArtifact = InventoryDashboardArtifact | OrderDashboardArtifact;
+export type ConstructionArtifact = ServiceOperationsConsoleArtifact;
 
 export interface ConstructionRunMetrics {
   kind: "LIVE_CONSTRUCTION_BENCHMARK";
