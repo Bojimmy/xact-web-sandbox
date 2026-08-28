@@ -131,3 +131,11 @@ the existing public-safe `Resolve → Commit → AuthorizationArtifact → LOCAL
 adapter → observe → verify` boundary. Only the resulting verified consequence
 may become `OutcomeEvidence`; only an explicit governance action may create a
 `PromotionDecision`; `ACTIVATED` remains resolution-only.
+
+The panel also projects an inspectable **Security Boundary Trace**. It records
+the operator proposal source, evidence-provider identity, Door/Ledger verdicts,
+Commit result, artifact and exact target binding, verification result, governance
+actor, and final resolution-only activation state. This is a clean-absorption
+security control against capability hijacking and learning-poisoning attempts;
+it is not presented as a substitute for host, identity, secret-management, or
+network security controls.
