@@ -22,6 +22,7 @@ const workload: DeterministicWorkloadProvider = {
 
 class LiveFixtureProvider implements OAgentProvider {
   readonly telemetryKind = "LIVE_SANDBOX_MEASUREMENT" as const;
+  readonly providerName = "Live fixture provider";
   async reason(request: ReasoningRequest): Promise<ReasoningResult> {
     return { evidence: request.unresolved.map((field) => ({ claim: `Evidence for ${field}`, resolves: [field] })), inputTokens: 5, outputTokens: 3, latencyMs: 2 };
   }

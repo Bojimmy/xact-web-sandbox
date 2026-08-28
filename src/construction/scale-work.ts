@@ -35,14 +35,14 @@ function fingerprint(value: string): number {
  * Actual deterministic construction work: compose descriptor fields, validate
  * the schema/binding, evaluate constraints, and fingerprint the artifact.
  */
-export function executeDeterministicRange(start: number, count: number): { checksum: number; completed: number } {
+export function executeDeterministicRange(start: number, count: number, rounds = SCALE_WORK_ROUNDS): { checksum: number; completed: number } {
   let checksum = 0;
   for (let operation = start; operation < start + count; operation += 1) {
     const descriptor = `component:${operation}:table|store:local|binding:quantity|constraint:nonnegative`;
     const valid = descriptor.includes("component:") && descriptor.includes("binding:quantity") && descriptor.endsWith("nonnegative");
     if (!valid) throw new Error("Deterministic construction descriptor validation failed.");
     let value = fingerprint(descriptor);
-    for (let round = 0; round < SCALE_WORK_ROUNDS; round += 1) {
+    for (let round = 0; round < rounds; round += 1) {
       value = Math.imul(value ^ (operation + round), 16_777_619) >>> 0;
     }
     checksum = (checksum ^ value) >>> 0;

@@ -24,6 +24,7 @@ export interface ReasoningResult {
 
 export interface OAgentProvider {
   readonly telemetryKind: ReasoningTelemetryKind;
+  readonly providerName: string;
   reason(request: ReasoningRequest): Promise<ReasoningResult>;
 }
 
@@ -42,6 +43,7 @@ function validateResult(value: unknown): ReasoningResult {
 /** Public-safe offline fallback. Its provenance can never be presented as live. */
 export class SimulatedOAgentProvider implements OAgentProvider {
   readonly telemetryKind = "SIMULATED_O_AGENT" as const;
+  readonly providerName = "Public-safe simulated O-Agent";
 
   async reason(request: ReasoningRequest): Promise<ReasoningResult> {
     const started = performance.now();
@@ -61,6 +63,7 @@ export class SimulatedOAgentProvider implements OAgentProvider {
  */
 export class SecureEndpointOAgentProvider implements OAgentProvider {
   readonly telemetryKind = "LIVE_SANDBOX_MEASUREMENT" as const;
+  readonly providerName = "Secure O-Agent endpoint";
 
   constructor(
     private readonly endpoint = "/api/o-agent",
