@@ -226,6 +226,11 @@ Tokens                    5,032           Tokens                    665
 checksum 698530768  ==  checksum 698530768
 ```
 
+`698530768` is the witness recorded for the 50,000-round workload above.
+Checksums are deterministic functions of their workload; a lower-round sandbox
+demonstration must show equality between its paired runs, not this literal
+value.
+
 Then a "where the time went" bar and the two-mode table. Encoded conclusion:
 the work did not get cheaper because we skipped work — it got faster because
 Xact stopped asking an LLM questions it had already learned to answer

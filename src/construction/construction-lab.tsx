@@ -7,6 +7,7 @@ import { LearningSimulationProvider } from "../evolution/learning-simulation-pro
 import type { PromotionState } from "../evolution/contracts";
 import { BrowserScaleWorkloadRunner } from "./browser-scale-runner";
 import { DeterministicReasoningCostPanel } from "../telemetry/deterministic-reasoning-cost-panel";
+import { FlagshipLearningPanel } from "../flagship/learning-panel";
 
 const levels = [1, 10, 25, 50, 100] as const;
 
@@ -106,5 +107,6 @@ export function ConstructionLab() {
     {scaleError ? <p className="runtime-error">{scaleError}</p> : null}
     {scaleRuns.length ? <div className="construction-comparison scale-comparison"><h3>Experiment 6A.2 — deterministic scale workload</h3><table><thead><tr><th>Configured workers</th><th>Peak / avg active</th><th>Operations / stages</th><th>Scheduler time</th><th>Throughput</th><th>Speedup vs 1</th></tr></thead><tbody>{scaleRuns.map((item) => { const baseline = scaleRuns.find((run) => run.configuredWorkers === 1); const speedup = baseline ? baseline.schedulerTimeMs / item.schedulerTimeMs : 0; return <tr key={item.configuredWorkers}><td>{item.configuredWorkers}</td><td>{item.peakActiveWorkers} / {item.averageActiveWorkers.toFixed(1)}</td><td>{item.totalOperations.toLocaleString()} / {item.dependencyStages}</td><td>{formatMs(item.schedulerTimeMs)}</td><td>{item.throughputOperationsPerSecond.toFixed(0)} ops/s</td><td>{speedup.toFixed(2)}×</td></tr>; })}</tbody></table><p>Actual browser Web Worker runs. Hardware concurrency: {scaleRuns[0].environment.hardwareConcurrency ?? "unknown"}. No reference-benchmark figures are used here.</p></div> : null}
     <DeterministicReasoningCostPanel />
+    <FlagshipLearningPanel />
   </section>;
 }
