@@ -18,6 +18,35 @@ export interface ResolutionAssessment {
   commitReason: string;
 }
 
+/** Only a genuine unresolved meaning is eligible for the O-Agent path. */
+export function nextResolutionLevel(assessment: ResolutionAssessment): 2 | 3 {
+  return assessment.commitOutcome === "REJECTED_CONSTRAINT" ? 2 : 3;
+}
+
+/**
+ * O-Agent evidence may resolve only the genuine semantic U. It cannot cure an
+ * over-limit amount or a missing order binding, and it never authorizes an
+ * effect by itself.
+ */
+export function applyReasoningEvidence(
+  assessment: ResolutionAssessment,
+  reasoningCompleted: boolean,
+): ResolutionAssessment {
+  if (!reasoningCompleted || !assessment.ambiguous || !assessment.orderId || assessment.amount <= 0 || assessment.amount > 100) {
+    return assessment;
+  }
+  return {
+    ...assessment,
+    facts: [...assessment.facts, "O-Agent evidence: customer intent bound for Commit"],
+    unresolved: ["Resolved by O-Agent evidence; re-entered deterministic Commit checks"],
+    constraints: assessment.constraints.map((constraint) => constraint.condition === "unambiguous"
+      ? { ...constraint, label: "Customer intent resolved by O-Agent evidence", satisfied: true }
+      : constraint),
+    commitOutcome: "AUTHORIZED",
+    commitReason: "O-Agent evidence resolved the genuine U. Policy, capability, order binding, and state checks now pass; Commit may issue consequence authority.",
+  };
+}
+
 /**
  * Public-safe Resolve → Commit handoff. The same assessment powers the
  * visible decomposition and the later Commit decision; a failed constraint

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { Run, CommitAction, CommitOutcome } from "../../_lib/run";
-import { assessResolutionRequest } from "../../_lib/resolution-policy";
+import { applyReasoningEvidence, assessResolutionRequest } from "../../_lib/resolution-policy";
 
 // MISSION 03 — COMMIT
 // Commit receives the exact candidate assessed in Level 01. The campaign must
@@ -22,7 +22,10 @@ export function Mission03Commit({
   run: Run;
   onComplete: (action: CommitAction, outcome: CommitOutcome) => void;
 }) {
-  const assessment = assessResolutionRequest(run.data.resolve?.request ?? "");
+  const assessment = applyReasoningEvidence(
+    assessResolutionRequest(run.data.resolve?.request ?? ""),
+    run.data.reason?.completed === true && run.data.reason.oAgentInvoked,
+  );
   const candidate: CommitAttempt = {
     action: assessment.commitOutcome === "AUTHORIZED" ? "ALLOWED" : assessment.commitOutcome === "REJECTED_SOCIAL" ? "SOCIAL" : "EXCESS",
     amount: assessment.amount,

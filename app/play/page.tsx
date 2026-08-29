@@ -133,7 +133,7 @@ export default function PlayPage() {
     }));
   }
 
-  function handleResolveSubmit(request: string) {
+  function handleResolveSubmit(request: string, nextLevel: 2 | 3) {
     if (!run) return;
     const assessment = assessResolutionRequest(request);
     updateRun((r) => ({
@@ -142,11 +142,11 @@ export default function PlayPage() {
     }));
     completeMission(1, {
       kind: "experience",
-      stamp: "EXPERIENCE GAINED",
-      headline: "DETERMINISM PROVEN",
+      stamp: assessment.commitOutcome === "AUTHORIZED" ? "DETERMINISTIC CANDIDATE" : assessment.commitOutcome === "REJECTED_CONSTRAINT" ? "UNRESOLVED MEANING" : "XACT POLICY FAILURE",
+      headline: assessment.commitOutcome === "AUTHORIZED" ? "READY FOR COMMIT" : assessment.commitOutcome === "REJECTED_CONSTRAINT" ? "REASONING REQUIRED" : "NO AUTHORITY ISSUED",
       stat: "0",
-      verdict: "O-Agent invocations this mission · reasoning reserved for genuine U",
-      nextIndex: 2,
+      verdict: assessment.commitReason,
+      nextIndex: nextLevel,
       autoMs: 1500,
     });
   }
@@ -364,7 +364,9 @@ export default function PlayPage() {
       : `${run.completed.includes(current)
           ? levelCompletionLabel(current, run.data.commit?.outcome)
           : LEVEL_VERB_PRESENT[current]}`;
-  const currentInstruction = current === 4 && run.data.commit?.outcome !== "AUTHORIZED"
+  const currentInstruction = run.completed.includes(current)
+    ? "This recorded mission is read-only. Start a new run to evaluate different inputs."
+    : current === 4 && run.data.commit?.outcome !== "AUTHORIZED"
     ? "Inspect the refused Commit. Record that no substrate was selected and no consequence was attempted."
     : LEVEL_INSTRUCTION[current];
 
@@ -400,7 +402,7 @@ export default function PlayPage() {
           <>
             <h4>Current mission <span className="now">{LEVEL_VERB_PRESENT[current]}</span></h4>
             <div className="lvl-stat-block">
-              <span className="k">YOU MUST</span>
+              <span className="k">NEXT ACTION</span>
               <span className="v" style={{ fontSize: 13, lineHeight: 1.35 }}>{currentInstruction}</span>
             </div>
             <h4>This run <span className="now">{run.id.slice(-6)}</span></h4>
@@ -411,7 +413,7 @@ export default function PlayPage() {
               <div className="row"><span>Authority ≠ Score</span><span className="v acid">Holds.</span></div>
             </div>
             <p className="lvl-quote">
-              You don’t progress by clicking. You progress by proving.
+              Every outcome follows the evidence.
             </p>
           </>
         }
@@ -427,12 +429,12 @@ export default function PlayPage() {
             />
           )}
           {current === 1 && run.completed.includes(0) && (
-            <Mission01Resolve run={run} onComplete={handleResolveSubmit} />
+            <Mission01Resolve run={run} onComplete={handleResolveSubmit} onNewRun={handleReplay} />
           )}
           {current === 2 && run.completed.includes(1) && (
             <Mission02Reason run={run} onComplete={handleReasonSubmit} />
           )}
-          {current === 3 && run.completed.includes(2) && (
+          {current === 3 && run.completed.includes(1) && (
             <Mission03Commit run={run} onComplete={handleCommitChoose} />
           )}
           {current === 4 && run.completed.includes(3) && (

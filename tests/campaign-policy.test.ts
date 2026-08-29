@@ -6,7 +6,7 @@ import {
   executionDisposition,
   levelCompletionLabel,
 } from "../app/_lib/campaign-policy";
-import { assessResolutionRequest } from "../app/_lib/resolution-policy";
+import { applyReasoningEvidence, assessResolutionRequest, nextResolutionLevel } from "../app/_lib/resolution-policy";
 
 test("only an authorized Commit outcome may enter execution", () => {
   assert.equal(executionDisposition("AUTHORIZED"), "EXECUTE");
@@ -41,4 +41,22 @@ test("an ambiguous Resolve constraint is preserved into a Commit refusal", () =>
 
   assert.equal(assessment.constraints.at(-1)?.satisfied, false);
   assert.equal(assessment.commitOutcome, "REJECTED_CONSTRAINT");
+});
+
+test("only genuine unresolved meaning reaches O-Agent reasoning", () => {
+  const ambiguous = assessResolutionRequest("Refund $42 to order #4402 and make it right.");
+  const policyFailure = assessResolutionRequest("Refund $420 to order #4402 and make it right.");
+  const bound = assessResolutionRequest("Refund $42 to order #4402 for late delivery.");
+
+  assert.equal(nextResolutionLevel(ambiguous), 2);
+  assert.equal(nextResolutionLevel(policyFailure), 3);
+  assert.equal(nextResolutionLevel(bound), 3);
+});
+
+test("O-Agent evidence resolves U and re-enters Commit without bypassing policy", () => {
+  const ambiguous = assessResolutionRequest("Refund $42 to order #4402 and make it right.");
+  const overLimit = assessResolutionRequest("Refund $420 to order #4402 and make it right.");
+
+  assert.equal(applyReasoningEvidence(ambiguous, true).commitOutcome, "AUTHORIZED");
+  assert.equal(applyReasoningEvidence(overLimit, true).commitOutcome, "REJECTED_EXCESS");
 });
