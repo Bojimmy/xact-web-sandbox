@@ -1745,3 +1745,6 @@ button { color: inherit; }
   .lvl00-card { padding: 22px 20px 26px; }
   .lvl-lifecycle { grid-template-columns: 1fr 1fr; }
 }
+
+/* Foundry conversation turns are projections of liaison output, never status inferred by the UI. */
+.foundry-label{color:#81918b;display:block;font:10px var(--mono);letter-spacing:.12em;margin:18px 0 7px;text-transform:uppercase}.foundry-transcript{display:grid;gap:8px;max-height:360px;overflow:auto}.foundry-turn{border-left:2px solid #c9f43d;padding:9px 11px}.foundry-turn-warn{border-color:#ffc560;background:#251e11}.foundry-turn-block{border-color:#ff765e;background:#281815}.foundry-turn>span,.foundry-turn small{color:#c9f43d;font:9px var(--mono);letter-spacing:.12em;text-transform:uppercase}.foundry-turn-warn>span{color:#ffc560}.foundry-turn-block>span{color:#ff917e}.foundry-turn p{color:#dce5df;font-size:13px;line-height:1.45;margin:5px 0}.foundry-turn small{color:#8b9b95;display:block;line-height:1.45}.foundry-turn ul{color:#ffc560;font-size:12px;line-height:1.5;margin:8px 0 0;padding-left:18px}
