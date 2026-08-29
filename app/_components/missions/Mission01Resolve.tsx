@@ -39,7 +39,13 @@ function decompose(request: string): { facts: string[]; unresolved: string[]; co
   }
 
   const constraints = [
-    { label: "Refund within $100 policy ceiling", condition: `$${amount.toFixed(2)} ≤ $100`, satisfied: amount > 0 && amount <= 100 },
+    {
+      label: amount > 0 && amount <= 100
+        ? "Refund within $100 policy ceiling"
+        : "Refund NOT within $100 policy ceiling",
+      condition: `$${amount.toFixed(2)} ≤ $100`,
+      satisfied: amount > 0 && amount <= 100,
+    },
     { label: "Capability present (refund:create)", condition: "PRESENT", satisfied: true },
     { label: "Authority state known", condition: "ALLOWED", satisfied: true },
     { label: "Order id bound", condition: "bound", satisfied: /order\s*#?\d+/i.test(request) },
