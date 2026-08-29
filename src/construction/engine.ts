@@ -17,6 +17,7 @@ import {
   type CapabilityRecognitionResult,
   type GovernedCapabilityDescriptor,
 } from "../flagship/capability-vocabulary";
+import { composeWebMCPTool, type WebMCPToolDefinition } from "../flagship/webmcp-tool-builder";
 
 export const serviceOperationsBenchmarkRequest = "Build a Service Operations Console that shows customer, account status, available actions, service-credit requests, plan changes, and audit history.";
 export const serviceOperationsSemanticRequest = "Build a Service Operations Console with a related semantic composition that requires governed evidence.";
@@ -82,6 +83,15 @@ export class ConstructionBenchmarkEngine {
    */
   recognizeCapability(descriptor: GovernedCapabilityDescriptor): CapabilityRecognitionResult {
     return recognizeGovernedCapability(descriptor);
+  }
+
+  /**
+   * Typed compose extension point for Xact Foundry (ADR 0016). Composes a
+   * recognized capability descriptor into a WebMCP tool definition. The
+   * definition remains descriptive and inert: no execute handler, no authority.
+   */
+  composeCapability(descriptor: GovernedCapabilityDescriptor): WebMCPToolDefinition {
+    return composeWebMCPTool(descriptor);
   }
 
   async run(options: ConstructionRunOptions): Promise<ConstructionRun> {

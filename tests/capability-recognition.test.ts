@@ -51,6 +51,7 @@ test("recognition rejects malformed descriptors and reports checks", () => {
     id: "x",
     capabilityKind: "READ",
     label: "x",
+    inputs: [],
     resolves: ["y"],
     boundaries: [{ primitive: "FREE_FORM_CODE", description: "not in vocabulary" }],
   } as unknown as GovernedCapabilityDescriptor;
@@ -58,12 +59,12 @@ test("recognition rejects malformed descriptors and reports checks", () => {
   assert.equal(r1.recognized, false);
   assert.ok(r1.checks.some((check) => check.includes("unknown primitive")));
 
-  const emptyId = { kind: "GOVERNED_CAPABILITY_DESCRIPTOR", id: "  ", capabilityKind: "READ", label: "x", resolves: ["y"], boundaries: [] } as GovernedCapabilityDescriptor;
+  const emptyId = { kind: "GOVERNED_CAPABILITY_DESCRIPTOR", id: "  ", capabilityKind: "READ", label: "x", inputs: [], resolves: ["y"], boundaries: [] } as GovernedCapabilityDescriptor;
   const r2 = recognizeGovernedCapability(emptyId);
   assert.equal(r2.recognized, false);
   assert.ok(r2.checks.some((check) => check.includes("empty")));
 
-  const emptyResolve = { kind: "GOVERNED_CAPABILITY_DESCRIPTOR", id: "x", capabilityKind: "READ", label: "x", resolves: [""], boundaries: [] } as GovernedCapabilityDescriptor;
+  const emptyResolve = { kind: "GOVERNED_CAPABILITY_DESCRIPTOR", id: "x", capabilityKind: "READ", label: "x", inputs: [], resolves: [""], boundaries: [] } as GovernedCapabilityDescriptor;
   const r3 = recognizeGovernedCapability(emptyResolve);
   assert.equal(r3.recognized, false);
   assert.ok(r3.checks.some((check) => check.includes("resolves[0]")));
@@ -97,4 +98,37 @@ test("recognition is a pure read and leaves the engine's construction behavior u
   // The engine still runs its normal construction benchmark unchanged.
   const run = await engine.run({ request: "Build a Service Operations Console that shows customer, account status, available actions, service-credit requests, plan changes, and audit history.", concurrency: 10 });
   assert.equal(run.metrics.finalResult, "WORKING_APP");
+});
+
+test("the engine's compose extension point builds an inert WebMCP tool definition", () => {
+  const engine = new ConstructionBenchmarkEngine();
+  const descriptor = describeCapability({
+    id: "issue_service_credit",
+    capabilityKind: "MUTATION",
+    label: "Issue customer service credit",
+    inputs: ["customerId", "amount", "reason"],
+    resolves: ["credit-applied"],
+    boundaries: [
+      { primitive: "ACTOR_BINDING", description: "actor requires SERVICE_RECOVERY", actor: "SERVICE_RECOVERY" },
+      { primitive: "COMMIT_BOUNDARY", description: "amount must not exceed $25", limit: { operator: "<=", value: 25 } },
+    ],
+  });
+
+  const tool = engine.composeCapability(descriptor);
+
+  assert.equal(tool.kind, "WEBMCP_TOOL_DEFINITION");
+  assert.equal(tool.name, "issue_service_credit");
+  assert.equal(tool.capabilityKind, "MUTATION");
+  assert.equal(tool.requiresCommit, true);
+  assert.deepEqual(tool.inputSchema.required, ["customerId", "amount", "reason"]);
+  assert.equal(tool.boundaries.length, 2);
+
+  // Composing on the engine is still inert — no execute, no authority.
+  assert.equal("execute" in tool, false);
+  assert.equal("authorize" in tool, false);
+
+  // recognize → compose in one place: the same descriptor validates and composes.
+  const recognition = engine.recognizeCapability(descriptor);
+  assert.equal(recognition.recognized, true);
+  assert.equal(recognition.composed, false);
 });

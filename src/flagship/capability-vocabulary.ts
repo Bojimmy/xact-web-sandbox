@@ -78,6 +78,8 @@ export interface GovernedCapabilityDescriptor {
   readonly id: string;
   readonly capabilityKind: CapabilityKind;
   readonly label: string;
+  /** The tool's input parameters (INPUT_SCHEMA primitive). */
+  readonly inputs: readonly string[];
   /** The resolution surface this capability satisfies (future R fields). */
   readonly resolves: readonly string[];
   readonly boundaries: readonly CapabilityBoundary[];
@@ -93,6 +95,7 @@ export function describeCapability(input: {
   id: string;
   capabilityKind: CapabilityKind;
   label: string;
+  inputs?: readonly string[];
   resolves: readonly string[];
   boundaries?: readonly CapabilityBoundary[];
 }): GovernedCapabilityDescriptor {
@@ -109,6 +112,7 @@ export function describeCapability(input: {
     id: input.id,
     capabilityKind: input.capabilityKind,
     label: input.label,
+    inputs: Object.freeze([...(input.inputs ?? [])]),
     resolves: Object.freeze([...input.resolves]),
     boundaries: Object.freeze((input.boundaries ?? []).map((boundary) => Object.freeze({ ...boundary }))),
   });
@@ -140,7 +144,14 @@ export function recognizeGovernedCapability(descriptor: GovernedCapabilityDescri
   if (descriptor.capabilityKind !== "READ" && descriptor.capabilityKind !== "MUTATION") {
     checks.push(`Unknown capability kind: ${String(descriptor.capabilityKind)}.`);
   }
-  descriptor.resolves.forEach((field, index) => {
+  const inputs = Array.isArray(descriptor.inputs) ? descriptor.inputs : [];
+  const resolves = Array.isArray(descriptor.resolves) ? descriptor.resolves : [];
+  inputs.forEach((field, index) => {
+    if (typeof field !== "string" || !field.trim()) {
+      checks.push(`inputs[${index}] is empty.`);
+    }
+  });
+  resolves.forEach((field, index) => {
     if (typeof field !== "string" || !field.trim()) {
       checks.push(`resolves[${index}] is empty.`);
     }
