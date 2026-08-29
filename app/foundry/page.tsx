@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { XactAgentLiaison, type ConverseAndRegisterResult, type XactTurn } from "../../src/flagship/xact-agent-liaison";
 import { commitGatedExecute } from "../../src/flagship/foundry-build-register";
 import { WebMCPDispatchRegistry } from "../../src/execution/webmcp-dispatch";
+import { createMutationCommitEngine } from "../../src/flagship/foundry-mutation-commit";
+import { FoundryRuntime, FoundryToolRegistry, type FoundryInvocationResult } from "../../src/flagship/foundry-runtime";
 import type { FoundryActivity } from "../../src/flagship/foundry-liaison";
 import type { FoundryWebMCPHost } from "../../src/flagship/webmcp-host-registration";
 
@@ -15,6 +17,13 @@ const EXAMPLES = [
   "Let support agents issue a service credit up to $25",
   "Find customers by email",
 ];
+
+const CUSTOMER_DIRECTORY = Object.freeze([
+  { customerId: "1042", email: "ada@example.com", name: "Ada Lovelace", status: "ACTIVE", openRequests: 2 },
+  { customerId: "8821", email: "lin@example.com", name: "Lin Chen", status: "ACTIVE", openRequests: 1 },
+]);
+
+type AppliedEffect = { customerId?: string; tool: string; amount?: number; receipt: string };
 
 function turnTone(kind: XactTurn["kind"]): "ok" | "warn" | "block" {
   if (kind === "REFUSED") return "block";
@@ -38,8 +47,16 @@ export default function FoundryPage() {
   const [turns, setTurns] = useState<ConversationTurn[]>([]);
   const [activity, setActivity] = useState<FoundryActivity[]>([]);
   const [result, setResult] = useState<ConverseAndRegisterResult>();
+  const [shelf, setShelf] = useState<string[]>([]);
+  const [invocationInput, setInvocationInput] = useState<Record<string, string>>({});
+  const [actor, setActor] = useState("SERVICE_RECOVERY");
+  const [confirmation, setConfirmation] = useState(false);
+  const [invocation, setInvocation] = useState<FoundryInvocationResult>();
+  const [invocationError, setInvocationError] = useState<string>();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
+  const registry = useRef(new FoundryToolRegistry());
+  const appliedEffects = useRef<AppliedEffect[]>([]);
 
   async function converse(intent: string, userText: string) {
     setBusy(true);
@@ -60,6 +77,17 @@ export default function FoundryPage() {
         (turn) => setTurns((current) => [...current, turn]),
       );
       setResult(next);
+      if (next.tool) {
+        const builtTool = next.tool;
+        registry.current.add(builtTool);
+        setShelf(registry.current.list().map((tool) => tool.name));
+        setInvocationInput(Object.fromEntries(builtTool.inputSchema.required.map((field) => [field, field === "email" ? "ada@example.com" : field === "amount" ? "25" : ""])));
+        setActor("SERVICE_RECOVERY");
+        setConfirmation(false);
+        setInvocation(undefined);
+        setInvocationError(undefined);
+        setActivity((current) => [...current, { type: "REGISTER", label: "Foundry shelf", detail: `Added "${builtTool.name}" to the Foundry's internal tool shelf.`, status: "PASS" }]);
+      }
       if (next.outcome === "NEEDS_INPUT") setPendingIntent(intent);
       else {
         setPendingIntent(undefined);
@@ -87,6 +115,50 @@ export default function FoundryPage() {
     if (!pendingIntent || !reply.trim()) return;
     const answer = reply.trim();
     await converse(`${pendingIntent}\n${answer}`, answer);
+  }
+
+  async function invokeTool() {
+    if (!tool || !shelf.includes(tool.name)) return;
+    setInvocationError(undefined);
+    setInvocation(undefined);
+    const input: Record<string, unknown> = {};
+    for (const field of tool.inputSchema.required) {
+      const value = invocationInput[field] ?? "";
+      input[field] = field === "amount" ? Number(value) : value;
+    }
+    if (tool.capabilityKind === "MUTATION") {
+      input.actor = actor;
+      input.confirmation = confirmation;
+    }
+    try {
+      const foundryRuntime = new FoundryRuntime(
+        registry.current,
+        (readTool, readInput) => {
+          const values = readInput as Record<string, unknown>;
+          if (readTool.name === "find_customer_by_email") {
+            const email = typeof values.email === "string" ? values.email.trim().toLowerCase() : "";
+            return CUSTOMER_DIRECTORY.find((customer) => customer.email === email) ?? { found: false, email };
+          }
+          if (readTool.name === "get_audit_history") {
+            const customerId = typeof values.customerId === "string" ? values.customerId : undefined;
+            return appliedEffects.current.filter((effect) => !customerId || effect.customerId === customerId);
+          }
+          throw new Error(`No approved public-safe read substrate is connected for ${readTool.name}.`);
+        },
+        createMutationCommitEngine(),
+        (mutationTool, mutationInput, artifact) => {
+          const values = mutationInput as Record<string, unknown>;
+          const receipt = `foundry:${mutationTool.name}:${artifact.nonce}`;
+          const applied = { customerId: typeof values.customerId === "string" ? values.customerId : undefined, tool: mutationTool.name, amount: typeof values.amount === "number" ? values.amount : undefined, receipt };
+          appliedEffects.current.push(applied);
+          return { ...applied, applied: true };
+        },
+      );
+      const next = await foundryRuntime.invoke(tool.name, input);
+      setInvocation(next);
+    } catch (cause) {
+      setInvocationError(cause instanceof Error ? cause.message : "Invocation failed.");
+    }
   }
 
   const clarification = [...turns].reverse().find((turn) => turn.kind === "CLARIFY");
@@ -129,7 +201,7 @@ export default function FoundryPage() {
       </section>
       <section className="foundry-panel foundry-artifact">
         <p className="foundry-kicker">ARTIFACT</p>
-        {pending ? <><h2>Understood · not yet governed</h2><span className="foundry-state">PENDING GOVERNANCE · NO TOOL CREATED</span><p>{result?.build?.reasoning?.claims.join(" ") || "The O-Agent supplied a structured interpretation."}</p><p className="foundry-pending">Xact cannot construct this capability until governance adds approved primitives and a reachable substrate.</p></> : tool ? <><h2>{tool.name}</h2><span className="foundry-state">{result?.outcome === "WORKING_TOOL" ? "REGISTERED · OBSERVED · VERIFIED" : result?.outcome === "REGISTRATION_FAILED" ? "COMPOSED · REGISTRATION FAILED" : "COMPOSED DEFINITION · NOT REGISTERED"}</span><p>{tool.description}</p><dl><div><dt>Kind</dt><dd>{tool.capabilityKind}</dd></div><div><dt>Commit</dt><dd>{tool.requiresCommit ? "REQUIRED" : "NOT REQUIRED"}</dd></div></dl><h3>Input schema</h3><code>{tool.inputSchema.required.join(" · ") || "none"}</code><h3>Governed boundaries</h3><ul>{tool.boundaries.map((boundary) => <li key={boundary.primitive}>{boundary.primitive} — {boundary.description}</li>)}</ul><p className="foundry-pending">{result?.outcome === "REGISTRATION_FAILED" ? "The host did not register this tool. No working-tool claim was made." : tool.requiresCommit ? "A mutation invocation still requires a fresh, exact Commit dispatch." : "Registration is optional until a reachable WebMCP host is available."}</p></> : result?.build?.refusal ? <><h2>Construction blocked</h2><span className="foundry-state">NO TOOL CREATED</span><p>{result.build.refusal.reasons.join(" ")}</p><p className="foundry-pending">Implementation knowledge is not authority to construct this capability.</p></> : <><h2>No artifact yet</h2><p className="foundry-empty">A governed, inert definition appears here only when Xact actually composes one.</p></>}
+        {pending ? <><h2>Understood · not yet governed</h2><span className="foundry-state">PENDING GOVERNANCE · NO TOOL CREATED</span><p>{result?.build?.reasoning?.claims.join(" ") || "The O-Agent supplied a structured interpretation."}</p><p className="foundry-pending">Xact cannot construct this capability until governance adds approved primitives and a reachable substrate.</p></> : tool ? <><h2>{tool.name}</h2><span className="foundry-state">{shelf.includes(tool.name) ? "ON FOUNDRY SHELF · INVOCABLE" : "COMPOSED DEFINITION"}</span><p>{tool.description}</p><dl><div><dt>Kind</dt><dd>{tool.capabilityKind}</dd></div><div><dt>Commit</dt><dd>{tool.requiresCommit ? "FRESH PER INVOCATION" : "NOT REQUIRED"}</dd></div></dl><h3>Input schema</h3><code>{tool.inputSchema.required.join(" · ") || "none"}</code><h3>Governed boundaries</h3><ul>{tool.boundaries.map((boundary) => <li key={boundary.primitive}>{boundary.primitive} — {boundary.description}</li>)}</ul><section className="foundry-invoke"><p className="foundry-kicker">RUN THIS TOOL</p>{tool.inputSchema.required.map((field) => <label key={field} className="foundry-label" htmlFor={`invoke-${field}`}>{field}<input id={`invoke-${field}`} type={field === "amount" ? "number" : field === "email" ? "email" : "text"} value={invocationInput[field] ?? ""} onChange={(event) => setInvocationInput((current) => ({ ...current, [field]: event.target.value }))} /></label>)}{tool.capabilityKind === "MUTATION" ? <><label className="foundry-label" htmlFor="invoke-actor">Actor<input id="invoke-actor" value={actor} onChange={(event) => setActor(event.target.value)} /></label><label className="foundry-check"><input type="checkbox" checked={confirmation} onChange={(event) => setConfirmation(event.target.checked)} /> I confirm this exact consequence</label></> : null}<button className="foundry-build" type="button" onClick={() => void invokeTool()}>{tool.capabilityKind === "MUTATION" ? "REQUEST FRESH COMMIT" : "RUN READ"}</button>{invocation ? <div className={`foundry-invocation ${invocation.status === "BLOCKED_NO_AUTHORITY" ? "is-blocked" : ""}`}><b>{invocation.status.replaceAll("_", " ")}</b>{invocation.result !== undefined ? <pre>{JSON.stringify(invocation.result, null, 2)}</pre> : null}{invocation.effectFingerprint ? <small>EFFECT · {invocation.effectFingerprint}</small> : null}<ul>{invocation.audit.map((line) => <li key={line}>{line}</li>)}</ul></div> : null}{invocationError ? <p className="foundry-error">{invocationError}</p> : null}</section><p className="foundry-pending">{result?.outcome === "WORKING_TOOL" ? "Browser WebMCP exposure is also registered and verified." : result?.outcome === "REGISTRATION_FAILED" ? "Browser exposure failed, but the tool remains hosted on the Foundry shelf." : "Browser exposure is optional; the Foundry shelf is the host."}</p></> : result?.build?.refusal ? <><h2>Construction blocked</h2><span className="foundry-state">NO TOOL CREATED</span><p>{result.build.refusal.reasons.join(" ")}</p><p className="foundry-pending">Implementation knowledge is not authority to construct this capability.</p></> : <><h2>No artifact yet</h2><p className="foundry-empty">A governed, inert definition appears here only when Xact actually composes one.</p></>}
       </section>
     </section>
   </main>;
