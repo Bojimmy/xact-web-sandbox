@@ -154,6 +154,19 @@ const FOUNDRY_PATTERNS: CapabilityPattern[] = [
     extractAmountLimit: (intent) => amountLimit(intent, 15),
   },
   {
+    id: "read_active_users_and_open_requests",
+    label: "Read active users and open support requests",
+    capabilityKind: "READ",
+    inputs: [],
+    resolves: ["active-user-count", "open-support-request-count"],
+    boundaries: () => [
+      { primitive: "READ_CAPABILITY", description: "Foundry customer directory is the approved public-safe read substrate" },
+      FRESHNESS_BOUNDARY,
+    ],
+    genuineU: [],
+    matches: (intent) => /active users?|user stats?/i.test(intent) && /open (support )?requests?/i.test(intent),
+  },
+  {
     id: "find_customer_by_email",
     label: "Find customer by email",
     capabilityKind: "READ",

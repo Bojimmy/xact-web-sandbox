@@ -114,6 +114,18 @@ test("a READ capability builds with no reasoning events", async () => {
   assert.ok(!result.activity.some((a) => a.type === "REASON_STARTED"));
 });
 
+test("a bounded active-user and request snapshot is a governed read capability", async () => {
+  const result = await new XactFoundryLiaison(liveProvider()).buildCapability(
+    "Build a WebMCP tool that shows active users and open support requests as an on-demand snapshot",
+  );
+
+  assert.equal(result.outcome, "COMPOSED_DEFINITION");
+  assert.equal(result.tool?.name, "read_active_users_and_open_requests");
+  assert.equal(result.tool?.capabilityKind, "READ");
+  assert.deepEqual(result.tool?.inputSchema.required, []);
+  assert.ok(!result.activity.some((a) => a.type === "REASON_STARTED"));
+});
+
 test("fail closed: an unavailable provider emits REASON_FAILED and throws", async () => {
   const unavailable = new SecureEndpointOAgentProvider("/api/o-agent", async () => new Response("unavailable", { status: 503 }));
   const liaison = new XactFoundryLiaison(unavailable);

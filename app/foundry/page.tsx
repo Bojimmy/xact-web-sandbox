@@ -44,6 +44,8 @@ export default function FoundryPage() {
   const [draft, setDraft] = useState("");
   const [reply, setReply] = useState("");
   const [pendingIntent, setPendingIntent] = useState<string>();
+  const [pendingSubstrate, setPendingSubstrate] = useState("FOUNDRY_CUSTOMER_DIRECTORY");
+  const [pendingMode, setPendingMode] = useState("ON_DEMAND_SNAPSHOT");
   const [turns, setTurns] = useState<ConversationTurn[]>([]);
   const [activity, setActivity] = useState<FoundryActivity[]>([]);
   const [result, setResult] = useState<ConverseAndRegisterResult>();
@@ -88,7 +90,7 @@ export default function FoundryPage() {
         setInvocationError(undefined);
         setActivity((current) => [...current, { type: "REGISTER", label: "Foundry shelf", detail: `Added "${builtTool.name}" to the Foundry's internal tool shelf.`, status: "PASS" }]);
       }
-      if (next.outcome === "NEEDS_INPUT") setPendingIntent(intent);
+      if (next.outcome === "NEEDS_INPUT" || next.outcome === "PENDING_GOVERNANCE") setPendingIntent(intent);
       else {
         setPendingIntent(undefined);
         setReply("");
@@ -117,6 +119,18 @@ export default function FoundryPage() {
     await converse(`${pendingIntent}\n${answer}`, answer);
   }
 
+  async function supplyBuildRequirements() {
+    if (!pendingIntent) return;
+    // Explicit bounded re-entry: this supplies a public-safe read substrate and
+    // supported reporting mode. It is not governance approval and cannot add an
+    // arbitrary primitive or grant a mutation authority.
+    if (pendingSubstrate !== "FOUNDRY_CUSTOMER_DIRECTORY" || pendingMode !== "ON_DEMAND_SNAPSHOT") return;
+    await converse(
+      "Build a WebMCP tool that shows active users and open support requests as an on-demand snapshot from the Foundry customer directory.",
+      "Use the Foundry customer directory for an on-demand snapshot of active users and open support requests.",
+    );
+  }
+
   async function invokeTool() {
     if (!tool || !shelf.includes(tool.name)) return;
     setInvocationError(undefined);
@@ -143,6 +157,11 @@ export default function FoundryPage() {
             const customerId = typeof values.customerId === "string" ? values.customerId : undefined;
             return appliedEffects.current.filter((effect) => !customerId || effect.customerId === customerId);
           }
+          if (readTool.name === "read_active_users_and_open_requests") {
+            const activeUsers = CUSTOMER_DIRECTORY.filter((customer) => customer.status === "ACTIVE").length;
+            const openSupportRequests = CUSTOMER_DIRECTORY.reduce((count, customer) => count + customer.openRequests, 0);
+            return { activeUsers, openSupportRequests, source: "Foundry customer directory", mode: "ON_DEMAND_SNAPSHOT" };
+          }
           throw new Error(`No approved public-safe read substrate is connected for ${readTool.name}.`);
         },
         createMutationCommitEngine(),
@@ -167,7 +186,6 @@ export default function FoundryPage() {
 
   return <main className="foundry">
     <header className="foundry-top"><Link href="/">XACT</Link><span>WEBMCP FOUNDRY</span><strong>The O-Agent understands. Xact decides what may become real.</strong></header>
-    <section className="foundry-hero"><p>One conversation. Governed construction underneath.</p><h1>Ask the boss.<br />Xact keeps the consequences in check.</h1></section>
     <section className="foundry-grid">
       <section className="foundry-panel foundry-conversation">
         <p className="foundry-kicker">O-AGENT · XACT LIAISON</p><h2>What should your agent be able to do?</h2>
@@ -184,6 +202,19 @@ export default function FoundryPage() {
           <label className="foundry-label" htmlFor="foundry-clarification">Reply with the requested bounds</label>
           <textarea id="foundry-clarification" value={reply} onChange={(event) => setReply(event.target.value)} rows={3} placeholder={clarification.questions?.join(" ")} />
           <button className="foundry-build" type="button" onClick={() => void answerClarification()} disabled={busy || !reply.trim()}>{busy ? "XACT IS CHECKING…" : "CONTINUE WITH XACT"}</button>
+        </> : pending ? <>
+          <p className="foundry-empty">Give Xact the bounded information it needs. It re-enters the build only when that information maps to an approved read capability.</p>
+          <label className="foundry-label" htmlFor="foundry-substrate">Approved read substrate</label>
+          <select id="foundry-substrate" value={pendingSubstrate} onChange={(event) => setPendingSubstrate(event.target.value)}>
+            <option value="FOUNDRY_CUSTOMER_DIRECTORY">Foundry customer directory (public-safe demo data)</option>
+          </select>
+          <label className="foundry-label" htmlFor="foundry-mode">Reporting mode</label>
+          <select id="foundry-mode" value={pendingMode} onChange={(event) => setPendingMode(event.target.value)}>
+            <option value="ON_DEMAND_SNAPSHOT">Current snapshot on demand</option>
+            <option value="NOTIFICATION">Notifications when something changes — not yet governed</option>
+          </select>
+          {pendingMode === "NOTIFICATION" ? <p className="foundry-error">Notifications need a governed delivery primitive. Xact will not pretend the current read tool can send them.</p> : null}
+          <button className="foundry-build" type="button" onClick={() => void supplyBuildRequirements()} disabled={busy || pendingMode !== "ON_DEMAND_SNAPSHOT"}>{busy ? "XACT IS BUILDING…" : "GIVE XACT WHAT IT NEEDS → BUILD"}</button>
         </> : <>
           <label className="foundry-label" htmlFor="foundry-intent">Your request</label>
           <textarea id="foundry-intent" value={draft} onChange={(event) => setDraft(event.target.value)} rows={4} placeholder="Describe a WebMCP capability…" />
