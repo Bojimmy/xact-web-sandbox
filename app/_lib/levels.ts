@@ -16,7 +16,7 @@ export interface SubStage {
 export interface Level {
   number: string; // "00" .. "09"
   key: string;
-  verb: string; // AUTHORIZATION, RESOLVE, REASON, COMMIT, EXECUTE, VERIFY, ABSORB, EVOLVE, TEACH, YOUR RUN
+  verb: string; // AUTHORIZATION, RESOLVE, REASON, COMMIT, EXECUTE, VERIFY, ABSORB, EVOLVE, PROPOSE, YOUR RUN
   tagline: string; // one-line flavour text
   proves: string; // the technical claim
   substages: SubStage[];
@@ -142,7 +142,7 @@ export const LEVELS: Level[] = [
   {
     number: "08",
     key: "teach",
-    verb: "TEACH XACT",
+    verb: "PROPOSE",
     tagline: "Judge proposes a bounded WebMCP ability",
     proves: "The judge can propose; governance decides",
     substages: [

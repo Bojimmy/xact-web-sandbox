@@ -3,7 +3,7 @@
 import { useState } from "react";
 import type { Run, TeachOutcome } from "../../_lib/run";
 
-// MISSION 08 — TEACH XACT
+// MISSION 08 — PROPOSE
 // The judge types a bounded WebMCP capability they want Xact to learn.
 // Xact decomposes it, bounds it, builds it, or refuses it.
 // Three categories: ACCEPTED (bounded + built), REFUSED (overreaches), REFUSED (vague).
@@ -49,7 +49,7 @@ export function Mission08Teach({
         <div className="num">08</div>
         <div className="word">
           <p className="tagline">Type your own bounded WebMCP</p>
-          <h1 className="verb">TEACH XACT</h1>
+          <h1 className="verb">PROPOSE</h1>
           <p className="proves"><strong>PROVES</strong> The judge becomes part of the demo</p>
         </div>
       </div>

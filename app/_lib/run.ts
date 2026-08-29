@@ -137,7 +137,7 @@ export const LEVEL_VERB_PRESENT: Record<number, string> = {
   5: "VERIFY",
   6: "ABSORB",
   7: "EVOLVE",
-  8: "TEACH XACT",
+  8: "PROPOSE",
   9: "YOUR RUN",
 };
 

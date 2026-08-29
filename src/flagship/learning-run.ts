@@ -26,8 +26,8 @@ export interface FlagshipLearningRun {
   trace: FlagshipReasoningEvent[];
 }
 
-const COLD_UNRESOLVED_NODES = 30;
-const ACTIVATED_UNRESOLVED_NODES = 4;
+export const COLD_UNRESOLVED_NODES = 30;
+export const ACTIVATED_UNRESOLVED_NODES = 4;
 const STAGE_1_WORK_ROUNDS = 160;
 
 /**
@@ -38,7 +38,10 @@ const STAGE_1_WORK_ROUNDS = 160;
 export class FlagshipLearningRunner {
   constructor(private readonly provider: OAgentProvider) {}
 
-  async run(activated: boolean): Promise<FlagshipLearningRun> {
+  async run(
+    activated: boolean,
+    onReasoning?: (event: FlagshipReasoningEvent) => void,
+  ): Promise<FlagshipLearningRun> {
     const reasoningOperations = activated ? ACTIVATED_UNRESOLVED_NODES : COLD_UNRESOLVED_NODES;
     const workStarted = performance.now();
     const deterministic = executeDeterministicRange(0, SCALE_TOTAL_OPERATIONS, STAGE_1_WORK_ROUNDS);
@@ -51,7 +54,9 @@ export class FlagshipLearningRunner {
     for (let index = 0; index < reasoningOperations; index += 1) {
       const node = `construction:semantic-${index + 1}`;
       const result = await this.provider.reason({ context: { workload: "flagship-learning-v1", phase: activated ? "rebuild" : "cold" }, unresolved: [node] });
-      trace.push({ node, provider: result.provider, provenance, latencyMs: result.latencyMs, inputTokens: result.inputTokens, outputTokens: result.outputTokens, evidence: result.evidence[0]?.claim ?? "No evidence returned" });
+      const event: FlagshipReasoningEvent = { node, provider: result.provider, provenance, latencyMs: result.latencyMs, inputTokens: result.inputTokens, outputTokens: result.outputTokens, evidence: result.evidence[0]?.claim ?? "No evidence returned" };
+      trace.push(event);
+      onReasoning?.(event);
     }
     return {
       phase: activated ? "REBUILD" : "COLD",
