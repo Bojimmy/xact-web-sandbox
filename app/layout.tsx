@@ -5,19 +5,19 @@ const siteOrigin = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteOrigin),
-  title: "Xact Control Room",
+  title: "Xact Governance Campaign",
   description:
-    "A public-safe visual proof of the Xact consequence boundary for agentic web execution.",
+    "A playable, public-safe proof of Xact governance from Resolve through Commit, Execute, Verify, and learning.",
   openGraph: {
-    title: "Xact Control Room",
-    description: "Capability ≠ Authority. A public-safe Xact simulation.",
+    title: "Xact Governance Campaign",
+    description: "Capability ≠ Authority. Prove the Xact consequence boundary level by level.",
     type: "website",
     images: [{ url: "/og.png", width: 1200, height: 630, alt: "Xact Control Room — Capability is not authority" }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Xact Control Room",
-    description: "Capability ≠ Authority. A public-safe Xact simulation.",
+    title: "Xact Governance Campaign",
+    description: "Capability ≠ Authority. Prove the Xact consequence boundary level by level.",
     images: ["/og.png"],
   },
 };

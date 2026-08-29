@@ -3,10 +3,9 @@ import test from "node:test";
 import {
   buildExplainerManifest,
   evidenceIndex,
-  type ExplainerManifest,
 } from "../src/explainer/explainer-manifest";
 import { generateScript } from "../src/explainer/narration-script";
-import { buildStoryboard, type Storyboard } from "../src/explainer/storyboard";
+import { buildStoryboard } from "../src/explainer/storyboard";
 import { createServiceCreditEngine, type ServiceCreditSession } from "../src/runtime/service-operations-engine";
 import { DOMExecutionAdapter, type DOMExecutionClient } from "../src/execution/dom-execution-adapter";
 import { WebMCPExecutionAdapter, type WebMCPExecutionClient } from "../src/execution/webmcp-execution-adapter";

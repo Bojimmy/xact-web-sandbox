@@ -68,7 +68,6 @@ function cardHtml(card: StoryboardCard): string {
 export function renderStoryboardHtml(storyboard: Storyboard): string {
   const cards = storyboard.cards.map(cardHtml).join("\n");
   const durations = JSON.stringify(storyboard.cards.map((card) => card.durationMs));
-  const runId = escapeHtml(storyboard.runId);
   return `<!doctype html>
 <html lang="en">
 <head>

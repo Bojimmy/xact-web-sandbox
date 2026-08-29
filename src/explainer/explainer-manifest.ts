@@ -1,11 +1,9 @@
 import type {
-  AuthorizationArtifact,
   CommitCheck,
   DecisionStatus,
   ResolvedFact,
   UnresolvedField,
 } from "../xact/contracts";
-import type { VerificationResult } from "../xact/providers";
 import type {
   ExecutionObservation,
   ExecutionSubstrate,

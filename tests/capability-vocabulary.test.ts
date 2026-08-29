@@ -4,7 +4,6 @@ import {
   CAPABILITY_PRIMITIVES,
   describeCapability,
   type CapabilityPrimitive,
-  type GovernedCapabilityDescriptor,
 } from "../src/flagship/capability-vocabulary";
 import type { ActivatedResolutionAuthority, CommitAuthorization } from "../src/flagship/authority-contracts";
 
