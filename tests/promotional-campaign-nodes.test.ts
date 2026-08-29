@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { preparePromotionalEmailCampaign } from "../src/flagship/promotional-campaign-nodes";
+import { defaultCampaignBuildBrief, preparePromotionalEmailCampaign } from "../src/flagship/promotional-campaign-nodes";
 
 test("campaign X-Nodes prepare a bounded promotional audience without delivery authority", () => {
   const campaign = preparePromotionalEmailCampaign();
@@ -11,4 +11,12 @@ test("campaign X-Nodes prepare a bounded promotional audience without delivery a
   assert.equal(campaign.totalOperations, 515);
   assert.ok(campaign.nodes.every((node) => node.status === "COMPLETE"));
   assert.ok(campaign.recipients.some((recipient) => recipient.subject.includes("20% off")));
+  assert.equal(campaign.brief.deliveryMode, "DRAFT_ONLY");
+});
+
+test("campaign nodes fail closed when a build brief requests delivery", () => {
+  assert.throws(
+    () => preparePromotionalEmailCampaign({ ...defaultCampaignBuildBrief, deliveryMode: "SCHEDULED_SEND" }),
+    /only DRAFT_ONLY preparation is available/,
+  );
 });

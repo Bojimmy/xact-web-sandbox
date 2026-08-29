@@ -21,6 +21,16 @@ export interface CampaignNodeOutcome {
   readonly status: "COMPLETE";
 }
 
+/** Everything deterministic the X-Nodes need before their run begins. */
+export interface CampaignBuildBrief {
+  readonly audienceSource: "FOUNDRY_MOCK_CUSTOMER_DIRECTORY";
+  readonly deliveryMode: "DRAFT_ONLY" | "SCHEDULED_SEND" | "SEND_NOW";
+  readonly rotation: string;
+  readonly sender: string;
+  readonly offer: string;
+  readonly auditRequired: true;
+}
+
 export interface CampaignPreparation {
   readonly campaign: string;
   readonly status: "DRAFTS_PREPARED_NO_SEND_AUTHORITY";
@@ -29,7 +39,17 @@ export interface CampaignPreparation {
   readonly recipients: readonly PromotionRecipient[];
   readonly nodes: readonly CampaignNodeOutcome[];
   readonly totalOperations: number;
+  readonly brief: CampaignBuildBrief;
 }
+
+export const defaultCampaignBuildBrief: CampaignBuildBrief = Object.freeze({
+  audienceSource: "FOUNDRY_MOCK_CUSTOMER_DIRECTORY",
+  deliveryMode: "DRAFT_ONLY",
+  rotation: "Every Tuesday · 09:00 local time",
+  sender: "Offers at Xact Demo <offers@example.com>",
+  offer: "20% off with code WEEKLY20, valid through Sunday at midnight",
+  auditRequired: true,
+});
 
 const recipients: readonly PromotionRecipient[] = Object.freeze(Array.from({ length: 128 }, (_, index) => {
   const number = String(index + 1).padStart(3, "0");
@@ -62,14 +82,18 @@ const nodes: readonly CampaignNodeOutcome[] = Object.freeze([
 ]);
 
 /** Runs every deterministic campaign-preparation node; no email is sent. */
-export function preparePromotionalEmailCampaign(): CampaignPreparation {
+export function preparePromotionalEmailCampaign(brief: CampaignBuildBrief = defaultCampaignBuildBrief): CampaignPreparation {
+  if (brief.deliveryMode !== "DRAFT_ONLY") {
+    throw new Error("Campaign delivery is not connected; only DRAFT_ONLY preparation is available.");
+  }
   return Object.freeze({
     campaign: "Weekly promotion email — active customers",
     status: "DRAFTS_PREPARED_NO_SEND_AUTHORITY" as const,
-    rotation: "Every Tuesday · 09:00 local time",
+    rotation: brief.rotation,
     nextRun: "Tuesday 09:00 (mock schedule)",
     recipients,
     nodes,
     totalOperations: nodes.reduce((total, node) => total + node.operations, 0),
+    brief,
   });
 }

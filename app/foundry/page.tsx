@@ -286,6 +286,10 @@ export default function FoundryPage() {
                   <strong>{invocation.result.totalOperations} deterministic operations</strong>
                   <ol>{invocation.result.nodes.map((node) => <li key={node.id}><span>✓</span>{node.label}<b>{node.operations}</b></li>)}</ol>
                 </section>
+                <section className="foundry-build-brief">
+                  <span className="foundry-state">X-NODE BUILD BRIEF · COMPLETE</span>
+                  <dl><div><dt>Audience</dt><dd>Foundry mock customer directory</dd></div><div><dt>Mode</dt><dd>{invocation.result.brief.deliveryMode.replaceAll("_", " ")}</dd></div><div><dt>Sender</dt><dd>{invocation.result.brief.sender}</dd></div><div><dt>Offer</dt><dd>{invocation.result.brief.offer}</dd></div><div><dt>Audit</dt><dd>{invocation.result.brief.auditRequired ? "REQUIRED" : "NOT REQUIRED"}</dd></div></dl>
+                </section>
                 <section className="foundry-email-preview">
                   <span className="foundry-state">PERSONALIZED PROMOTION · DRAFT EXAMPLE</span>
                   <dl><div><dt>From</dt><dd>Offers at Xact Demo &lt;offers@example.com&gt;</dd></div><div><dt>To</dt><dd>{invocation.result.recipients[0].name} &lt;{invocation.result.recipients[0].email}&gt;</dd></div><div><dt>Subject</dt><dd>{invocation.result.recipients[0].subject}</dd></div></dl>
