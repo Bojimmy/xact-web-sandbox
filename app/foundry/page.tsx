@@ -24,10 +24,25 @@ const CUSTOMER_DIRECTORY = Object.freeze([
   { customerId: "8821", email: "lin@example.com", name: "Lin Chen", status: "ACTIVE", openRequests: 1 },
 ]);
 
-const PROMOTION_RECIPIENTS = Object.freeze([
-  { customerId: "1042", name: "Ada", email: "ada@example.com", segment: "ACTIVE", subject: "Ada, your September service credit is ready" },
-  { customerId: "8821", name: "Lin", email: "lin@example.com", segment: "ACTIVE", subject: "Lin, a thank-you offer for your next order" },
-]);
+const PROMOTION_RECIPIENTS = Object.freeze(Array.from({ length: 128 }, (_, index) => {
+  const number = String(index + 1).padStart(3, "0");
+  const named = [
+    { name: "Ada", email: "ada@example.com" },
+    { name: "Lin", email: "lin@example.com" },
+    { name: "Maya", email: "maya@example.com" },
+    { name: "Jon", email: "jon@example.com" },
+    { name: "Nora", email: "nora@example.com" },
+    { name: "Eli", email: "eli@example.com" },
+  ][index];
+  const name = named?.name ?? `Customer ${number}`;
+  return {
+    customerId: `promo-${number}`,
+    name,
+    email: named?.email ?? `customer-${number}@example.com`,
+    segment: index % 4 === 0 ? "RETURNING" : "ACTIVE",
+    subject: index % 3 === 0 ? `${name}, enjoy 20% off your next order` : index % 3 === 1 ? `${name}, your weekly member offer is here` : `${name}, a limited-time promotion for you`,
+  };
+}));
 
 interface CampaignPreparation {
   campaign: string;
@@ -196,7 +211,7 @@ export default function FoundryPage() {
           }
           if (readTool.name === "prepare_weekly_promotional_email_campaign") {
             return {
-              campaign: "Weekly active-customer promotion",
+              campaign: "Weekly promotion email — active customers",
               status: "DRAFTS_PREPARED_NO_SEND_AUTHORITY" as const,
               rotation: "Every Tuesday · 09:00 local time",
               nextRun: "Tuesday 09:00 (mock schedule)",
@@ -224,6 +239,7 @@ export default function FoundryPage() {
   const clarification = [...turns].reverse().find((turn) => turn.kind === "CLARIFY");
   const pending = result?.outcome === "PENDING_GOVERNANCE";
   const tool = result?.tool;
+  const campaignPreparation = isCampaignPreparation(invocation?.result) ? invocation.result : undefined;
 
   return <main className="foundry">
     <header className="foundry-top"><Link href="/">XACT</Link><span>WEBMCP FOUNDRY</span><strong>The O-Agent understands. Xact decides what may become real.</strong></header>
@@ -268,9 +284,9 @@ export default function FoundryPage() {
       <section className="foundry-panel">
         <p className="foundry-kicker">XACT ACTIVITY</p><h2>What actually happened</h2>
         {!activity.length ? <p className="foundry-empty">Activity appears only after the liaison performs it. Conversation alone does not create a construction claim.</p> : <ol className="foundry-activity">{activity.map((event, index) => <li key={`${event.type}-${index}`} data-status={event.status}><span>{event.status === "PASS" ? "✓" : event.status === "BLOCK" ? "×" : event.status === "EVIDENCE" ? "◈" : "◉"}</span><div><b>{event.label}</b><p>{event.detail}</p></div></li>)}</ol>}
-        <details><summary>INSPECT EVIDENCE</summary><p>O-Agent evidence appears only after the liaison emitted it. A provider interpretation is evidence, never authority.</p></details>
-        <details><summary>INSPECT AUTHORITY</summary><p>Construction is not permission to use a tool. Mutations require a fresh Commit for each consequence.</p></details>
-        <details><summary>INSPECT LEARNING</summary><p>Governance and learning review happen only after real host registration, observation, and verification.</p></details>
+        <details><summary>INSPECT EVIDENCE</summary>{tool?.name === "prepare_weekly_promotional_email_campaign" ? campaignPreparation ? <><p>PREPARED FROM APPROVED PUBLIC-SAFE CAMPAIGN SUBSTRATE</p><p>{campaignPreparation.recipients.length} active-customer recipients were selected and personalized drafts were prepared. No delivery receipt exists yet.</p></> : <p>WAITING FOR CAMPAIGN PREPARATION — there is no recipient selection or draft evidence until you run this tool.</p> : <p>O-Agent evidence appears only after the liaison emitted it. A provider interpretation is evidence, never authority.</p>}</details>
+        <details><summary>INSPECT AUTHORITY</summary>{tool?.name === "prepare_weekly_promotional_email_campaign" ? <><p>PREPARATION AUTHORITY ONLY · NO SEND COMMIT</p><p>The current tool can read the approved campaign substrate and prepare drafts. It has not requested, received, or consumed authority to email any recipient.</p></> : <p>Construction is not permission to use a tool. Mutations require a fresh Commit for each consequence.</p>}</details>
+        <details><summary>INSPECT LEARNING</summary>{tool?.name === "prepare_weekly_promotional_email_campaign" ? <><p>WAITING FOR VERIFIED DELIVERY OUTCOME</p><p>Prepared drafts are not outcome evidence. Learning can begin only after a separately authorized email batch produces delivery receipts and those receipts are verified.</p></> : <p>Governance and learning review happen only after real host registration, observation, and verification.</p>}</details>
       </section>
       <section className="foundry-panel foundry-artifact">
         <p className="foundry-kicker">ARTIFACT</p>
@@ -298,7 +314,8 @@ export default function FoundryPage() {
                 <h3>{invocation.result.campaign}</h3>
                 <p><b>Rotation:</b> {invocation.result.rotation}<br /><b>Next preparation:</b> {invocation.result.nextRun}</p>
                 <p className="foundry-pending">These are personalized mock drafts only. Sending any batch requires a separate, exact fresh Commit.</p>
-                <ol>{invocation.result.recipients.map((recipient) => <li key={recipient.customerId}><b>{recipient.name}</b> · {recipient.segment}<br /><span>{recipient.email}</span><br />“{recipient.subject}”</li>)}</ol>
+                <ol>{invocation.result.recipients.slice(0, 6).map((recipient) => <li key={recipient.customerId}><b>{recipient.name}</b> · {recipient.segment}<br /><span>{recipient.email}</span><br />“{recipient.subject}”</li>)}</ol>
+                <p className="foundry-campaign-more">Showing 6 personalized examples · {invocation.result.recipients.length - 6} additional prepared recipients</p>
                 <section className="foundry-email-path">
                   <span className="foundry-state">EMAIL DELIVERY · NOT CONNECTED</span>
                   <p>When an approved email account is connected, this same tool can submit a prepared batch only after a fresh Commit binds its exact sender, recipients, content, and scheduled time.</p>
