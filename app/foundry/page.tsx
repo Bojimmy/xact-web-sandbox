@@ -34,7 +34,8 @@ export default function FoundryPage() {
     <section className="foundry-hero"><p>Tell Xact what you want the web to do.</p><h1>A governed compiler from human intent to agent capability.</h1></section>
     <section className="foundry-grid">
       <section className="foundry-panel foundry-conversation">
-        <p className="foundry-kicker">XACT AGENT</p><h2>What should your agent be able to do?</h2>
+        <p className="foundry-kicker">O-AGENT · XACT LIAISON</p><h2>What should your agent be able to do?</h2>
+        <p className="foundry-empty">The O-Agent interprets your request. Xact determines what may be constructed, authorized, and made real.</p>
         <textarea value={intent} onChange={(event) => setIntent(event.target.value)} rows={5} placeholder="Describe a WebMCP capability…" />
         <div className="foundry-suggestions">{SUGGESTIONS.map((suggestion) => <button key={suggestion} type="button" onClick={() => setIntent(suggestion)}>{suggestion}</button>)}</div>
         <button className="foundry-build" type="button" onClick={() => void build()} disabled={busy || !intent.trim()}>{busy ? "XACT IS BUILDING…" : "BUILD WITH XACT"}</button>
