@@ -29,6 +29,18 @@ const PROMOTION_RECIPIENTS = Object.freeze([
   { customerId: "8821", name: "Lin", email: "lin@example.com", segment: "ACTIVE", subject: "Lin, a thank-you offer for your next order" },
 ]);
 
+interface CampaignPreparation {
+  campaign: string;
+  status: "DRAFTS_PREPARED_NO_SEND_AUTHORITY";
+  rotation: string;
+  nextRun: string;
+  recipients: readonly { customerId: string; name: string; email: string; segment: string; subject: string }[];
+}
+
+function isCampaignPreparation(value: unknown): value is CampaignPreparation {
+  return Boolean(value && typeof value === "object" && (value as { status?: unknown }).status === "DRAFTS_PREPARED_NO_SEND_AUTHORITY");
+}
+
 type AppliedEffect = { customerId?: string; tool: string; amount?: number; receipt: string };
 
 function turnTone(kind: XactTurn["kind"]): "ok" | "warn" | "block" {
@@ -247,7 +259,41 @@ export default function FoundryPage() {
       </section>
       <section className="foundry-panel foundry-artifact">
         <p className="foundry-kicker">ARTIFACT</p>
-        {pending ? <><h2>Understood · not yet governed</h2><span className="foundry-state">PENDING GOVERNANCE · NO TOOL CREATED</span><p>{result?.build?.reasoning?.claims.join(" ") || "The O-Agent supplied a structured interpretation."}</p><p className="foundry-pending">Xact cannot construct this capability until governance adds approved primitives and a reachable substrate.</p></> : tool ? <><h2>{tool.name}</h2><span className="foundry-state">{shelf.includes(tool.name) ? "ON FOUNDRY SHELF · INVOCABLE" : "COMPOSED DEFINITION"}</span><p>{tool.description}</p><dl><div><dt>Kind</dt><dd>{tool.capabilityKind}</dd></div><div><dt>Commit</dt><dd>{tool.requiresCommit ? "FRESH PER INVOCATION" : "NOT REQUIRED"}</dd></div></dl><h3>Input schema</h3><code>{tool.inputSchema.required.join(" · ") || "none"}</code><h3>Governed boundaries</h3><ul>{tool.boundaries.map((boundary) => <li key={boundary.primitive}>{boundary.primitive} — {boundary.description}</li>)}</ul><section className="foundry-invoke"><p className="foundry-kicker">RUN THIS TOOL</p>{tool.inputSchema.required.map((field) => <label key={field} className="foundry-label" htmlFor={`invoke-${field}`}>{field}<input id={`invoke-${field}`} type={field === "amount" ? "number" : field === "email" ? "email" : "text"} value={invocationInput[field] ?? ""} onChange={(event) => setInvocationInput((current) => ({ ...current, [field]: event.target.value }))} /></label>)}{tool.capabilityKind === "MUTATION" ? <><label className="foundry-label" htmlFor="invoke-actor">Actor<input id="invoke-actor" value={actor} onChange={(event) => setActor(event.target.value)} /></label><label className="foundry-check"><input type="checkbox" checked={confirmation} onChange={(event) => setConfirmation(event.target.checked)} /> I confirm this exact consequence</label></> : null}<button className="foundry-build" type="button" onClick={() => void invokeTool()}>{tool.capabilityKind === "MUTATION" ? "REQUEST FRESH COMMIT" : "RUN READ"}</button>{invocation ? <div className={`foundry-invocation ${invocation.status === "BLOCKED_NO_AUTHORITY" ? "is-blocked" : ""}`}><b>{invocation.status.replaceAll("_", " ")}</b>{invocation.result !== undefined ? <pre>{JSON.stringify(invocation.result, null, 2)}</pre> : null}{invocation.effectFingerprint ? <small>EFFECT · {invocation.effectFingerprint}</small> : null}<ul>{invocation.audit.map((line) => <li key={line}>{line}</li>)}</ul></div> : null}{invocationError ? <p className="foundry-error">{invocationError}</p> : null}</section><p className="foundry-pending">{result?.outcome === "WORKING_TOOL" ? "Browser WebMCP exposure is also registered and verified." : result?.outcome === "REGISTRATION_FAILED" ? "Browser exposure failed, but the tool remains hosted on the Foundry shelf." : "Browser exposure is optional; the Foundry shelf is the host."}</p></> : result?.build?.refusal ? <><h2>Construction blocked</h2><span className="foundry-state">NO TOOL CREATED</span><p>{result.build.refusal.reasons.join(" ")}</p><p className="foundry-pending">Implementation knowledge is not authority to construct this capability.</p></> : <><h2>No artifact yet</h2><p className="foundry-empty">A governed, inert definition appears here only when Xact actually composes one.</p></>}
+        {pending ? <>
+          <h2>Understood · not yet governed</h2>
+          <span className="foundry-state">PENDING GOVERNANCE · NO TOOL CREATED</span>
+          <p>{result?.build?.reasoning?.claims.join(" ") || "The O-Agent supplied a structured interpretation."}</p>
+          <p className="foundry-pending">Xact cannot construct this capability until governance adds approved primitives and a reachable substrate.</p>
+        </> : tool ? <>
+          <h2>{tool.name}</h2>
+          <span className="foundry-state">{shelf.includes(tool.name) ? "ON FOUNDRY SHELF · INVOCABLE" : "COMPOSED DEFINITION"}</span>
+          <p>{tool.description}</p>
+          <dl><div><dt>Kind</dt><dd>{tool.capabilityKind}</dd></div><div><dt>Commit</dt><dd>{tool.requiresCommit ? "FRESH PER INVOCATION" : "NOT REQUIRED"}</dd></div></dl>
+          <h3>Input schema</h3><code>{tool.inputSchema.required.join(" · ") || "none"}</code>
+          <h3>Governed boundaries</h3><ul>{tool.boundaries.map((boundary) => <li key={boundary.primitive}>{boundary.primitive} — {boundary.description}</li>)}</ul>
+          <section className="foundry-invoke">
+            <p className="foundry-kicker">RUN THIS TOOL</p>
+            {tool.inputSchema.required.map((field) => <label key={field} className="foundry-label" htmlFor={`invoke-${field}`}>{field}<input id={`invoke-${field}`} type={field === "amount" ? "number" : field === "email" ? "email" : "text"} value={invocationInput[field] ?? ""} onChange={(event) => setInvocationInput((current) => ({ ...current, [field]: event.target.value }))} /></label>)}
+            {tool.capabilityKind === "MUTATION" ? <><label className="foundry-label" htmlFor="invoke-actor">Actor<input id="invoke-actor" value={actor} onChange={(event) => setActor(event.target.value)} /></label><label className="foundry-check"><input type="checkbox" checked={confirmation} onChange={(event) => setConfirmation(event.target.checked)} /> I confirm this exact consequence</label></> : null}
+            <button className="foundry-build" type="button" onClick={() => void invokeTool()}>{tool.capabilityKind === "MUTATION" ? "REQUEST FRESH COMMIT" : tool.name === "prepare_weekly_promotional_email_campaign" ? "PREPARE THIS WEEK'S DRAFTS" : "RUN READ"}</button>
+            {invocation ? <div className={`foundry-invocation ${invocation.status === "BLOCKED_NO_AUTHORITY" ? "is-blocked" : ""}`}>
+              <b>{invocation.status.replaceAll("_", " ")}</b>
+              {isCampaignPreparation(invocation.result) ? <section className="foundry-campaign">
+                <span className="foundry-state">{invocation.result.status.replaceAll("_", " ")}</span>
+                <h3>{invocation.result.campaign}</h3>
+                <p><b>Rotation:</b> {invocation.result.rotation}<br /><b>Next preparation:</b> {invocation.result.nextRun}</p>
+                <p className="foundry-pending">These are personalized mock drafts only. Sending any batch requires a separate, exact fresh Commit.</p>
+                <ol>{invocation.result.recipients.map((recipient) => <li key={recipient.customerId}><b>{recipient.name}</b> · {recipient.segment}<br /><span>{recipient.email}</span><br />“{recipient.subject}”</li>)}</ol>
+              </section> : invocation.result !== undefined ? <pre>{JSON.stringify(invocation.result, null, 2)}</pre> : null}
+              {invocation.effectFingerprint ? <small>EFFECT · {invocation.effectFingerprint}</small> : null}
+              <ul>{invocation.audit.map((line) => <li key={line}>{line}</li>)}</ul>
+            </div> : null}
+            {invocationError ? <p className="foundry-error">{invocationError}</p> : null}
+          </section>
+          <p className="foundry-pending">{result?.outcome === "WORKING_TOOL" ? "Browser WebMCP exposure is also registered and verified." : result?.outcome === "REGISTRATION_FAILED" ? "Browser exposure failed, but the tool remains hosted on the Foundry shelf." : "Browser exposure is optional; the Foundry shelf is the host."}</p>
+        </> : result?.build?.refusal ? <>
+          <h2>Construction blocked</h2><span className="foundry-state">NO TOOL CREATED</span><p>{result.build.refusal.reasons.join(" ")}</p><p className="foundry-pending">Implementation knowledge is not authority to construct this capability.</p>
+        </> : <><h2>No artifact yet</h2><p className="foundry-empty">A governed, inert definition appears here only when Xact actually composes one.</p></>}
       </section>
     </section>
   </main>;
