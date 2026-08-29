@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { XactAgentLiaison, type ConverseAndRegisterResult, type XactTurn } from "../../src/flagship/xact-agent-liaison";
 import { commitGatedExecute } from "../../src/flagship/foundry-build-register";
@@ -74,12 +74,26 @@ export default function FoundryPage() {
   const [invocation, setInvocation] = useState<FoundryInvocationResult>();
   const [invocationError, setInvocationError] = useState<string>();
   const [busy, setBusy] = useState(false);
+  const [buildElapsedMs, setBuildElapsedMs] = useState<number>();
   const [error, setError] = useState<string>();
   const registry = useRef(new FoundryToolRegistry());
   const appliedEffects = useRef<AppliedEffect[]>([]);
+  const buildStartedAt = useRef<number | undefined>(undefined);
+
+  useEffect(() => {
+    if (busy) {
+      buildStartedAt.current = performance.now();
+      return;
+    }
+    if (buildStartedAt.current !== undefined) {
+      setBuildElapsedMs(Math.max(1, Math.round(performance.now() - buildStartedAt.current)));
+      buildStartedAt.current = undefined;
+    }
+  }, [busy]);
 
   async function converse(intent: string, userText: string) {
     setBusy(true);
+    setBuildElapsedMs(undefined);
     setError(undefined);
     setTurns((current) => [...current, { kind: "UNDERSTAND", text: userText, speaker: "user" }]);
     try {
@@ -248,6 +262,7 @@ export default function FoundryPage() {
           {!turns.length ? <div className="foundry-suggestions">{EXAMPLES.map((example) => <button key={example} type="button" onClick={() => setDraft(example)}>{example}</button>)}</div> : null}
           <button className="foundry-build" type="button" onClick={() => void begin()} disabled={busy || !draft.trim()}>{busy ? "XACT IS THINKING…" : "ASK XACT"}</button>
         </>}
+        {buildElapsedMs !== undefined ? <p className="foundry-build-time">{tool ? `TOOL BUILT IN ${(buildElapsedMs / 1000).toFixed(2)}s` : `XACT FINISHED IN ${(buildElapsedMs / 1000).toFixed(2)}s`}</p> : null}
         {error ? <p className="foundry-error">{error}</p> : null}
       </section>
       <section className="foundry-panel">
@@ -275,7 +290,7 @@ export default function FoundryPage() {
             <p className="foundry-kicker">RUN THIS TOOL</p>
             {tool.inputSchema.required.map((field) => <label key={field} className="foundry-label" htmlFor={`invoke-${field}`}>{field}<input id={`invoke-${field}`} type={field === "amount" ? "number" : field === "email" ? "email" : "text"} value={invocationInput[field] ?? ""} onChange={(event) => setInvocationInput((current) => ({ ...current, [field]: event.target.value }))} /></label>)}
             {tool.capabilityKind === "MUTATION" ? <><label className="foundry-label" htmlFor="invoke-actor">Actor<input id="invoke-actor" value={actor} onChange={(event) => setActor(event.target.value)} /></label><label className="foundry-check"><input type="checkbox" checked={confirmation} onChange={(event) => setConfirmation(event.target.checked)} /> I confirm this exact consequence</label></> : null}
-            <button className="foundry-build" type="button" onClick={() => void invokeTool()}>{tool.capabilityKind === "MUTATION" ? "REQUEST FRESH COMMIT" : tool.name === "prepare_weekly_promotional_email_campaign" ? "PREPARE THIS WEEK'S DRAFTS" : "RUN READ"}</button>
+            <button className="foundry-build foundry-run" type="button" onClick={() => void invokeTool()}>{tool.capabilityKind === "MUTATION" ? "REQUEST FRESH COMMIT" : tool.name === "prepare_weekly_promotional_email_campaign" ? "PREPARE THIS WEEK'S DRAFTS" : "RUN READ"}</button>
             {invocation ? <div className={`foundry-invocation ${invocation.status === "BLOCKED_NO_AUTHORITY" ? "is-blocked" : ""}`}>
               <b>{invocation.status.replaceAll("_", " ")}</b>
               {isCampaignPreparation(invocation.result) ? <section className="foundry-campaign">
