@@ -280,6 +280,12 @@ export default function FoundryPage() {
                 <span className="foundry-state">{invocation.result.status.replaceAll("_", " ")}</span>
                 <h3>{invocation.result.campaign}</h3>
                 <p><b>Rotation:</b> {invocation.result.rotation}<br /><b>Next preparation:</b> {invocation.result.nextRun}</p>
+                <section className="foundry-campaign-stats" aria-label="Campaign preparation statistics">
+                  <div><span>Audience selected</span><strong>{invocation.result.recipients.length}</strong><small>approved mock audience</small></div>
+                  <div><span>Drafts prepared</span><strong>{invocation.result.recipients.length}</strong><small>personalized promotions</small></div>
+                  <div><span>X-Node operations</span><strong>{invocation.result.totalOperations}</strong><small>deterministic work</small></div>
+                  <div className="is-blocked"><span>Emails sent</span><strong>0</strong><small>no fresh Commit</small></div>
+                </section>
                 <p className="foundry-pending">These are personalized mock drafts only. Sending any batch requires a separate, exact fresh Commit.</p>
                 <section className="foundry-node-run">
                   <span className="foundry-state">X-NODE CAMPAIGN RUN · {invocation.result.nodes.length}/{invocation.result.nodes.length} COMPLETE</span>
