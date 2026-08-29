@@ -31,6 +31,7 @@ import {
   type TeachOutcome,
 } from "../_lib/run";
 import { levelCompletionLabel } from "../_lib/campaign-policy";
+import { assessResolutionRequest } from "../_lib/resolution-policy";
 
 type TransitionState =
   | null
@@ -134,16 +135,10 @@ export default function PlayPage() {
 
   function handleResolveSubmit(request: string) {
     if (!run) return;
-    const facts = [`Refund amount: detected`, `Order id: detected`];
-    const unresolved: string[] = [];
-    if (/make it right|whatever|as you see fit/i.test(request)) {
-      unresolved.push('"make it right" — amount not specified by customer');
-    } else {
-      unresolved.push("None — every required field is bound");
-    }
+    const assessment = assessResolutionRequest(request);
     updateRun((r) => ({
       ...r,
-      data: { ...r.data, resolve: { request, facts, unresolved, completed: true, ts: Date.now() } },
+      data: { ...r.data, resolve: { request, facts: assessment.facts, unresolved: assessment.unresolved, completed: true, ts: Date.now() } },
     }));
     completeMission(1, {
       kind: "experience",
@@ -199,13 +194,23 @@ export default function PlayPage() {
         nextIndex: 4,
         autoMs: 1800,
       });
-    } else {
+    } else if (outcome === "REJECTED_SOCIAL") {
       completeMission(3, {
         kind: "experience",
         stamp: "COMMIT REFUSED",
         headline: "SOCIAL PROOF ≠ AUTHORITY",
         stat: "✕",
         verdict: "You successfully discovered that confidence and job title are not authorization.",
+        nextIndex: 4,
+        autoMs: 1800,
+      });
+    } else {
+      completeMission(3, {
+        kind: "experience",
+        stamp: "COMMIT REFUSED",
+        headline: "CONSTRAINT NOT SATISFIED",
+        stat: "✕",
+        verdict: "The resolved request carried an unbound constraint into Commit. No authority was issued.",
         nextIndex: 4,
         autoMs: 1800,
       });

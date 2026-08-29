@@ -8,7 +8,7 @@ export type RunId = string;
 export type AuthorizeResult = "AGREE" | "DENY";
 
 export type CommitAction = "ALLOWED" | "EXCESS" | "SOCIAL";
-export type CommitOutcome = "AUTHORIZED" | "REJECTED_EXCESS" | "REJECTED_SOCIAL";
+export type CommitOutcome = "AUTHORIZED" | "REJECTED_EXCESS" | "REJECTED_SOCIAL" | "REJECTED_CONSTRAINT";
 
 export type ExecuteAttempt = {
   loadout: { webmcp: boolean; dom: boolean; vision: boolean };
@@ -158,7 +158,7 @@ export const LEVEL_TAGLINE: Record<number, string> = {
   0: "Choose governance or ungoverned chaos",
   1: "Give Xact a request",
   2: "Submit something with genuine ambiguity",
-  3: "Attempt an allowed or forbidden action",
+  3: "Commit the exact candidate resolved earlier",
   4: "Toggle the execution loadout",
   5: "Inspect the resulting state",
   6: "Decide whether to submit for governance",
@@ -171,7 +171,7 @@ export const LEVEL_INSTRUCTION: Record<number, string> = {
   0: "Click I AGREE to authorize participation, or NO to discover what ungoverned chaos looks like.",
   1: "Type a refund request below. Xact will decompose it into Resolved / Unresolved / Commit Constraints.",
   2: "Type a request that contains genuine ambiguity. Xact will only invoke the O-Agent on the U.",
-  3: "Pick one of three commit attempts. Only one will succeed. The other two get refused for different reasons.",
+  3: "Commit the exact request from RESOLVE. Its policy and binding results carry forward; only a fully satisfied candidate can authorize a consequence.",
   4: "Toggle the substrates on or off. Run, then re-run with substrates disabled to see how fallback changes.",
   5: "Click each evidence row to inspect it. Confirm your understanding before the level advances.",
   6: "Decide whether to submit the observed learning pattern to governance. The lifecycle will play either way.",

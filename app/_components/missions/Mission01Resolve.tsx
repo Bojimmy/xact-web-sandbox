@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { Run } from "../../_lib/run";
+import { assessResolutionRequest } from "../../_lib/resolution-policy";
 
 // MISSION 01 — RESOLVE
 // The judge MUST type a real refund request. Xact decomposes it into
@@ -14,52 +15,6 @@ const SAMPLES = [
   "Issue $89 credit for missing item, policy allows up to $100.",
 ];
 
-function decompose(request: string): { facts: string[]; unresolved: string[]; constraints: { label: string; condition: string; satisfied: boolean }[] } {
-  const amountMatch = request.match(/\$?(\d+(?:[,.]\d+)?)/);
-  const amount = amountMatch ? Number(amountMatch[1].replace(",", "")) : 0;
-  const isVague = /make it right|fair|whatever you think|as you see fit/i.test(request);
-  const exceedsPolicy = amount > 100;
-  const hasOrderId = /order\s*#?\d+/i.test(request);
-
-  const facts: string[] = [];
-  if (amountMatch) facts.push(`Refund amount: $${amount.toFixed(2)}`);
-  if (hasOrderId) {
-    const idMatch = request.match(/order\s*#?(\d+)/i);
-    facts.push(`Order id: ${idMatch?.[1] ?? "—"}`);
-  }
-  facts.push("Authority state: ALLOWED");
-  facts.push("Capability: refund:create PRESENT");
-
-  const unresolved: string[] = [];
-  if (isVague) {
-    unresolved.push('"make it right" — exact amount unspecified by the customer');
-  } else if (!amountMatch) {
-    unresolved.push("Refund amount not specified");
-  } else {
-    unresolved.push("None — every required field is bound");
-  }
-
-  const constraints = [
-    {
-      label: amount > 0 && amount <= 100
-        ? "Refund within $100 policy ceiling"
-        : "Refund NOT within $100 policy ceiling",
-      condition: `$${amount.toFixed(2)} ≤ $100`,
-      satisfied: amount > 0 && amount <= 100,
-    },
-    { label: "Capability refund:create is PRESENT", condition: "PRESENT", satisfied: true },
-    { label: "Authority state is known and ALLOWED", condition: "ALLOWED", satisfied: true },
-    { label: hasOrderId ? "Order id is bound" : "Order id is NOT bound", condition: "bound", satisfied: hasOrderId },
-    { label: isVague ? "Customer intent is AMBIGUOUS" : "Customer intent is unambiguous", condition: "unambiguous", satisfied: !isVague },
-  ];
-  // Add the over-policy fact
-  if (exceedsPolicy) {
-    facts.push(`Note: $${amount.toFixed(2)} exceeds the $100 policy ceiling`);
-  }
-
-  return { facts, unresolved, constraints };
-}
-
 export function Mission01Resolve({
   run,
   onComplete,
@@ -68,14 +23,14 @@ export function Mission01Resolve({
   onComplete: (request: string) => void;
 }) {
   const [input, setInput] = useState(run.data.resolve?.request ?? "");
-  const [decomposed, setDecomposed] = useState<ReturnType<typeof decompose> | null>(
-    run.data.resolve ? decompose(run.data.resolve.request) : null
+  const [decomposed, setDecomposed] = useState<ReturnType<typeof assessResolutionRequest> | null>(
+    run.data.resolve ? assessResolutionRequest(run.data.resolve.request) : null
   );
   const submitted = run.data.resolve?.completed ?? false;
 
   function handleSubmit() {
     if (!input.trim()) return;
-    const d = decompose(input);
+    const d = assessResolutionRequest(input);
     setDecomposed(d);
   }
 
