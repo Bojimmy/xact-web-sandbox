@@ -1,4 +1,5 @@
-import { composeWebMCPTool, type WebMCPToolDefinition } from "./webmcp-tool-builder";
+import type { WebMCPToolDefinition } from "./webmcp-tool-builder";
+import { constructWebMCPToolWithNodes, type ToolConstructionNodeOutcome } from "./tool-construction-nodes";
 import {
   describeCapability,
   type CapabilityBoundary,
@@ -342,6 +343,7 @@ export interface FoundryBuildResult {
   refusal?: FoundryRefusal;
   reasoning?: FoundryReasoning;
   commitAuthorization?: CommitAuthorization;
+  constructionNodes?: readonly ToolConstructionNodeOutcome[];
 }
 
 export interface AbsorptionReview {
@@ -459,9 +461,12 @@ export class XactFoundryLiaison {
       emit({ type: "COMMIT", label: "Commit", detail: "Construction consequence crossed the authority boundary.", status: "PASS" });
     }
 
-    // BUILD — the deterministic compiler composes the inert definition.
-    emit({ type: "BUILD", label: "Build", detail: `Composed ${descriptor.id} as an inert definition (no execute handler).`, status: "PASS" });
-    const tool = composeWebMCPTool(descriptor);
+    // BUILD — real deterministic construction through visible X-Node stages.
+    const construction = constructWebMCPToolWithNodes(descriptor);
+    for (const node of construction.nodes) {
+      emit({ type: "BUILD", label: "X-Node build", detail: node.label, status: "PASS" });
+    }
+    const tool = construction.tool;
 
     const outcome: FoundryOutcome = commitAuthorization ? "COMPOSED_DEFINITION" : "BLOCKED";
 
@@ -474,6 +479,7 @@ export class XactFoundryLiaison {
       descriptor,
       reasoning,
       commitAuthorization,
+      constructionNodes: construction.nodes,
     };
   }
 

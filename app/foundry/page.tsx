@@ -269,6 +269,7 @@ export default function FoundryPage() {
           <dl><div><dt>Kind</dt><dd>{tool.capabilityKind}</dd></div><div><dt>Commit</dt><dd>{tool.requiresCommit ? "FRESH PER INVOCATION" : "NOT REQUIRED"}</dd></div></dl>
           <h3>Input schema</h3><code>{tool.inputSchema.required.join(" · ") || "none"}</code>
           <h3>Governed boundaries</h3><ul>{tool.boundaries.map((boundary) => <li key={boundary.primitive}>{boundary.primitive} — {boundary.description}</li>)}</ul>
+          {result?.build?.constructionNodes ? <section className="foundry-tool-construction"><span className="foundry-state">X-NODES BUILT THIS TOOL · {result.build.constructionNodes.length}/{result.build.constructionNodes.length} COMPLETE</span><ol>{result.build.constructionNodes.map((node) => <li key={node.id}><span>✓</span>{node.label}</li>)}</ol></section> : null}
           <section className="foundry-invoke">
             <p className="foundry-kicker">RUN THIS TOOL</p>
             {tool.inputSchema.required.map((field) => <label key={field} className="foundry-label" htmlFor={`invoke-${field}`}>{field}<input id={`invoke-${field}`} type={field === "amount" ? "number" : field === "email" ? "email" : "text"} value={invocationInput[field] ?? ""} onChange={(event) => setInvocationInput((current) => ({ ...current, [field]: event.target.value }))} /></label>)}
