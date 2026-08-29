@@ -126,6 +126,19 @@ test("a bounded active-user and request snapshot is a governed read capability",
   assert.ok(!result.activity.some((a) => a.type === "REASON_STARTED"));
 });
 
+test("a promotional-email request builds a preparation tool, not an email delivery tool", async () => {
+  const result = await new XactFoundryLiaison(liveProvider()).buildCapability(
+    "Build a weekly promotional email campaign with personalized drafts",
+  );
+
+  assert.equal(result.outcome, "COMPOSED_DEFINITION");
+  assert.equal(result.tool?.name, "prepare_weekly_promotional_email_campaign");
+  assert.equal(result.tool?.capabilityKind, "READ");
+  assert.equal(result.tool?.requiresCommit, false);
+  assert.ok(result.tool?.boundaries.some((boundary) => boundary.description.includes("delivery requires a separate fresh Commit")));
+  assert.ok(!result.activity.some((a) => a.type === "REASON_STARTED"));
+});
+
 test("fail closed: an unavailable provider emits REASON_FAILED and throws", async () => {
   const unavailable = new SecureEndpointOAgentProvider("/api/o-agent", async () => new Response("unavailable", { status: 503 }));
   const liaison = new XactFoundryLiaison(unavailable);

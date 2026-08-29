@@ -167,6 +167,20 @@ const FOUNDRY_PATTERNS: CapabilityPattern[] = [
     matches: (intent) => /active users?|user stats?/i.test(intent) && /open (support )?requests?/i.test(intent),
   },
   {
+    id: "prepare_weekly_promotional_email_campaign",
+    label: "Prepare weekly promotional email campaign",
+    capabilityKind: "READ",
+    inputs: [],
+    resolves: ["prepared-recipient-count", "next-run", "personalized-drafts"],
+    boundaries: () => [
+      { primitive: "READ_CAPABILITY", description: "Foundry mock customer directory is the approved public-safe campaign substrate" },
+      FRESHNESS_BOUNDARY,
+      { primitive: "AUDIT_EVENT", description: "campaign preparation is recorded; delivery requires a separate fresh Commit", auditRequired: true },
+    ],
+    genuineU: [],
+    matches: (intent) => /promo|promotional|marketing/i.test(intent) && /email|campaign/i.test(intent),
+  },
+  {
     id: "find_customer_by_email",
     label: "Find customer by email",
     capabilityKind: "READ",

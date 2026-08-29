@@ -14,6 +14,7 @@ type ConversationTurn = XactTurn & { speaker?: "user" };
 
 const EXAMPLES = [
   "Build a WebMCP tool that shows active users and open support requests",
+  "Build a weekly promotional email campaign with personalized drafts",
   "Let support agents issue a service credit up to $25",
   "Find customers by email",
 ];
@@ -21,6 +22,11 @@ const EXAMPLES = [
 const CUSTOMER_DIRECTORY = Object.freeze([
   { customerId: "1042", email: "ada@example.com", name: "Ada Lovelace", status: "ACTIVE", openRequests: 2 },
   { customerId: "8821", email: "lin@example.com", name: "Lin Chen", status: "ACTIVE", openRequests: 1 },
+]);
+
+const PROMOTION_RECIPIENTS = Object.freeze([
+  { customerId: "1042", name: "Ada", email: "ada@example.com", segment: "ACTIVE", subject: "Ada, your September service credit is ready" },
+  { customerId: "8821", name: "Lin", email: "lin@example.com", segment: "ACTIVE", subject: "Lin, a thank-you offer for your next order" },
 ]);
 
 type AppliedEffect = { customerId?: string; tool: string; amount?: number; receipt: string };
@@ -161,6 +167,15 @@ export default function FoundryPage() {
             const activeUsers = CUSTOMER_DIRECTORY.filter((customer) => customer.status === "ACTIVE").length;
             const openSupportRequests = CUSTOMER_DIRECTORY.reduce((count, customer) => count + customer.openRequests, 0);
             return { activeUsers, openSupportRequests, source: "Foundry customer directory", mode: "ON_DEMAND_SNAPSHOT" };
+          }
+          if (readTool.name === "prepare_weekly_promotional_email_campaign") {
+            return {
+              campaign: "Weekly active-customer promotion",
+              status: "DRAFTS_PREPARED_NO_SEND_AUTHORITY" as const,
+              rotation: "Every Tuesday · 09:00 local time",
+              nextRun: "Tuesday 09:00 (mock schedule)",
+              recipients: PROMOTION_RECIPIENTS,
+            };
           }
           throw new Error(`No approved public-safe read substrate is connected for ${readTool.name}.`);
         },
