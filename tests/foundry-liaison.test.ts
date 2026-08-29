@@ -92,9 +92,17 @@ test("the refusal path blocks a delete with IMPLEMENTATION POSSIBLE / AUTHORITY 
   assert.ok(result.activity.some((a) => a.type === "BLOCKED"));
 });
 
-test("an unrecognized intent returns UNRECOGNIZED", async () => {
-  const result = await new XactFoundryLiaison(liveProvider()).buildCapability("flibbertigibbet");
-  assert.equal(result.outcome, "UNRECOGNIZED");
+test("an unfamiliar request invokes the O-Agent and returns PENDING_GOVERNANCE", async () => {
+  const result = await new XactFoundryLiaison(liveProvider()).buildCapability("Keep me updated on user stats and requests");
+
+  assert.equal(result.outcome, "PENDING_GOVERNANCE");
+  assert.ok(result.reasoning);
+  assert.deepEqual(result.reasoning.unresolved, ["the requested capability"]);
+  assert.ok(result.reasoning.claims.length > 0);
+  assert.equal(result.tool, undefined);
+  assert.equal(result.commitAuthorization, undefined);
+  assert.ok(result.activity.some((a) => a.type === "REASON_STARTED"));
+  assert.ok(result.activity.some((a) => a.type === "REASON_EVIDENCE"));
 });
 
 test("a READ capability builds with no reasoning events", async () => {

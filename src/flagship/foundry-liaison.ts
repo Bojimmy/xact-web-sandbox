@@ -79,10 +79,14 @@ export type FoundryStatus = "PASS" | "BLOCK" | "EVIDENCE" | "PENDING";
  * state the liaison can produce: an inert tool definition exists, but it has
  * not been registered, observed, or verified as invocable.
  *
+ * `PENDING_GOVERNANCE` means the request was not in the closed ontology, the
+ * O-Agent produced a structured interpretation, and Xact understood it — but it
+ * is not buildable until governance adds it to the vocabulary.
+ *
  * `REGISTERED_TOOL` and `WORKING_TOOL` are produced by the browser WebMCP host
  * (REGISTER / OBSERVE / VERIFY), never by the liaison.
  */
-export type FoundryOutcome = "COMPOSED_DEFINITION" | "BLOCKED" | "UNRECOGNIZED";
+export type FoundryOutcome = "COMPOSED_DEFINITION" | "BLOCKED" | "PENDING_GOVERNANCE";
 
 export interface FoundryActivity {
   type: FoundryEventType;
@@ -335,8 +339,27 @@ export class XactFoundryLiaison {
 
     const decomposition = decomposeIntent(intent);
     if (!decomposition.pattern) {
-      emit({ type: "RESOLVE", label: "Intent", detail: "Unrecognized intent — no capability pattern matched.", status: "BLOCK" });
-      return { kind: "FOUNDRY_BUILD", intent, outcome: "UNRECOGNIZED", activity };
+      emit({ type: "RESOLVE", label: "Intent", detail: "No closed-ontology pattern matched — reasoning to understand the request.", status: "PENDING" });
+      emit({ type: "REASON_STARTED", label: "Reasoning", detail: "Understanding the requested capability.", status: "PENDING" });
+      try {
+        const result = await this.oAgent.reason({
+          context: { stage: "foundry", intent: intent.slice(0, 240) },
+          unresolved: ["the requested capability"],
+        });
+        const claims = result.evidence.map((item) => item.claim);
+        emit({ type: "REASON_EVIDENCE", label: "O-Agent", detail: `${result.provider} returned a structured interpretation.`, status: "EVIDENCE" });
+        emit({ type: "BLOCKED", label: "Governance", detail: "Capability understood, but not in the closed ontology — pending governance to add it.", status: "BLOCK" });
+        return {
+          kind: "FOUNDRY_BUILD",
+          intent,
+          outcome: "PENDING_GOVERNANCE",
+          activity,
+          reasoning: { unresolved: ["the requested capability"], claims, provider: result.provider },
+        };
+      } catch (cause) {
+        emit({ type: "REASON_FAILED", label: "O-Agent", detail: cause instanceof Error ? cause.message : "Reasoning provider unavailable.", status: "BLOCK" });
+        throw cause; // fail closed
+      }
     }
 
     if (decomposition.pattern.blocked) {
