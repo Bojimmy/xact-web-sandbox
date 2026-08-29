@@ -314,6 +314,11 @@ export default function FoundryPage() {
                 <h3>{invocation.result.campaign}</h3>
                 <p><b>Rotation:</b> {invocation.result.rotation}<br /><b>Next preparation:</b> {invocation.result.nextRun}</p>
                 <p className="foundry-pending">These are personalized mock drafts only. Sending any batch requires a separate, exact fresh Commit.</p>
+                <section className="foundry-email-preview">
+                  <span className="foundry-state">PERSONALIZED PROMOTION · DRAFT EXAMPLE</span>
+                  <dl><div><dt>From</dt><dd>Offers at Xact Demo &lt;offers@example.com&gt;</dd></div><div><dt>To</dt><dd>{invocation.result.recipients[0].name} &lt;{invocation.result.recipients[0].email}&gt;</dd></div><div><dt>Subject</dt><dd>{invocation.result.recipients[0].subject}</dd></div></dl>
+                  <div className="foundry-email-body"><p>Hi {invocation.result.recipients[0].name},</p><p>Thanks for being an active customer. For this week only, enjoy <b>20% off your next order</b> with code <b>WEEKLY20</b>.</p><p>Use it before Sunday at midnight. Your offer is ready whenever you are.</p><span>SHOP THE OFFER →</span><p>— The Xact Demo team</p></div>
+                </section>
                 <ol>{invocation.result.recipients.slice(0, 6).map((recipient) => <li key={recipient.customerId}><b>{recipient.name}</b> · {recipient.segment}<br /><span>{recipient.email}</span><br />“{recipient.subject}”</li>)}</ol>
                 <p className="foundry-campaign-more">Showing 6 personalized examples · {invocation.result.recipients.length - 6} additional prepared recipients</p>
                 <section className="foundry-email-path">
