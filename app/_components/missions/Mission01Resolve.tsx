@@ -105,18 +105,6 @@ export function Mission01Resolve({
                     <span className="verb-text">Evaluate deterministically</span>
                     <span className="label">Bind facts + policy</span>
                   </button>
-                  {decomposed ? (
-                    <button
-                      type="button"
-                      className="lvl-advance"
-                      style={{ background: "var(--lvl-surface-2)" }}
-                      onClick={() => onComplete(input, nextLevel)}
-                    >
-                      <span className="arrow">▸</span>
-                      <span className="verb-text">{directCommit ? decomposed.commitOutcome === "AUTHORIZED" ? "Commit this candidate" : "Commit to 0 authority" : "Continue to REASON"}</span>
-                      <span className="label">{directCommit ? "03 / COMMIT" : "02 / REASON"}</span>
-                    </button>
-                  ) : null}
                 </div>
               </>
             )}
@@ -161,6 +149,18 @@ export function Mission01Resolve({
                   <span className="v">0</span>
                   <span className="delta">No reasoning occurred. Deterministic policy failures go straight to COMMIT → 0 authority.</span>
                 </div>
+                {!submitted ? (
+                  <button
+                    type="button"
+                    className="lvl-advance"
+                    style={{ width: "100%", marginTop: 2 }}
+                    onClick={() => onComplete(input, nextLevel)}
+                  >
+                    <span className="arrow">▸</span>
+                    <span className="verb-text">{directCommit ? decomposed.commitOutcome === "AUTHORIZED" ? "Continue to COMMIT" : "Commit to 0 authority" : "Send unresolved U to O / REASON"}</span>
+                    <span className="label">{directCommit ? "03 / COMMIT" : "02 / REASON"}</span>
+                  </button>
+                ) : null}
               </div>
             ) : (
               <div className="lvl-card" style={{ minHeight: 120, display: "grid", placeItems: "center" }}>
