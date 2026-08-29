@@ -278,7 +278,7 @@ export default function FoundryPage() {
           {!turns.length ? <div className="foundry-suggestions">{EXAMPLES.map((example) => <button key={example} type="button" onClick={() => setDraft(example)}>{example}</button>)}</div> : null}
           <button className="foundry-build" type="button" onClick={() => void begin()} disabled={busy || !draft.trim()}>{busy ? "XACT IS THINKING…" : "ASK XACT"}</button>
         </>}
-        {buildElapsedMs !== undefined ? <p className="foundry-build-time">{tool ? `TOOL BUILT IN ${(buildElapsedMs / 1000).toFixed(2)}s` : `XACT FINISHED IN ${(buildElapsedMs / 1000).toFixed(2)}s`}</p> : null}
+        {buildElapsedMs !== undefined ? <p className="foundry-build-time">{tool ? `TOOL BUILD TIME · ${(buildElapsedMs / 1000).toFixed(2)}s` : `XACT FINISHED IN · ${(buildElapsedMs / 1000).toFixed(2)}s`}</p> : null}
         {error ? <p className="foundry-error">{error}</p> : null}
       </section>
       <section className="foundry-panel">
