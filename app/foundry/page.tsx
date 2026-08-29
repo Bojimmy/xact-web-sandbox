@@ -284,6 +284,11 @@ export default function FoundryPage() {
                 <p><b>Rotation:</b> {invocation.result.rotation}<br /><b>Next preparation:</b> {invocation.result.nextRun}</p>
                 <p className="foundry-pending">These are personalized mock drafts only. Sending any batch requires a separate, exact fresh Commit.</p>
                 <ol>{invocation.result.recipients.map((recipient) => <li key={recipient.customerId}><b>{recipient.name}</b> · {recipient.segment}<br /><span>{recipient.email}</span><br />“{recipient.subject}”</li>)}</ol>
+                <section className="foundry-email-path">
+                  <span className="foundry-state">EMAIL DELIVERY · NOT CONNECTED</span>
+                  <p>When an approved email account is connected, this same tool can submit a prepared batch only after a fresh Commit binds its exact sender, recipients, content, and scheduled time.</p>
+                  <ol><li>Prepared drafts</li><li>Fresh exact Commit</li><li>Approved email account</li><li>Delivery receipt and audit</li></ol>
+                </section>
               </section> : invocation.result !== undefined ? <pre>{JSON.stringify(invocation.result, null, 2)}</pre> : null}
               {invocation.effectFingerprint ? <small>EFFECT · {invocation.effectFingerprint}</small> : null}
               <ul>{invocation.audit.map((line) => <li key={line}>{line}</li>)}</ul>
