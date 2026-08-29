@@ -7,6 +7,7 @@ import { commitGatedExecute } from "../../src/flagship/foundry-build-register";
 import { WebMCPDispatchRegistry } from "../../src/execution/webmcp-dispatch";
 import { createMutationCommitEngine } from "../../src/flagship/foundry-mutation-commit";
 import { FoundryRuntime, FoundryToolRegistry, type FoundryInvocationResult } from "../../src/flagship/foundry-runtime";
+import { preparePromotionalEmailCampaign, type CampaignPreparation } from "../../src/flagship/promotional-campaign-nodes";
 import type { FoundryActivity } from "../../src/flagship/foundry-liaison";
 import type { FoundryWebMCPHost } from "../../src/flagship/webmcp-host-registration";
 
@@ -23,34 +24,6 @@ const CUSTOMER_DIRECTORY = Object.freeze([
   { customerId: "1042", email: "ada@example.com", name: "Ada Lovelace", status: "ACTIVE", openRequests: 2 },
   { customerId: "8821", email: "lin@example.com", name: "Lin Chen", status: "ACTIVE", openRequests: 1 },
 ]);
-
-const PROMOTION_RECIPIENTS = Object.freeze(Array.from({ length: 128 }, (_, index) => {
-  const number = String(index + 1).padStart(3, "0");
-  const named = [
-    { name: "Ada", email: "ada@example.com" },
-    { name: "Lin", email: "lin@example.com" },
-    { name: "Maya", email: "maya@example.com" },
-    { name: "Jon", email: "jon@example.com" },
-    { name: "Nora", email: "nora@example.com" },
-    { name: "Eli", email: "eli@example.com" },
-  ][index];
-  const name = named?.name ?? `Customer ${number}`;
-  return {
-    customerId: `promo-${number}`,
-    name,
-    email: named?.email ?? `customer-${number}@example.com`,
-    segment: index % 4 === 0 ? "RETURNING" : "ACTIVE",
-    subject: index % 3 === 0 ? `${name}, enjoy 20% off your next order` : index % 3 === 1 ? `${name}, your weekly member offer is here` : `${name}, a limited-time promotion for you`,
-  };
-}));
-
-interface CampaignPreparation {
-  campaign: string;
-  status: "DRAFTS_PREPARED_NO_SEND_AUTHORITY";
-  rotation: string;
-  nextRun: string;
-  recipients: readonly { customerId: string; name: string; email: string; segment: string; subject: string }[];
-}
 
 function isCampaignPreparation(value: unknown): value is CampaignPreparation {
   return Boolean(value && typeof value === "object" && (value as { status?: unknown }).status === "DRAFTS_PREPARED_NO_SEND_AUTHORITY");
@@ -210,13 +183,7 @@ export default function FoundryPage() {
             return { activeUsers, openSupportRequests, source: "Foundry customer directory", mode: "ON_DEMAND_SNAPSHOT" };
           }
           if (readTool.name === "prepare_weekly_promotional_email_campaign") {
-            return {
-              campaign: "Weekly promotion email — active customers",
-              status: "DRAFTS_PREPARED_NO_SEND_AUTHORITY" as const,
-              rotation: "Every Tuesday · 09:00 local time",
-              nextRun: "Tuesday 09:00 (mock schedule)",
-              recipients: PROMOTION_RECIPIENTS,
-            };
+            return preparePromotionalEmailCampaign();
           }
           throw new Error(`No approved public-safe read substrate is connected for ${readTool.name}.`);
         },
@@ -314,6 +281,11 @@ export default function FoundryPage() {
                 <h3>{invocation.result.campaign}</h3>
                 <p><b>Rotation:</b> {invocation.result.rotation}<br /><b>Next preparation:</b> {invocation.result.nextRun}</p>
                 <p className="foundry-pending">These are personalized mock drafts only. Sending any batch requires a separate, exact fresh Commit.</p>
+                <section className="foundry-node-run">
+                  <span className="foundry-state">X-NODE CAMPAIGN RUN · {invocation.result.nodes.length}/{invocation.result.nodes.length} COMPLETE</span>
+                  <strong>{invocation.result.totalOperations} deterministic operations</strong>
+                  <ol>{invocation.result.nodes.map((node) => <li key={node.id}><span>✓</span>{node.label}<b>{node.operations}</b></li>)}</ol>
+                </section>
                 <section className="foundry-email-preview">
                   <span className="foundry-state">PERSONALIZED PROMOTION · DRAFT EXAMPLE</span>
                   <dl><div><dt>From</dt><dd>Offers at Xact Demo &lt;offers@example.com&gt;</dd></div><div><dt>To</dt><dd>{invocation.result.recipients[0].name} &lt;{invocation.result.recipients[0].email}&gt;</dd></div><div><dt>Subject</dt><dd>{invocation.result.recipients[0].subject}</dd></div></dl>
