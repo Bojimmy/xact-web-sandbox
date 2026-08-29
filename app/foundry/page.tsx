@@ -2,8 +2,11 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { XactAgentLiaison, type XactTurn } from "../../src/flagship/xact-agent-liaison";
-import type { FoundryActivity, FoundryBuildResult } from "../../src/flagship/foundry-liaison";
+import { XactAgentLiaison, type ConverseAndRegisterResult, type XactTurn } from "../../src/flagship/xact-agent-liaison";
+import { commitGatedExecute } from "../../src/flagship/foundry-build-register";
+import { WebMCPDispatchRegistry } from "../../src/execution/webmcp-dispatch";
+import type { FoundryActivity } from "../../src/flagship/foundry-liaison";
+import type { FoundryWebMCPHost } from "../../src/flagship/webmcp-host-registration";
 
 type ConversationTurn = XactTurn & { speaker?: "user" };
 
@@ -19,13 +22,22 @@ function turnTone(kind: XactTurn["kind"]): "ok" | "warn" | "block" {
   return "ok";
 }
 
+function browserWebMCPHost(): FoundryWebMCPHost {
+  const context = (document as unknown as { modelContext?: FoundryWebMCPHost }).modelContext;
+  if (!context) return { getTools: async () => [] };
+  return {
+    registerTool: context.registerTool?.bind(context),
+    getTools: context.getTools.bind(context),
+  };
+}
+
 export default function FoundryPage() {
   const [draft, setDraft] = useState("");
   const [reply, setReply] = useState("");
   const [pendingIntent, setPendingIntent] = useState<string>();
   const [turns, setTurns] = useState<ConversationTurn[]>([]);
   const [activity, setActivity] = useState<FoundryActivity[]>([]);
-  const [result, setResult] = useState<FoundryBuildResult>();
+  const [result, setResult] = useState<ConverseAndRegisterResult>();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
 
@@ -35,15 +47,20 @@ export default function FoundryPage() {
     setTurns((current) => [...current, { kind: "UNDERSTAND", text: userText, speaker: "user" }]);
     try {
       const liaison = new XactAgentLiaison();
-      const next = await liaison.converse(intent);
-      const nextResult = [...next].reverse().find((turn) => turn.result)?.result;
-      setTurns((current) => [...current, ...next]);
-      if (nextResult) {
-        setResult(nextResult);
-        setActivity(nextResult.activity);
-      }
-      const clarification = next.find((turn) => turn.kind === "CLARIFY");
-      if (clarification) setPendingIntent(intent);
+      const dispatches = new WebMCPDispatchRegistry();
+      const next = await liaison.converseAndRegister(
+        intent,
+        {
+          host: browserWebMCPHost(),
+          executeFor: (tool) => tool.capabilityKind === "MUTATION"
+            ? commitGatedExecute(dispatches.claim.bind(dispatches))
+            : async () => { throw new Error("No approved read substrate is connected for this capability."); },
+          onActivity: (event) => setActivity((current) => [...current, event]),
+        },
+        (turn) => setTurns((current) => [...current, turn]),
+      );
+      setResult(next);
+      if (next.outcome === "NEEDS_INPUT") setPendingIntent(intent);
       else {
         setPendingIntent(undefined);
         setReply("");
@@ -74,6 +91,7 @@ export default function FoundryPage() {
 
   const clarification = [...turns].reverse().find((turn) => turn.kind === "CLARIFY");
   const pending = result?.outcome === "PENDING_GOVERNANCE";
+  const tool = result?.tool;
 
   return <main className="foundry">
     <header className="foundry-top"><Link href="/">XACT</Link><span>WEBMCP FOUNDRY</span><strong>The O-Agent understands. Xact decides what may become real.</strong></header>
@@ -111,7 +129,7 @@ export default function FoundryPage() {
       </section>
       <section className="foundry-panel foundry-artifact">
         <p className="foundry-kicker">ARTIFACT</p>
-        {pending ? <><h2>Understood · not yet governed</h2><span className="foundry-state">PENDING GOVERNANCE · NO TOOL CREATED</span><p>{result.reasoning?.claims.join(" ") || "The O-Agent supplied a structured interpretation."}</p><p className="foundry-pending">Xact cannot construct this capability until governance adds approved primitives and a reachable substrate.</p></> : result?.tool ? <><h2>{result.tool.name}</h2><span className="foundry-state">COMPOSED DEFINITION · NOT REGISTERED</span><p>{result.tool.description}</p><dl><div><dt>Kind</dt><dd>{result.tool.capabilityKind}</dd></div><div><dt>Commit</dt><dd>{result.tool.requiresCommit ? "REQUIRED" : "NOT REQUIRED"}</dd></div></dl><h3>Input schema</h3><code>{result.tool.inputSchema.required.join(" · ") || "none"}</code><h3>Governed boundaries</h3><ul>{result.tool.boundaries.map((boundary) => <li key={boundary.primitive}>{boundary.primitive} — {boundary.description}</li>)}</ul><p className="foundry-pending">REGISTER / OBSERVE / VERIFY remain pending until a public-safe WebMCP host performs them.</p></> : result?.refusal ? <><h2>Construction blocked</h2><span className="foundry-state">NO TOOL CREATED</span><p>{result.refusal.reasons.join(" ")}</p><p className="foundry-pending">Implementation knowledge is not authority to construct this capability.</p></> : <><h2>No artifact yet</h2><p className="foundry-empty">A governed, inert definition appears here only when Xact actually composes one.</p></>}
+        {pending ? <><h2>Understood · not yet governed</h2><span className="foundry-state">PENDING GOVERNANCE · NO TOOL CREATED</span><p>{result?.build?.reasoning?.claims.join(" ") || "The O-Agent supplied a structured interpretation."}</p><p className="foundry-pending">Xact cannot construct this capability until governance adds approved primitives and a reachable substrate.</p></> : tool ? <><h2>{tool.name}</h2><span className="foundry-state">{result?.outcome === "WORKING_TOOL" ? "REGISTERED · OBSERVED · VERIFIED" : result?.outcome === "REGISTRATION_FAILED" ? "COMPOSED · REGISTRATION FAILED" : "COMPOSED DEFINITION · NOT REGISTERED"}</span><p>{tool.description}</p><dl><div><dt>Kind</dt><dd>{tool.capabilityKind}</dd></div><div><dt>Commit</dt><dd>{tool.requiresCommit ? "REQUIRED" : "NOT REQUIRED"}</dd></div></dl><h3>Input schema</h3><code>{tool.inputSchema.required.join(" · ") || "none"}</code><h3>Governed boundaries</h3><ul>{tool.boundaries.map((boundary) => <li key={boundary.primitive}>{boundary.primitive} — {boundary.description}</li>)}</ul><p className="foundry-pending">{result?.outcome === "REGISTRATION_FAILED" ? "The host did not register this tool. No working-tool claim was made." : tool.requiresCommit ? "A mutation invocation still requires a fresh, exact Commit dispatch." : "Registration is optional until a reachable WebMCP host is available."}</p></> : result?.build?.refusal ? <><h2>Construction blocked</h2><span className="foundry-state">NO TOOL CREATED</span><p>{result.build.refusal.reasons.join(" ")}</p><p className="foundry-pending">Implementation knowledge is not authority to construct this capability.</p></> : <><h2>No artifact yet</h2><p className="foundry-empty">A governed, inert definition appears here only when Xact actually composes one.</p></>}
       </section>
     </section>
   </main>;

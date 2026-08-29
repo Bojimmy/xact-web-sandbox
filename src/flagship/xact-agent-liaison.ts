@@ -1,8 +1,16 @@
 import {
   XactFoundryLiaison,
   decomposeIntent,
+  type FoundryActivity,
   type FoundryBuildResult,
 } from "./foundry-liaison";
+import {
+  FoundryWebMCPRegistrationHost,
+  type FoundryWebMCPHost,
+  type RegistrationEvent,
+  type RegistrationResult,
+} from "./webmcp-host-registration";
+import type { WebMCPToolDefinition } from "./webmcp-tool-builder";
 
 /**
  * The Xact Agent — the conversational "boss" liaison (ADR 0019).
@@ -37,6 +45,28 @@ export interface Understanding {
 }
 
 const ACTOR_HINTS = /support agent|operator|staff|admin|csr|service recovery|manager|analyst|reviewer/i;
+
+function toActivity(event: RegistrationEvent): FoundryActivity {
+  return { type: event.type, label: event.label, detail: event.detail, status: event.status };
+}
+
+export type ConverseAndRegisterOutcome =
+  | "WORKING_TOOL"
+  | "COMPOSED_DEFINITION"
+  | "BLOCKED"
+  | "PENDING_GOVERNANCE"
+  | "REGISTRATION_FAILED"
+  | "NEEDS_INPUT";
+
+export interface ConverseAndRegisterResult {
+  intent: string;
+  turns: XactTurn[];
+  outcome: ConverseAndRegisterOutcome;
+  activity: FoundryActivity[];
+  build?: FoundryBuildResult;
+  registration?: RegistrationResult;
+  tool?: WebMCPToolDefinition;
+}
 
 export class XactAgentLiaison {
   constructor(private readonly foundry: XactFoundryLiaison = new XactFoundryLiaison()) {}
@@ -82,14 +112,18 @@ export class XactAgentLiaison {
    * The boss conversation. Returns the turns in order; the UI renders only
    * these turns and the underlying truth stream they carry.
    */
-  async converse(intent: string, onTurn?: (turn: XactTurn) => void): Promise<XactTurn[]> {
+  async converse(
+    intent: string,
+    onTurn?: (turn: XactTurn) => void,
+    onActivity?: (activity: FoundryActivity) => void,
+  ): Promise<XactTurn[]> {
     const turns: XactTurn[] = [];
     const push = (turn: XactTurn) => { turns.push(turn); onTurn?.(turn); };
 
     const understanding = this.understand(intent);
     if (!understanding.recognized) {
       push({ kind: "UNDERSTAND", text: "I don't recognize that request yet — let me reason about what you're asking for." });
-      const result = await this.foundry.buildCapability(intent);
+      const result = await this.foundry.buildCapability(intent, onActivity);
       if (result.outcome === "PENDING_GOVERNANCE") {
         const claim = result.reasoning?.claims[0] ?? "a new capability";
         push({
@@ -103,7 +137,7 @@ export class XactAgentLiaison {
 
     if (understanding.blocked) {
       push({ kind: "UNDERSTAND", text: "I understand that capability — it is representable. But I won't build it." });
-      const result = await this.foundry.buildCapability(intent);
+      const result = await this.foundry.buildCapability(intent, onActivity);
       push({ kind: "REFUSED", text: "I can build that. But I won't — knowing how is not authority to act.", result });
       return turns;
     }
@@ -121,7 +155,7 @@ export class XactAgentLiaison {
 
     push({ kind: "PROPOSE", text: "Proposing the governed construction. Reasoning is invoked only for the unresolved requirements; Xact governs and builds the rest deterministically." });
 
-    const result = await this.foundry.buildCapability(intent);
+    const result = await this.foundry.buildCapability(intent, onActivity);
     if (result.outcome === "BLOCKED" && result.refusal) {
       push({ kind: "REFUSED", text: "I can build that. But I won't — knowing how is not authority to act.", result });
       return turns;
@@ -134,5 +168,58 @@ export class XactAgentLiaison {
       });
     }
     return turns;
+  }
+
+  /**
+   * One conversation, one build, one activity stream, optional real
+   * registration. Runs `converse` once (never re-runs the build or reasoning),
+   * then registers the composed definition against the real host. If no host is
+   * supplied the tool stays a composed definition; if the host lacks WebMCP the
+   * registration truthfully emits REGISTER blocked.
+   */
+  async converseAndRegister(
+    intent: string,
+    options: {
+      registration?: FoundryWebMCPRegistrationHost;
+      host?: FoundryWebMCPHost;
+      executeFor?: (tool: WebMCPToolDefinition) => (input: unknown) => Promise<unknown>;
+      onActivity?: (activity: FoundryActivity) => void;
+    },
+    onTurn?: (turn: XactTurn) => void,
+  ): Promise<ConverseAndRegisterResult> {
+    const activity: FoundryActivity[] = [];
+    const emitActivity = (a: FoundryActivity) => { activity.push(a); options.onActivity?.(a); };
+
+    // One conversation, one build.
+    const turns = await this.converse(intent, onTurn, emitActivity);
+    const build = turns.find((t) => t.result)?.result;
+
+    if (!build || build.outcome !== "COMPOSED_DEFINITION" || !build.tool) {
+      const outcome: ConverseAndRegisterOutcome = build
+        ? (build.outcome as "BLOCKED" | "PENDING_GOVERNANCE")
+        : "NEEDS_INPUT";
+      return { intent, turns, outcome, activity, build };
+    }
+
+    const tool = build.tool;
+
+    if (options.host === undefined) {
+      return { intent, turns, outcome: "COMPOSED_DEFINITION", activity, build, tool };
+    }
+
+    const registration = options.registration ?? new FoundryWebMCPRegistrationHost();
+    const execute = options.executeFor?.(tool)
+      ?? (async () => { throw new Error("No execute handler supplied for registration."); });
+    const regResult = await registration.registerTool(tool, options.host, execute, (e) => emitActivity(toActivity(e)));
+
+    return {
+      intent,
+      turns,
+      outcome: regResult.outcome === "WORKING_TOOL" ? "WORKING_TOOL" : "REGISTRATION_FAILED",
+      activity,
+      build,
+      registration: regResult,
+      tool,
+    };
   }
 }

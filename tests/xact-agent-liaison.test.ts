@@ -73,3 +73,15 @@ test("an unfamiliar request is reasoned about, not rejected", async () => {
   assert.ok(turns[1].text.includes("governance"));
   assert.equal(turns[1].result?.outcome, "PENDING_GOVERNANCE");
 });
+
+test("the conversation forwards only the Foundry activity it actually emits", async () => {
+  const activity: string[] = [];
+
+  await agent().converse(
+    "Keep me updated on user stats and requests",
+    undefined,
+    (event) => activity.push(event.type),
+  );
+
+  assert.deepEqual(activity, ["RESOLVE", "REASON_STARTED", "REASON_EVIDENCE", "BLOCKED"]);
+});
