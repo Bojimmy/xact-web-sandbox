@@ -19,10 +19,11 @@ function decompose(request: string): { facts: string[]; unresolved: string[]; co
   const amount = amountMatch ? Number(amountMatch[1].replace(",", "")) : 0;
   const isVague = /make it right|fair|whatever you think|as you see fit/i.test(request);
   const exceedsPolicy = amount > 100;
+  const hasOrderId = /order\s*#?\d+/i.test(request);
 
   const facts: string[] = [];
   if (amountMatch) facts.push(`Refund amount: $${amount.toFixed(2)}`);
-  if (/order\s*#?\d+/i.test(request)) {
+  if (hasOrderId) {
     const idMatch = request.match(/order\s*#?(\d+)/i);
     facts.push(`Order id: ${idMatch?.[1] ?? "—"}`);
   }
@@ -46,10 +47,10 @@ function decompose(request: string): { facts: string[]; unresolved: string[]; co
       condition: `$${amount.toFixed(2)} ≤ $100`,
       satisfied: amount > 0 && amount <= 100,
     },
-    { label: "Capability present (refund:create)", condition: "PRESENT", satisfied: true },
-    { label: "Authority state known", condition: "ALLOWED", satisfied: true },
-    { label: "Order id bound", condition: "bound", satisfied: /order\s*#?\d+/i.test(request) },
-    { label: "Customer intent unambiguous", condition: "unambiguous", satisfied: !isVague },
+    { label: "Capability refund:create is PRESENT", condition: "PRESENT", satisfied: true },
+    { label: "Authority state is known and ALLOWED", condition: "ALLOWED", satisfied: true },
+    { label: hasOrderId ? "Order id is bound" : "Order id is NOT bound", condition: "bound", satisfied: hasOrderId },
+    { label: isVague ? "Customer intent is AMBIGUOUS" : "Customer intent is unambiguous", condition: "unambiguous", satisfied: !isVague },
   ];
   // Add the over-policy fact
   if (exceedsPolicy) {
