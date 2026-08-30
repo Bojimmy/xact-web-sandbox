@@ -9,6 +9,7 @@ interface FoundrySessionValue {
   readonly tools: readonly WebMCPToolDefinition[];
   readonly profile: FoundryProfile;
   addTool: (tool: WebMCPToolDefinition) => void;
+  clearTools: () => void;
   updateProfile: (changes: Partial<Omit<FoundryProfile, "version">>) => void;
 }
 
@@ -26,6 +27,7 @@ export function FoundrySessionProvider({ children }: Readonly<{ children: React.
     tools,
     profile,
     addTool: (tool) => setTools((current) => current.some((existing) => toolContractKey(existing) === toolContractKey(tool)) ? current : [...current, tool]),
+    clearTools: () => setTools([]),
     updateProfile: (changes) => setProfile((current) => ({ ...current, ...changes, version: current.version + 1 })),
   }), [profile, tools]);
   return <FoundrySessionContext.Provider value={value}>{children}</FoundrySessionContext.Provider>;

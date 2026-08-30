@@ -66,7 +66,7 @@ function browserWebMCPHost(): FoundryWebMCPHost {
 
 export default function FoundryPage() {
   const searchParams = useSearchParams();
-  const { tools, addTool, profile, updateProfile } = useFoundrySession();
+  const { tools, addTool, clearTools, profile, updateProfile } = useFoundrySession();
   const [draft, setDraft] = useState("");
   const [pendingIntent, setPendingIntent] = useState<string>();
   const [pendingSubstrate, setPendingSubstrate] = useState("FOUNDRY_CUSTOMER_DIRECTORY");
@@ -96,7 +96,7 @@ export default function FoundryPage() {
       return;
     }
     if (buildStartedAt.current !== undefined) {
-      setBuildElapsedMs(Math.max(1, Math.round(performance.now() - buildStartedAt.current)));
+      setBuildElapsedMs(Math.max(0.1, performance.now() - buildStartedAt.current));
       buildStartedAt.current = undefined;
     }
   }, [busy]);
@@ -210,7 +210,14 @@ export default function FoundryPage() {
     setSelectedExistingTool(undefined);
     setInvocation(undefined);
     setInvocationError(undefined);
+    setBuildElapsedMs(undefined);
     setError(undefined);
+  }
+
+  function clearDemoShelf() {
+    clearTools();
+    resetConversation();
+    setSelectedCampaignRecipientId(undefined);
   }
 
   async function supplyBuildRequirements() {
@@ -344,8 +351,9 @@ export default function FoundryPage() {
           {!turns.length ? <div className="foundry-suggestions">{EXAMPLES.map((example) => <button key={example} type="button" onClick={() => setDraft(example)}>{example}</button>)}</div> : null}
           <button className="foundry-build" type="button" onClick={() => void (pendingIntent ? answerClarification() : begin())} disabled={busy || !draft.trim() || Boolean(existingToolOffer)}>{busy ? "BOSS IS CHECKING…" : pendingIntent ? "SEND ANSWER TO BOSS" : "SEND TO BOSS"}</button>
           {turns.length ? <button className="foundry-new-conversation" type="button" onClick={resetConversation}>NEW TOOL REQUEST</button> : null}
+          {tools.length ? <button className="foundry-new-conversation foundry-clear-shelf" type="button" onClick={clearDemoShelf}>START CLEAN DEMO · CLEAR TOOL SHELF</button> : null}
         </section>
-        {buildElapsedMs !== undefined ? <p className="foundry-build-time">{tool ? `TOOL BUILD TIME · ${(buildElapsedMs / 1000).toFixed(2)}s` : `XACT FINISHED IN · ${(buildElapsedMs / 1000).toFixed(2)}s`}</p> : null}
+        {buildElapsedMs !== undefined ? <div className="foundry-build-time"><b>{tool ? `BROWSER RUN TIME · ${buildElapsedMs.toFixed(1)}ms` : `BROWSER RESPONSE · ${buildElapsedMs.toFixed(1)}ms`}</b><small>Measured from SEND TO BOSS until this browser completed the response. This is not a microsecond X-Node benchmark.</small></div> : null}
         <section className="foundry-tool-guide" aria-labelledby="foundry-tool-guide-heading">
           <p className="foundry-kicker">WEBMCP TOOL PATH</p>
           <h2 id="foundry-tool-guide-heading">How this WebMCP tool works</h2>
@@ -356,6 +364,7 @@ export default function FoundryPage() {
             <li><b>4 · USE</b><span>Reads use an approved substrate. Any real-world consequence needs its own fresh Xact Commit.</span></li>
           </ol>
           <p className="foundry-tool-guide-note">A fast build is still a live build. The activity and artifact columns show exactly what occurred in this run.</p>
+          {tool ? <p className="foundry-tool-guide-note">This run assembled <b>{result?.build?.constructionNodes?.length ?? 0} recorded X-Node construction steps</b>. Clear the in-memory shelf to demonstrate a fresh build; it does not delete external data.</p> : null}
         </section>
         {error ? <p className="foundry-error">{error}</p> : null}
       </section>
