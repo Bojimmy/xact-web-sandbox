@@ -22,6 +22,7 @@ export function FoundryRunExplainer({
     [prompt, tool, activity, invocation],
   );
   const [selectedId, setSelectedId] = useState("boss");
+  const [slideOpen, setSlideOpen] = useState(false);
 
   if (!prepared?.storyboard.cards.length) return null;
   const cards = prepared.storyboard.cards;
@@ -34,6 +35,15 @@ export function FoundryRunExplainer({
   ];
   const selected = stages.find((stage) => stage.id === selectedId) ?? stages[0];
   const selectedCard = selected.card;
+  const selectedIndex = stages.indexOf(selected);
+  function selectSlide(id: string) {
+    setSelectedId(id);
+    setSlideOpen(true);
+  }
+  function moveSlide(direction: -1 | 1) {
+    const next = stages[selectedIndex + direction];
+    if (next) setSelectedId(next.id);
+  }
 
   return <section className="foundry-run-explainer" aria-labelledby="foundry-explainer-heading">
     <div className="foundry-run-explainer-heading">
@@ -44,14 +54,16 @@ export function FoundryRunExplainer({
     <section className="foundry-system-map" aria-label="Xact WebMCP flow">
       <div className="foundry-browser-boundary"><span>YOUR BROWSER · XACT FOUNDRY</span><ol>
         {stages.map((stage, index) => <li key={stage.id} data-state={stage.card ? "measured" : "waiting"}>
-          <button type="button" aria-pressed={selected.id === stage.id} onClick={() => setSelectedId(stage.id)}><b>{stage.label}</b><small>{stage.caption}</small><em>{stage.card ? "✓ EVIDENCE" : "○ NOT MEASURED"}</em></button>
+          <button type="button" aria-pressed={selected.id === stage.id} onClick={() => selectSlide(stage.id)}><b>{stage.label}</b><small>{stage.caption}</small><em>{stage.card ? "✓ EVIDENCE" : "○ NOT MEASURED"}</em></button>
           {index < stages.length - 1 ? <span className="foundry-map-arrow" aria-hidden="true">→</span> : null}
         </li>)}
       </ol></div>
-      <section className="foundry-explainer-slide" aria-live="polite">
-        <div><span>STEP {String(stages.indexOf(selected) + 1).padStart(2, "0")}</span><b>{selected.label}</b></div>
-        {selectedCard ? <><h3>{selectedCard.title}</h3><strong>{selectedCard.facts.find((fact) => fact.role === "PRIMARY")?.text}</strong>{selectedCard.facts.filter((fact) => fact.role === "SUPPORTING").length ? <ul>{selectedCard.facts.filter((fact) => fact.role === "SUPPORTING").map((fact, index) => <li key={`${fact.text}-${index}`}>{fact.text}</li>)}</ul> : null}<small>EVIDENCE · {selectedCard.evidenceRefs.join(" · ") || "No additional event record"}</small></> : <><h3>NOT MEASURED IN THIS RUN</h3><strong>This step did not occur.</strong><p>Run the tool or complete the preceding governed step before Xact can make a claim here.</p></>}
-      </section>
     </section>
+    {slideOpen ? <div className="foundry-slide-backdrop" role="presentation" onMouseDown={() => setSlideOpen(false)}><section className="foundry-explainer-slide" role="dialog" aria-modal="true" aria-labelledby="foundry-slide-title" onMouseDown={(event) => event.stopPropagation()}>
+      <header><div><span>STEP {String(selectedIndex + 1).padStart(2, "0")} / {String(stages.length).padStart(2, "0")}</span><b>{selected.label}</b></div><button type="button" aria-label="Close explanation" onClick={() => setSlideOpen(false)}>×</button></header>
+      <div className="foundry-slide-progress" aria-hidden="true">{stages.map((stage, index) => <i key={stage.id} data-active={index === selectedIndex} data-measured={Boolean(stage.card)} />)}</div>
+      {selectedCard ? <><h3 id="foundry-slide-title">{selectedCard.title}</h3><strong>{selectedCard.facts.find((fact) => fact.role === "PRIMARY")?.text}</strong>{selectedCard.facts.filter((fact) => fact.role === "SUPPORTING").length ? <ul>{selectedCard.facts.filter((fact) => fact.role === "SUPPORTING").map((fact, index) => <li key={`${fact.text}-${index}`}>{fact.text}</li>)}</ul> : null}<small>EVIDENCE · {selectedCard.evidenceRefs.join(" · ") || "No additional event record"}</small></> : <><h3 id="foundry-slide-title">NOT MEASURED IN THIS RUN</h3><strong>This step did not occur.</strong><p>Run the tool or complete the preceding governed step before Xact can make a claim here.</p></>}
+      <footer><button type="button" onClick={() => moveSlide(-1)} disabled={selectedIndex === 0}>← PREVIOUS</button><button type="button" onClick={() => moveSlide(1)} disabled={selectedIndex === stages.length - 1}>NEXT →</button></footer>
+    </section></div> : null}
   </section>;
 }
