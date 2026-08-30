@@ -15,6 +15,7 @@ import type { FoundryActivity } from "../../src/flagship/foundry-liaison";
 import type { FoundryWebMCPHost } from "../../src/flagship/webmcp-host-registration";
 import type { WebMCPToolDefinition } from "../../src/flagship/webmcp-tool-builder";
 import { useFoundrySession } from "./foundry-session";
+import { FoundryToolflow } from "./foundry-toolflow";
 
 type ConversationTurn = XactTurn & { speaker?: "user" };
 
@@ -302,7 +303,7 @@ export default function FoundryPage() {
   const businessWorkspace = isBusinessWorkspaceResult(invocation?.result) ? invocation.result : undefined;
 
   return <main className="foundry">
-    <header className="foundry-top"><Link href="/">XACT</Link><span>WEBMCP FOUNDRY</span><Link className="foundry-catalog-link" href="/foundry/catalog">WHAT XACT CAN BUILD →</Link><strong>The O-Agent understands. Xact decides what may become real.</strong></header>
+    <header className="foundry-top"><Link href="/">XACT</Link><span>WEBMCP FOUNDRY</span><Link className="foundry-catalog-link" href="/foundry/catalog">WHAT XACT CAN BUILD →</Link><a className="foundry-canvas-link" href="#toolflow">WATCH TOOLFLOW ↓</a><strong>The O-Agent understands. Xact decides what may become real.</strong></header>
     <section className="foundry-grid">
       <section className="foundry-panel foundry-conversation">
         <p className="foundry-kicker">BOSS CHAT · O-AGENT LIAISON</p><h2>Tell the Boss what tool you need.</h2>
@@ -401,8 +402,8 @@ export default function FoundryPage() {
                 </section>
                 <section className="foundry-email-preview">
                   <span className="foundry-state">PERSONALIZED PROMOTION · DRAFT EXAMPLE</span>
-                  <dl><div><dt>From</dt><dd>Offers at Xact Demo &lt;offers@example.com&gt;</dd></div><div><dt>To</dt><dd>{invocation.result.recipients[0].name} &lt;{invocation.result.recipients[0].email}&gt;</dd></div><div><dt>Subject</dt><dd>{invocation.result.recipients[0].subject}</dd></div></dl>
-                  <div className="foundry-email-body"><p>Hi {invocation.result.recipients[0].name},</p><p>In a <b>{invocation.result.brief.voice.toLowerCase()}</b> voice: your approved promotion is <b>{invocation.result.brief.offer}</b>.</p><p>Style: {invocation.result.brief.style}.</p><span>SHOP THE OFFER →</span><p>— The Xact Demo team</p></div>
+                  <dl><div><dt>From</dt><dd>{invocation.result.brief.sender}</dd></div><div><dt>To</dt><dd>{invocation.result.recipients[0].name} &lt;{invocation.result.recipients[0].email}&gt;</dd></div><div><dt>Subject</dt><dd>{invocation.result.recipients[0].subject}</dd></div></dl>
+                  <div className="foundry-email-body"><p>Hi {invocation.result.recipients[0].name},</p><p>In a <b>{invocation.result.brief.voice.toLowerCase()}</b> voice: your approved promotion is <b>{invocation.result.brief.offer}</b>.</p><p>Style: {invocation.result.brief.style}.</p><span>SHOP THE OFFER →</span><p>— The {profile.companyName} team</p></div>
                 </section>
                 <ol>{invocation.result.recipients.slice(0, 6).map((recipient) => <li key={recipient.customerId}><b>{recipient.name}</b> · {recipient.segment}<br /><span>{recipient.email}</span><br />“{recipient.subject}”</li>)}</ol>
                 <p className="foundry-campaign-more">Showing 6 personalized examples · {invocation.result.recipients.length - 6} additional prepared recipients</p>
@@ -423,5 +424,6 @@ export default function FoundryPage() {
         </> : <><h2>No artifact yet</h2><p className="foundry-empty">A governed, inert definition appears here only when Xact actually composes one.</p></>}
       </section>
     </section>
+    <FoundryToolflow activity={activity} invocation={invocation} />
   </main>;
 }
