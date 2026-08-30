@@ -76,6 +76,13 @@ test("a request missing both amount and actor asks for both bounds", async () =>
   assert.ok(turns[1].questions?.some((q) => q.includes("actor role")));
 });
 
+test("an explainer-slide request is not misclassified as a customer-plan mutation", () => {
+  const liaison = new XactAgentLiaison();
+  const intent = "Build a WebMCP explainer slide tool";
+  assert.equal(liaison.understand(intent).recognized, false);
+  assert.deepEqual(liaison.clarify(intent), []);
+});
+
 test("a request with an amount but no actor asks only for the actor", async () => {
   const turns = await agent().converse("Build a tool that issues a service credit up to $40");
 

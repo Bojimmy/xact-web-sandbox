@@ -278,7 +278,7 @@ const FOUNDRY_PATTERNS: CapabilityPattern[] = [
       { primitive: "CONFIRMATION_REQUIREMENT", description: "confirmation required", confirmationRequired: true },
     ],
     genuineU: ["price-increase constraint"],
-    matches: (intent) => /plan/i.test(intent),
+    matches: (intent) => /(?:change|update|switch|modify)\s+(?:a\s+)?(?:customer\s+)?(?:service\s+)?plan|customer(?:\s+service)?\s+plan\s+(?:change|update|switch|modification)|plan\s+(?:change|update|switch)/i.test(intent),
   },
   {
     id: "delete_customer_account",
