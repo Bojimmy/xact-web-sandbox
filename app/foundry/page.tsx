@@ -344,6 +344,17 @@ export default function FoundryPage() {
           {turns.length ? <button className="foundry-new-conversation" type="button" onClick={resetConversation}>NEW TOOL REQUEST</button> : null}
         </section>
         {buildElapsedMs !== undefined ? <p className="foundry-build-time">{tool ? `TOOL BUILD TIME · ${(buildElapsedMs / 1000).toFixed(2)}s` : `XACT FINISHED IN · ${(buildElapsedMs / 1000).toFixed(2)}s`}</p> : null}
+        <section className="foundry-tool-guide" aria-labelledby="foundry-tool-guide-heading">
+          <p className="foundry-kicker">WEBMCP TOOL PATH</p>
+          <h2 id="foundry-tool-guide-heading">How this WebMCP tool works</h2>
+          <ol>
+            <li><b>1 · ASK</b><span>Describe a business tool, choose a suggested request, or extend one on the shelf.</span></li>
+            <li><b>2 · UNDERSTAND</b><span>The Boss interprets the request and asks for any missing governed bounds.</span></li>
+            <li><b>3 · BUILD</b><span>X-Nodes compose a deterministic, governed tool definition from approved primitives.</span></li>
+            <li><b>4 · USE</b><span>Reads use an approved substrate. Any real-world consequence needs its own fresh Xact Commit.</span></li>
+          </ol>
+          <p className="foundry-tool-guide-note">A fast build is still a live build. The activity and artifact columns show exactly what occurred in this run.</p>
+        </section>
         {error ? <p className="foundry-error">{error}</p> : null}
       </section>
       <section className="foundry-panel">
