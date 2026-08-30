@@ -29,7 +29,13 @@ function isCampaignPreparation(value: unknown): value is CampaignPreparation {
   return Boolean(value && typeof value === "object" && (value as { status?: unknown }).status === "DRAFTS_PREPARED_NO_SEND_AUTHORITY");
 }
 
-type AppliedEffect = { customerId?: string; tool: string; amount?: number; receipt: string };
+type AppliedEffect = { customerId?: string; tool: string; amount?: number; receipt: string; event?: string; recordedAt?: string };
+
+const SEEDED_AUDIT_HISTORY: readonly AppliedEffect[] = Object.freeze([
+  { customerId: "1042", tool: "support_case_review", event: "Late-delivery case reviewed and resolved", receipt: "demo-audit:1042:case-118", recordedAt: "2026-08-25T14:30:00Z" },
+  { customerId: "1042", tool: "promotion_eligibility", event: "Eligible for weekly active-customer promotion", receipt: "demo-audit:1042:promo-042", recordedAt: "2026-08-26T09:15:00Z" },
+  { customerId: "1042", tool: "preference_check", event: "Email preference confirmed for promotional drafts", receipt: "demo-audit:1042:pref-009", recordedAt: "2026-08-27T11:05:00Z" },
+]);
 
 function turnTone(kind: XactTurn["kind"]): "ok" | "warn" | "block" {
   if (kind === "REFUSED") return "block";
@@ -65,7 +71,7 @@ export default function FoundryPage() {
   const [buildElapsedMs, setBuildElapsedMs] = useState<number>();
   const [error, setError] = useState<string>();
   const registry = useRef(new FoundryToolRegistry());
-  const appliedEffects = useRef<AppliedEffect[]>([]);
+  const appliedEffects = useRef<AppliedEffect[]>([...SEEDED_AUDIT_HISTORY]);
   const buildStartedAt = useRef<number | undefined>(undefined);
 
   useEffect(() => {
