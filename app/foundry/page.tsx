@@ -2,16 +2,19 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { XactAgentLiaison, type ConverseAndRegisterResult, type XactTurn } from "../../src/flagship/xact-agent-liaison";
 import { commitGatedExecute } from "../../src/flagship/foundry-build-register";
 import { WebMCPDispatchRegistry } from "../../src/execution/webmcp-dispatch";
 import { createMutationCommitEngine } from "../../src/flagship/foundry-mutation-commit";
 import { FoundryRuntime, FoundryToolRegistry, type FoundryInvocationResult } from "../../src/flagship/foundry-runtime";
 import { preparePromotionalEmailCampaign, type CampaignPreparation } from "../../src/flagship/promotional-campaign-nodes";
+import { campaignBriefFromProfile } from "../../src/flagship/foundry-profile";
 import { readCampaignDashboard, readCustomerHealth, readOperationsReport, readSupportQueue, readWorkOrderQueue, type BusinessWorkspaceResult } from "../../src/flagship/business-workspace";
 import type { FoundryActivity } from "../../src/flagship/foundry-liaison";
 import type { FoundryWebMCPHost } from "../../src/flagship/webmcp-host-registration";
 import type { WebMCPToolDefinition } from "../../src/flagship/webmcp-tool-builder";
+import { useFoundrySession } from "./foundry-session";
 
 type ConversationTurn = XactTurn & { speaker?: "user" };
 
@@ -61,6 +64,8 @@ function browserWebMCPHost(): FoundryWebMCPHost {
 }
 
 export default function FoundryPage() {
+  const searchParams = useSearchParams();
+  const { tools, addTool, profile } = useFoundrySession();
   const [draft, setDraft] = useState("");
   const [pendingIntent, setPendingIntent] = useState<string>();
   const [pendingSubstrate, setPendingSubstrate] = useState("FOUNDRY_CUSTOMER_DIRECTORY");
@@ -68,7 +73,6 @@ export default function FoundryPage() {
   const [turns, setTurns] = useState<ConversationTurn[]>([]);
   const [activity, setActivity] = useState<FoundryActivity[]>([]);
   const [result, setResult] = useState<ConverseAndRegisterResult>();
-  const [shelf, setShelf] = useState<string[]>([]);
   const [existingToolOffer, setExistingToolOffer] = useState<WebMCPToolDefinition>();
   const [selectedExistingTool, setSelectedExistingTool] = useState<WebMCPToolDefinition>();
   const [invocationInput, setInvocationInput] = useState<Record<string, string>>({});
@@ -79,9 +83,10 @@ export default function FoundryPage() {
   const [busy, setBusy] = useState(false);
   const [buildElapsedMs, setBuildElapsedMs] = useState<number>();
   const [error, setError] = useState<string>();
-  const registry = useRef(new FoundryToolRegistry());
   const appliedEffects = useRef<AppliedEffect[]>([...SEEDED_AUDIT_HISTORY]);
   const buildStartedAt = useRef<number | undefined>(undefined);
+  const catalogRequestHandled = useRef<string | undefined>(undefined);
+  const beginIntentRef = useRef<(intent: string) => Promise<void>>(async () => undefined);
 
   useEffect(() => {
     if (busy) {
@@ -126,8 +131,7 @@ export default function FoundryPage() {
       setResult(next);
       if (next.tool) {
         const builtTool = next.tool;
-        registry.current.add(builtTool);
-        setShelf(registry.current.list().map((tool) => tool.name));
+        addTool(builtTool);
         selectTool(builtTool);
         setActivity((current) => [...current, { type: "REGISTER", label: "Foundry shelf", detail: `Added "${builtTool.name}" to the Foundry's internal tool shelf.`, status: "PASS" }]);
       }
@@ -141,13 +145,11 @@ export default function FoundryPage() {
     }
   }
 
-  async function begin() {
-    const intent = draft.trim();
+  async function beginIntent(intent: string) {
     if (!intent) return;
-    setDraft("");
     setActivity([]);
     setResult(undefined);
-    const existing = new XactAgentLiaison().findExistingTool(intent, registry.current.list());
+    const existing = new XactAgentLiaison().findExistingTool(intent, tools);
     if (existing) {
       setPendingIntent(undefined);
       setExistingToolOffer(existing);
@@ -159,6 +161,25 @@ export default function FoundryPage() {
       return;
     }
     await converse(intent, intent);
+  }
+
+  useEffect(() => {
+    beginIntentRef.current = beginIntent;
+  });
+
+  useEffect(() => {
+    const request = searchParams.get("request")?.trim();
+    if (!request || catalogRequestHandled.current === request) return;
+    catalogRequestHandled.current = request;
+    window.history.replaceState({}, "", "/foundry");
+    void beginIntentRef.current(request);
+  }, [searchParams]);
+
+  async function begin() {
+    const intent = draft.trim();
+    if (!intent) return;
+    setDraft("");
+    await beginIntent(intent);
   }
 
   function useExistingTool() {
@@ -220,8 +241,13 @@ export default function FoundryPage() {
       input.confirmation = confirmation;
     }
     try {
+      const registry = new FoundryToolRegistry();
+      for (const shelfTool of tools) registry.add(shelfTool);
+      // The selected definition is added last so an invocation always uses the
+      // exact governed variant the Boss just constructed or reused.
+      registry.add(tool);
       const foundryRuntime = new FoundryRuntime(
-        registry.current,
+        registry,
         (readTool, readInput) => {
           const values = readInput as Record<string, unknown>;
           if (readTool.name === "find_customer_by_email") {
@@ -248,7 +274,7 @@ export default function FoundryPage() {
           if (readTool.name === "get_business_operations_report") return readOperationsReport();
           if (readTool.name === "get_campaign_dashboard") return readCampaignDashboard();
           if (readTool.name === "prepare_weekly_promotional_email_campaign") {
-            return preparePromotionalEmailCampaign();
+            return preparePromotionalEmailCampaign(campaignBriefFromProfile(profile));
           }
           throw new Error(`No approved public-safe read substrate is connected for ${readTool.name}.`);
         },
@@ -271,11 +297,12 @@ export default function FoundryPage() {
   const clarification = [...turns].reverse().find((turn) => turn.kind === "CLARIFY");
   const pending = result?.outcome === "PENDING_GOVERNANCE";
   const tool = selectedExistingTool ?? result?.tool;
+  const shelf = tools.map((shelfTool) => shelfTool.name);
   const campaignPreparation = isCampaignPreparation(invocation?.result) ? invocation.result : undefined;
   const businessWorkspace = isBusinessWorkspaceResult(invocation?.result) ? invocation.result : undefined;
 
   return <main className="foundry">
-    <header className="foundry-top"><Link href="/">XACT</Link><span>WEBMCP FOUNDRY</span><strong>The O-Agent understands. Xact decides what may become real.</strong></header>
+    <header className="foundry-top"><Link href="/">XACT</Link><span>WEBMCP FOUNDRY</span><Link className="foundry-catalog-link" href="/foundry/catalog">WHAT XACT CAN BUILD →</Link><strong>The O-Agent understands. Xact decides what may become real.</strong></header>
     <section className="foundry-grid">
       <section className="foundry-panel foundry-conversation">
         <p className="foundry-kicker">BOSS CHAT · O-AGENT LIAISON</p><h2>Tell the Boss what tool you need.</h2>
@@ -370,12 +397,12 @@ export default function FoundryPage() {
                 </section>
                 <section className="foundry-build-brief">
                   <span className="foundry-state">X-NODE BUILD BRIEF · COMPLETE</span>
-                  <dl><div><dt>Audience</dt><dd>Foundry mock customer directory</dd></div><div><dt>Mode</dt><dd>{invocation.result.brief.deliveryMode.replaceAll("_", " ")}</dd></div><div><dt>Sender</dt><dd>{invocation.result.brief.sender}</dd></div><div><dt>Offer</dt><dd>{invocation.result.brief.offer}</dd></div><div><dt>Audit</dt><dd>{invocation.result.brief.auditRequired ? "REQUIRED" : "NOT REQUIRED"}</dd></div></dl>
+                  <dl><div><dt>Profile</dt><dd>Foundry Profile v{profile.version}</dd></div><div><dt>Audience</dt><dd>Foundry mock customer directory</dd></div><div><dt>Mode</dt><dd>{invocation.result.brief.deliveryMode.replaceAll("_", " ")}</dd></div><div><dt>Voice</dt><dd>{invocation.result.brief.voice}</dd></div><div><dt>Style</dt><dd>{invocation.result.brief.style}</dd></div><div><dt>Sender</dt><dd>{invocation.result.brief.sender}</dd></div><div><dt>Offer</dt><dd>{invocation.result.brief.offer}</dd></div><div><dt>Audit</dt><dd>{invocation.result.brief.auditRequired ? "REQUIRED" : "NOT REQUIRED"}</dd></div></dl>
                 </section>
                 <section className="foundry-email-preview">
                   <span className="foundry-state">PERSONALIZED PROMOTION · DRAFT EXAMPLE</span>
                   <dl><div><dt>From</dt><dd>Offers at Xact Demo &lt;offers@example.com&gt;</dd></div><div><dt>To</dt><dd>{invocation.result.recipients[0].name} &lt;{invocation.result.recipients[0].email}&gt;</dd></div><div><dt>Subject</dt><dd>{invocation.result.recipients[0].subject}</dd></div></dl>
-                  <div className="foundry-email-body"><p>Hi {invocation.result.recipients[0].name},</p><p>Thanks for being an active customer. For this week only, enjoy <b>20% off your next order</b> with code <b>WEEKLY20</b>.</p><p>Use it before Sunday at midnight. Your offer is ready whenever you are.</p><span>SHOP THE OFFER →</span><p>— The Xact Demo team</p></div>
+                  <div className="foundry-email-body"><p>Hi {invocation.result.recipients[0].name},</p><p>In a <b>{invocation.result.brief.voice.toLowerCase()}</b> voice: your approved promotion is <b>{invocation.result.brief.offer}</b>.</p><p>Style: {invocation.result.brief.style}.</p><span>SHOP THE OFFER →</span><p>— The Xact Demo team</p></div>
                 </section>
                 <ol>{invocation.result.recipients.slice(0, 6).map((recipient) => <li key={recipient.customerId}><b>{recipient.name}</b> · {recipient.segment}<br /><span>{recipient.email}</span><br />“{recipient.subject}”</li>)}</ol>
                 <p className="foundry-campaign-more">Showing 6 personalized examples · {invocation.result.recipients.length - 6} additional prepared recipients</p>

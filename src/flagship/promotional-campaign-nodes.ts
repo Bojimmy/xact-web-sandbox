@@ -28,6 +28,8 @@ export interface CampaignBuildBrief {
   readonly rotation: string;
   readonly sender: string;
   readonly offer: string;
+  readonly voice: string;
+  readonly style: string;
   readonly auditRequired: true;
 }
 
@@ -48,10 +50,13 @@ export const defaultCampaignBuildBrief: CampaignBuildBrief = Object.freeze({
   rotation: "Every Tuesday · 09:00 local time",
   sender: "Offers at Xact Demo <offers@example.com>",
   offer: "20% off with code WEEKLY20, valid through Sunday at midnight",
+  voice: "Warm, clear, and helpful",
+  style: "Short promotional email with one clear offer",
   auditRequired: true,
 });
 
-const recipients: readonly PromotionRecipient[] = Object.freeze(Array.from({ length: 128 }, (_, index) => {
+function recipientsFor(brief: CampaignBuildBrief): readonly PromotionRecipient[] {
+  return Object.freeze(Array.from({ length: 128 }, (_, index) => {
   const number = String(index + 1).padStart(3, "0");
   const named = [
     { name: "Ada", email: "ada@example.com" },
@@ -67,16 +72,17 @@ const recipients: readonly PromotionRecipient[] = Object.freeze(Array.from({ len
     name,
     email: named?.email ?? `customer-${number}@example.com`,
     segment: index % 4 === 0 ? "RETURNING" as const : "ACTIVE" as const,
-    subject: index % 3 === 0 ? `${name}, enjoy 20% off your next order` : index % 3 === 1 ? `${name}, your weekly member offer is here` : `${name}, a limited-time promotion for you`,
+    subject: index % 3 === 0 ? `${name}, ${brief.offer.split(",")[0].toLowerCase()} on your next order` : index % 3 === 1 ? `${name}, your ${brief.voice.toLowerCase()} member offer is here` : `${name}, a limited-time promotion for you`,
   });
 }));
+}
 
 const nodes: readonly CampaignNodeOutcome[] = Object.freeze([
   { id: "brief", label: "Validate campaign brief", operations: 1, status: "COMPLETE" },
-  { id: "audience", label: "Load approved audience", operations: recipients.length, status: "COMPLETE" },
-  { id: "segment", label: "Segment eligible recipients", operations: recipients.length, status: "COMPLETE" },
-  { id: "personalize", label: "Personalize promotion subjects", operations: recipients.length, status: "COMPLETE" },
-  { id: "compose", label: "Compose email drafts", operations: recipients.length, status: "COMPLETE" },
+  { id: "audience", label: "Load approved audience", operations: 128, status: "COMPLETE" },
+  { id: "segment", label: "Segment eligible recipients", operations: 128, status: "COMPLETE" },
+  { id: "personalize", label: "Personalize promotion subjects", operations: 128, status: "COMPLETE" },
+  { id: "compose", label: "Compose email drafts", operations: 128, status: "COMPLETE" },
   { id: "schedule", label: "Project campaign rotation", operations: 1, status: "COMPLETE" },
   { id: "audit", label: "Package preparation audit", operations: 1, status: "COMPLETE" },
 ]);
@@ -86,6 +92,7 @@ export function preparePromotionalEmailCampaign(brief: CampaignBuildBrief = defa
   if (brief.deliveryMode !== "DRAFT_ONLY") {
     throw new Error("Campaign delivery is not connected; only DRAFT_ONLY preparation is available.");
   }
+  const recipients = recipientsFor(brief);
   return Object.freeze({
     campaign: "Weekly promotion email — active customers",
     status: "DRAFTS_PREPARED_NO_SEND_AUTHORITY" as const,
