@@ -66,7 +66,7 @@ function browserWebMCPHost(): FoundryWebMCPHost {
 
 export default function FoundryPage() {
   const searchParams = useSearchParams();
-  const { tools, addTool, profile } = useFoundrySession();
+  const { tools, addTool, profile, updateProfile } = useFoundrySession();
   const [draft, setDraft] = useState("");
   const [pendingIntent, setPendingIntent] = useState<string>();
   const [pendingSubstrate, setPendingSubstrate] = useState("FOUNDRY_CUSTOMER_DIRECTORY");
@@ -81,6 +81,7 @@ export default function FoundryPage() {
   const [confirmation, setConfirmation] = useState(false);
   const [invocation, setInvocation] = useState<FoundryInvocationResult>();
   const [invocationError, setInvocationError] = useState<string>();
+  const [selectedCampaignRecipientId, setSelectedCampaignRecipientId] = useState<string>();
   const [busy, setBusy] = useState(false);
   const [buildElapsedMs, setBuildElapsedMs] = useState<number>();
   const [error, setError] = useState<string>();
@@ -300,6 +301,7 @@ export default function FoundryPage() {
   const tool = selectedExistingTool ?? result?.tool;
   const shelf = tools.map((shelfTool) => shelfTool.name);
   const campaignPreparation = isCampaignPreparation(invocation?.result) ? invocation.result : undefined;
+  const selectedCampaignRecipient = campaignPreparation?.recipients.find((recipient) => recipient.customerId === selectedCampaignRecipientId) ?? campaignPreparation?.recipients[0];
   const businessWorkspace = isBusinessWorkspaceResult(invocation?.result) ? invocation.result : undefined;
 
   return <main className="foundry">
@@ -383,6 +385,15 @@ export default function FoundryPage() {
             <p className="foundry-kicker">RUN THIS TOOL</p>
             {tool.inputSchema.required.map((field) => <label key={field} className="foundry-label" htmlFor={`invoke-${field}`}>{field}<input id={`invoke-${field}`} type={field === "amount" ? "number" : field === "email" ? "email" : "text"} value={invocationInput[field] ?? ""} onChange={(event) => setInvocationInput((current) => ({ ...current, [field]: event.target.value }))} /></label>)}
             {tool.capabilityKind === "MUTATION" ? <><label className="foundry-label" htmlFor="invoke-actor">Actor<input id="invoke-actor" value={actor} onChange={(event) => setActor(event.target.value)} /></label><label className="foundry-check"><input type="checkbox" checked={confirmation} onChange={(event) => setConfirmation(event.target.checked)} /> I confirm this exact consequence</label></> : null}
+            {tool.name === "prepare_weekly_promotional_email_campaign" ? <section className="foundry-campaign-form" aria-labelledby="campaign-brief-heading">
+              <span className="foundry-state">CAMPAIGN BRIEF · DRAFT PREPARATION ONLY</span>
+              <h3 id="campaign-brief-heading">Configure this draft run</h3>
+              <label className="foundry-label" htmlFor="campaign-company">Company / sender name<input id="campaign-company" value={profile.companyName} onChange={(event) => updateProfile({ companyName: event.target.value })} /></label>
+              <label className="foundry-label" htmlFor="campaign-offer">Promotion offer<input id="campaign-offer" value={profile.campaignOffer} onChange={(event) => updateProfile({ campaignOffer: event.target.value })} /></label>
+              <label className="foundry-label" htmlFor="campaign-voice">Voice<select id="campaign-voice" value={profile.brandVoice} onChange={(event) => updateProfile({ brandVoice: event.target.value })}><option>Warm, clear, and helpful</option><option>Confident and concise</option><option>Premium and celebratory</option></select></label>
+              <label className="foundry-label" htmlFor="campaign-style">Email style<select id="campaign-style" value={profile.campaignStyle} onChange={(event) => updateProfile({ campaignStyle: event.target.value })}><option>Short promotional email with one clear offer</option><option>Personal note with a concise offer</option><option>Product update with one clear next step</option></select></label>
+              <dl><div><dt>Approved audience</dt><dd>Active customers · mock directory</dd></div><div><dt>Delivery mode</dt><dd>Draft only · no send authority</dd></div><div><dt>Schedule</dt><dd>Tuesday · 09:00 local time</dd></div></dl>
+            </section> : null}
             <button className="foundry-build foundry-run" type="button" onClick={() => void invokeTool()}>{tool.capabilityKind === "MUTATION" ? "REQUEST FRESH COMMIT" : tool.name === "prepare_weekly_promotional_email_campaign" ? "PREPARE THIS WEEK'S DRAFTS" : "RUN READ"}</button>
             {invocation ? <div className={`foundry-invocation ${invocation.status === "BLOCKED_NO_AUTHORITY" ? "is-blocked" : ""}`}>
               <b>{invocation.status.replaceAll("_", " ")}</b>
@@ -411,13 +422,12 @@ export default function FoundryPage() {
                   <span className="foundry-state">X-NODE BUILD BRIEF · COMPLETE</span>
                   <dl><div><dt>Profile</dt><dd>Foundry Profile v{profile.version}</dd></div><div><dt>Audience</dt><dd>Foundry mock customer directory</dd></div><div><dt>Mode</dt><dd>{invocation.result.brief.deliveryMode.replaceAll("_", " ")}</dd></div><div><dt>Voice</dt><dd>{invocation.result.brief.voice}</dd></div><div><dt>Style</dt><dd>{invocation.result.brief.style}</dd></div><div><dt>Sender</dt><dd>{invocation.result.brief.sender}</dd></div><div><dt>Offer</dt><dd>{invocation.result.brief.offer}</dd></div><div><dt>Audit</dt><dd>{invocation.result.brief.auditRequired ? "REQUIRED" : "NOT REQUIRED"}</dd></div></dl>
                 </section>
-                <section className="foundry-email-preview">
-                  <span className="foundry-state">PERSONALIZED PROMOTION · DRAFT EXAMPLE</span>
-                  <dl><div><dt>From</dt><dd>{invocation.result.brief.sender}</dd></div><div><dt>To</dt><dd>{invocation.result.recipients[0].name} &lt;{invocation.result.recipients[0].email}&gt;</dd></div><div><dt>Subject</dt><dd>{invocation.result.recipients[0].subject}</dd></div></dl>
-                  <div className="foundry-email-body"><p>Hi {invocation.result.recipients[0].name},</p><p>In a <b>{invocation.result.brief.voice.toLowerCase()}</b> voice: your approved promotion is <b>{invocation.result.brief.offer}</b>.</p><p>Style: {invocation.result.brief.style}.</p><span>SHOP THE OFFER →</span><p>— The {profile.companyName} team</p></div>
-                </section>
-                <ol>{invocation.result.recipients.slice(0, 6).map((recipient) => <li key={recipient.customerId}><b>{recipient.name}</b> · {recipient.segment}<br /><span>{recipient.email}</span><br />“{recipient.subject}”</li>)}</ol>
-                <p className="foundry-campaign-more">Showing 6 personalized examples · {invocation.result.recipients.length - 6} additional prepared recipients</p>
+                {selectedCampaignRecipient ? <section className="foundry-email-preview">
+                  <span className="foundry-state">PERSONALIZED PROMOTION · DRAFT REVIEW</span>
+                  <label className="foundry-label" htmlFor="campaign-recipient">Prepared recipient<select id="campaign-recipient" value={selectedCampaignRecipient.customerId} onChange={(event) => setSelectedCampaignRecipientId(event.target.value)}>{invocation.result.recipients.map((recipient) => <option key={recipient.customerId} value={recipient.customerId}>{recipient.name} · {recipient.segment} · {recipient.email}</option>)}</select></label>
+                  <dl><div><dt>From</dt><dd>{invocation.result.brief.sender}</dd></div><div><dt>To</dt><dd>{selectedCampaignRecipient.name} &lt;{selectedCampaignRecipient.email}&gt;</dd></div><div><dt>Why selected</dt><dd>Approved {selectedCampaignRecipient.segment.toLowerCase()} customer segment</dd></div><div><dt>Subject</dt><dd>{selectedCampaignRecipient.subject}</dd></div></dl>
+                  <div className="foundry-email-body"><p>Hi {selectedCampaignRecipient.name},</p><p>In a <b>{invocation.result.brief.voice.toLowerCase()}</b> voice: your approved promotion is <b>{invocation.result.brief.offer}</b>.</p><p>Style: {invocation.result.brief.style}.</p><span>SHOP THE OFFER →</span><p>— {invocation.result.brief.sender}</p></div>
+                </section> : null}
                 <section className="foundry-email-path">
                   <span className="foundry-state">EMAIL DELIVERY · NOT CONNECTED</span>
                   <p>When an approved email account is connected, this same tool can submit a prepared batch only after a fresh Commit binds its exact sender, recipients, content, and scheduled time.</p>
