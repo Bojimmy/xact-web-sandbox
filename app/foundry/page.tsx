@@ -351,7 +351,7 @@ export default function FoundryPage() {
                 <span className="foundry-state">{businessWorkspace.title.toUpperCase()} · PUBLIC-SAFE DEMO DATA</span>
                 <section className="foundry-business-stats">{businessWorkspace.summary.map((item) => <div key={item.label}><span>{item.label}</span><strong>{item.value}</strong><small>{item.detail}</small></div>)}</section>
                 <div className="foundry-business-table"><table><thead><tr>{businessWorkspace.columns.map((column) => <th key={column}>{column.replaceAll("_", " ")}</th>)}</tr></thead><tbody>{businessWorkspace.rows.map((row, index) => <tr key={`${businessWorkspace.kind}-${index}`}>{businessWorkspace.columns.map((column) => <td key={column}>{row[column] ?? "—"}</td>)}</tr>)}</tbody></table></div>
-                <p className="foundry-pending">This is a deterministic read from the Foundry’s public-safe business workspace. It does not write to a CRM, support system, dispatch platform, or campaign provider.</p>
+                <p className="foundry-pending"><b>Current demo:</b> deterministic public-safe Foundry data, with no external system connection. <b>Production path:</b> this same governed tool can read an approved authenticated CRM, support, dispatch, analytics, or campaign substrate. Any write, send, assignment, or other consequence still requires a fresh exact Commit.</p>
               </section> : isCampaignPreparation(invocation.result) ? <section className="foundry-campaign">
                 <span className="foundry-state">{invocation.result.status.replaceAll("_", " ")}</span>
                 <h3>{invocation.result.campaign}</h3>
