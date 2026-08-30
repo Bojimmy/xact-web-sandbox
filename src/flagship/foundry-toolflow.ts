@@ -8,6 +8,7 @@ export interface ToolflowStage {
   readonly label: string;
   readonly state: ToolflowStageState;
   readonly detail: string;
+  readonly events: readonly FoundryActivity[];
 }
 
 const STAGES: readonly { id: ToolflowStageId; label: string; types: readonly FoundryEventType[] }[] = [
@@ -36,12 +37,13 @@ export function projectFoundryToolflow(
 ): readonly ToolflowStage[] {
   return STAGES.map((stage) => {
     if (stage.id === "RUN") {
-      if (!invocation) return { ...stage, state: "WAITING", detail: "No tool invocation has occurred." };
+      if (!invocation) return { ...stage, state: "WAITING", detail: "No tool invocation has occurred.", events: [] };
       const blocked = invocation.status === "BLOCKED_NO_AUTHORITY";
       return {
         ...stage,
         state: blocked ? "BLOCKED" : "COMPLETE",
         detail: blocked ? "Runtime blocked the consequence before it ran." : `Runtime returned ${invocation.status.replaceAll("_", " ")}.`,
+        events: [],
       };
     }
     const events = activity.filter((event) => stage.types.includes(event.type));
@@ -50,6 +52,7 @@ export function projectFoundryToolflow(
       ...stage,
       state: stateFor(events),
       detail: latest?.detail ?? "Not emitted by the current run.",
+      events,
     };
   });
 }

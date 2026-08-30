@@ -10,6 +10,7 @@ test("toolflow lights only lifecycle stages emitted by the actual activity strea
   assert.equal(stages.find((stage) => stage.id === "INTENT")?.state, "COMPLETE");
   assert.equal(stages.find((stage) => stage.id === "BOUNDARY")?.state, "COMPLETE");
   assert.equal(stages.find((stage) => stage.id === "BUILD")?.state, "COMPLETE");
+  assert.equal(stages.find((stage) => stage.id === "BOUNDARY")?.events.length, 2);
   assert.equal(stages.find((stage) => stage.id === "HOST")?.state, "WAITING");
   assert.equal(stages.find((stage) => stage.id === "RUN")?.state, "WAITING");
 });
@@ -19,4 +20,5 @@ test("toolflow preserves blocked and unmeasured states instead of fabricating pr
   assert.equal(stages.find((stage) => stage.id === "REASON")?.state, "BLOCKED");
   assert.equal(stages.find((stage) => stage.id === "RUN")?.state, "BLOCKED");
   assert.equal(stages.find((stage) => stage.id === "COMMIT")?.state, "WAITING");
+  assert.equal(stages.find((stage) => stage.id === "RUN")?.events.length, 0);
 });
