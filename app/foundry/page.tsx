@@ -54,7 +54,6 @@ function browserWebMCPHost(): FoundryWebMCPHost {
 
 export default function FoundryPage() {
   const [draft, setDraft] = useState("");
-  const [reply, setReply] = useState("");
   const [pendingIntent, setPendingIntent] = useState<string>();
   const [pendingSubstrate, setPendingSubstrate] = useState("FOUNDRY_CUSTOMER_DIRECTORY");
   const [pendingMode, setPendingMode] = useState("ON_DEMAND_SNAPSHOT");
@@ -117,10 +116,7 @@ export default function FoundryPage() {
         setActivity((current) => [...current, { type: "REGISTER", label: "Foundry shelf", detail: `Added "${builtTool.name}" to the Foundry's internal tool shelf.`, status: "PASS" }]);
       }
       if (next.outcome === "NEEDS_INPUT" || next.outcome === "PENDING_GOVERNANCE") setPendingIntent(intent);
-      else {
-        setPendingIntent(undefined);
-        setReply("");
-      }
+      else setPendingIntent(undefined);
     } catch {
       setError("LIVE REASONING UNAVAILABLE — Xact did not substitute a simulated result.");
       setPendingIntent(undefined);
@@ -133,16 +129,27 @@ export default function FoundryPage() {
     const intent = draft.trim();
     if (!intent) return;
     setDraft("");
-    setTurns([]);
     setActivity([]);
     setResult(undefined);
     await converse(intent, intent);
   }
 
   async function answerClarification() {
-    if (!pendingIntent || !reply.trim()) return;
-    const answer = reply.trim();
+    if (!pendingIntent || !draft.trim()) return;
+    const answer = draft.trim();
+    setDraft("");
     await converse(`${pendingIntent}\n${answer}`, answer);
+  }
+
+  function resetConversation() {
+    setDraft("");
+    setPendingIntent(undefined);
+    setTurns([]);
+    setActivity([]);
+    setResult(undefined);
+    setInvocation(undefined);
+    setInvocationError(undefined);
+    setError(undefined);
   }
 
   async function supplyBuildRequirements() {
@@ -223,22 +230,18 @@ export default function FoundryPage() {
     <header className="foundry-top"><Link href="/">XACT</Link><span>WEBMCP FOUNDRY</span><strong>The O-Agent understands. Xact decides what may become real.</strong></header>
     <section className="foundry-grid">
       <section className="foundry-panel foundry-conversation">
-        <p className="foundry-kicker">O-AGENT · XACT LIAISON</p><h2>What should your agent be able to do?</h2>
-        <p className="foundry-empty">It interprets your request and asks for missing bounds. Xact—not the conversation—governs construction, authority, and Commit.</p>
+        <p className="foundry-kicker">BOSS CHAT · O-AGENT LIAISON</p><h2>Tell the Boss what tool you need.</h2>
+        <p className="foundry-empty">The Boss understands your request, asks for missing bounds, and explains refusals. Xact—not chat—governs construction, authority, and Commit.</p>
         <div className="foundry-transcript" aria-live="polite">
-          {!turns.length ? <p className="foundry-empty">Start with a real request. The liaison will distinguish what it understands, what it needs, and what Xact can actually construct.</p> : turns.map((turn, index) => <article className={`foundry-turn foundry-turn-${turnTone(turn.kind)}`} key={`${turn.kind}-${index}`}>
+          {!turns.length ? <p className="foundry-empty">Describe the WebMCP tool you want. The Boss will distinguish what it understands, what it needs, and what Xact can actually construct.</p> : turns.map((turn, index) => <article className={`foundry-turn foundry-turn-${turnTone(turn.kind)}`} key={`${turn.kind}-${index}`}>
             <span>{turn.speaker === "user" ? "YOU" : `XACT · ${turn.kind.replaceAll("_", " ")}`}</span>
             <p>{turn.text}</p>
             {turn.resolved?.length ? <small>RESOLVED · {turn.resolved.join(" · ")}</small> : null}
             {turn.unresolved?.length ? <small>UNRESOLVED · {turn.unresolved.join(" · ")}</small> : null}
             {turn.questions?.length ? <ul>{turn.questions.map((question) => <li key={question}>{question}</li>)}</ul> : null}
           </article>)}</div>
-        {pendingIntent && clarification ? <>
-          <label className="foundry-label" htmlFor="foundry-clarification">Reply with the requested bounds</label>
-          <textarea id="foundry-clarification" value={reply} onChange={(event) => setReply(event.target.value)} rows={3} placeholder={clarification.questions?.join(" ")} />
-          <button className="foundry-build" type="button" onClick={() => void answerClarification()} disabled={busy || !reply.trim()}>{busy ? "XACT IS CHECKING…" : "CONTINUE WITH XACT"}</button>
-        </> : pending ? <>
-          <p className="foundry-empty">Give Xact the bounded information it needs. It re-enters the build only when that information maps to an approved read capability.</p>
+        {pending ? <>
+          <p className="foundry-empty">The Boss can keep explaining the boundary. Xact re-enters the build only when the answer maps to an approved capability and substrate.</p>
           <label className="foundry-label" htmlFor="foundry-substrate">Approved read substrate</label>
           <select id="foundry-substrate" value={pendingSubstrate} onChange={(event) => setPendingSubstrate(event.target.value)}>
             <option value="FOUNDRY_CUSTOMER_DIRECTORY">Foundry customer directory (public-safe demo data)</option>
@@ -250,12 +253,14 @@ export default function FoundryPage() {
           </select>
           {pendingMode === "NOTIFICATION" ? <p className="foundry-error">Notifications need a governed delivery primitive. Xact will not pretend the current read tool can send them.</p> : null}
           <button className="foundry-build" type="button" onClick={() => void supplyBuildRequirements()} disabled={busy || pendingMode !== "ON_DEMAND_SNAPSHOT"}>{busy ? "XACT IS BUILDING…" : "GIVE XACT WHAT IT NEEDS → BUILD"}</button>
-        </> : <>
-          <label className="foundry-label" htmlFor="foundry-intent">Your request</label>
-          <textarea id="foundry-intent" value={draft} onChange={(event) => setDraft(event.target.value)} rows={4} placeholder="Describe a WebMCP capability…" />
+        </> : null}
+        <section className="foundry-chat-composer" aria-label="Message the Boss">
+          <label className="foundry-label" htmlFor="foundry-intent">{pendingIntent ? "Reply to the Boss" : "Message the Boss"}</label>
+          <textarea id="foundry-intent" value={draft} onChange={(event) => setDraft(event.target.value)} rows={4} placeholder={clarification?.questions?.join(" ") ?? (pending ? "Ask why this boundary exists, or supply a governed requirement…" : "Describe the WebMCP tool you want to build…")} />
           {!turns.length ? <div className="foundry-suggestions">{EXAMPLES.map((example) => <button key={example} type="button" onClick={() => setDraft(example)}>{example}</button>)}</div> : null}
-          <button className="foundry-build" type="button" onClick={() => void begin()} disabled={busy || !draft.trim()}>{busy ? "XACT IS THINKING…" : "ASK XACT"}</button>
-        </>}
+          <button className="foundry-build" type="button" onClick={() => void (pendingIntent ? answerClarification() : begin())} disabled={busy || !draft.trim()}>{busy ? "BOSS IS CHECKING…" : pendingIntent ? "SEND ANSWER TO BOSS" : "SEND TO BOSS"}</button>
+          {turns.length ? <button className="foundry-new-conversation" type="button" onClick={resetConversation}>NEW TOOL REQUEST</button> : null}
+        </section>
         {buildElapsedMs !== undefined ? <p className="foundry-build-time">{tool ? `TOOL BUILD TIME · ${(buildElapsedMs / 1000).toFixed(2)}s` : `XACT FINISHED IN · ${(buildElapsedMs / 1000).toFixed(2)}s`}</p> : null}
         {error ? <p className="foundry-error">{error}</p> : null}
       </section>
