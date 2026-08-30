@@ -126,6 +126,25 @@ test("a bounded active-user and request snapshot is a governed read capability",
   assert.ok(!result.activity.some((a) => a.type === "REASON_STARTED"));
 });
 
+test("business workspace requests build deterministic governed READ tools", async () => {
+  const liaison = new XactFoundryLiaison(liveProvider());
+  const requests = [
+    ["Build a WebMCP tool to read the field work-order queue", "get_work_order_queue"],
+    ["Build a WebMCP tool for the customer support queue", "get_customer_support_queue"],
+    ["Build a WebMCP tool for customer account health", "get_customer_health_summary"],
+    ["Build a WebMCP tool for a weekly business operations report", "get_business_operations_report"],
+    ["Build a WebMCP tool for the promotion campaign dashboard", "get_campaign_dashboard"],
+  ] as const;
+
+  for (const [request, name] of requests) {
+    const result = await liaison.buildCapability(request);
+    assert.equal(result.outcome, "COMPOSED_DEFINITION");
+    assert.equal(result.tool?.name, name);
+    assert.equal(result.tool?.capabilityKind, "READ");
+    assert.ok(!result.activity.some((event) => event.type === "REASON_STARTED"));
+  }
+});
+
 test("a promotional-email request builds a preparation tool, not an email delivery tool", async () => {
   const result = await new XactFoundryLiaison(liveProvider()).buildCapability(
     "Build a weekly promotional email campaign with personalized drafts",

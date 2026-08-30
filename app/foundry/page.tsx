@@ -8,6 +8,7 @@ import { WebMCPDispatchRegistry } from "../../src/execution/webmcp-dispatch";
 import { createMutationCommitEngine } from "../../src/flagship/foundry-mutation-commit";
 import { FoundryRuntime, FoundryToolRegistry, type FoundryInvocationResult } from "../../src/flagship/foundry-runtime";
 import { preparePromotionalEmailCampaign, type CampaignPreparation } from "../../src/flagship/promotional-campaign-nodes";
+import { readCampaignDashboard, readCustomerHealth, readOperationsReport, readSupportQueue, readWorkOrderQueue, type BusinessWorkspaceResult } from "../../src/flagship/business-workspace";
 import type { FoundryActivity } from "../../src/flagship/foundry-liaison";
 import type { FoundryWebMCPHost } from "../../src/flagship/webmcp-host-registration";
 import type { WebMCPToolDefinition } from "../../src/flagship/webmcp-tool-builder";
@@ -16,6 +17,8 @@ type ConversationTurn = XactTurn & { speaker?: "user" };
 
 const EXAMPLES = [
   "Build a WebMCP tool that shows active users and open support requests",
+  "Build a WebMCP tool to read the field work-order queue",
+  "Build a WebMCP tool for a weekly business operations report",
   "Build a weekly promotional email campaign with personalized drafts",
   "Let support agents issue a service credit up to $25",
   "Find customers by email",
@@ -28,6 +31,10 @@ const CUSTOMER_DIRECTORY = Object.freeze([
 
 function isCampaignPreparation(value: unknown): value is CampaignPreparation {
   return Boolean(value && typeof value === "object" && (value as { status?: unknown }).status === "DRAFTS_PREPARED_NO_SEND_AUTHORITY");
+}
+
+function isBusinessWorkspaceResult(value: unknown): value is BusinessWorkspaceResult {
+  return Boolean(value && typeof value === "object" && (value as { source?: unknown }).source === "FOUNDRY_PUBLIC_SAFE_BUSINESS_WORKSPACE");
 }
 
 type AppliedEffect = { customerId?: string; tool: string; amount?: number; receipt: string; event?: string; recordedAt?: string };
@@ -88,7 +95,7 @@ export default function FoundryPage() {
   }, [busy]);
 
   function selectTool(nextTool: WebMCPToolDefinition) {
-    setInvocationInput(Object.fromEntries(nextTool.inputSchema.required.map((field) => [field, field === "email" ? "ada@example.com" : field === "amount" ? "25" : ""])));
+    setInvocationInput(Object.fromEntries(nextTool.inputSchema.required.map((field) => [field, field === "email" ? "ada@example.com" : field === "amount" ? "25" : field === "customerId" ? "1042" : ""])));
     setActor("SERVICE_RECOVERY");
     setConfirmation(false);
     setInvocation(undefined);
@@ -231,6 +238,15 @@ export default function FoundryPage() {
             const openSupportRequests = CUSTOMER_DIRECTORY.reduce((count, customer) => count + customer.openRequests, 0);
             return { activeUsers, openSupportRequests, source: "Foundry customer directory", mode: "ON_DEMAND_SNAPSHOT" };
           }
+          if (readTool.name === "get_work_order_queue") return readWorkOrderQueue();
+          if (readTool.name === "get_customer_support_queue") return readSupportQueue();
+          if (readTool.name === "get_customer_health_summary") {
+            const customerId = typeof values.customerId === "string" ? values.customerId.trim() : "";
+            if (!customerId) throw new Error("Missing required input: customerId.");
+            return readCustomerHealth(customerId);
+          }
+          if (readTool.name === "get_business_operations_report") return readOperationsReport();
+          if (readTool.name === "get_campaign_dashboard") return readCampaignDashboard();
           if (readTool.name === "prepare_weekly_promotional_email_campaign") {
             return preparePromotionalEmailCampaign();
           }
@@ -256,6 +272,7 @@ export default function FoundryPage() {
   const pending = result?.outcome === "PENDING_GOVERNANCE";
   const tool = selectedExistingTool ?? result?.tool;
   const campaignPreparation = isCampaignPreparation(invocation?.result) ? invocation.result : undefined;
+  const businessWorkspace = isBusinessWorkspaceResult(invocation?.result) ? invocation.result : undefined;
 
   return <main className="foundry">
     <header className="foundry-top"><Link href="/">XACT</Link><span>WEBMCP FOUNDRY</span><strong>The O-Agent understands. Xact decides what may become real.</strong></header>
@@ -330,7 +347,12 @@ export default function FoundryPage() {
             <button className="foundry-build foundry-run" type="button" onClick={() => void invokeTool()}>{tool.capabilityKind === "MUTATION" ? "REQUEST FRESH COMMIT" : tool.name === "prepare_weekly_promotional_email_campaign" ? "PREPARE THIS WEEK'S DRAFTS" : "RUN READ"}</button>
             {invocation ? <div className={`foundry-invocation ${invocation.status === "BLOCKED_NO_AUTHORITY" ? "is-blocked" : ""}`}>
               <b>{invocation.status.replaceAll("_", " ")}</b>
-              {isCampaignPreparation(invocation.result) ? <section className="foundry-campaign">
+              {businessWorkspace ? <section className="foundry-business-workspace">
+                <span className="foundry-state">{businessWorkspace.title.toUpperCase()} · PUBLIC-SAFE DEMO DATA</span>
+                <section className="foundry-business-stats">{businessWorkspace.summary.map((item) => <div key={item.label}><span>{item.label}</span><strong>{item.value}</strong><small>{item.detail}</small></div>)}</section>
+                <div className="foundry-business-table"><table><thead><tr>{businessWorkspace.columns.map((column) => <th key={column}>{column.replaceAll("_", " ")}</th>)}</tr></thead><tbody>{businessWorkspace.rows.map((row, index) => <tr key={`${businessWorkspace.kind}-${index}`}>{businessWorkspace.columns.map((column) => <td key={column}>{row[column] ?? "—"}</td>)}</tr>)}</tbody></table></div>
+                <p className="foundry-pending">This is a deterministic read from the Foundry’s public-safe business workspace. It does not write to a CRM, support system, dispatch platform, or campaign provider.</p>
+              </section> : isCampaignPreparation(invocation.result) ? <section className="foundry-campaign">
                 <span className="foundry-state">{invocation.result.status.replaceAll("_", " ")}</span>
                 <h3>{invocation.result.campaign}</h3>
                 <p><b>Rotation:</b> {invocation.result.rotation}<br /><b>Next preparation:</b> {invocation.result.nextRun}</p>
