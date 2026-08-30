@@ -11,11 +11,13 @@ export function FoundryRunExplainer({
   tool,
   activity,
   invocation,
+  buildElapsedMs,
 }: Readonly<{
   prompt?: string;
   tool?: WebMCPToolDefinition;
   activity: readonly FoundryActivity[];
   invocation?: FoundryInvocationResult;
+  buildElapsedMs?: number;
 }>) {
   const prepared = useMemo(
     () => prepareFoundryRunExplainer({ prompt, tool, activity, invocation }),
@@ -64,7 +66,7 @@ export function FoundryRunExplainer({
     {slideOpen ? <div className="foundry-slide-backdrop" role="presentation" onMouseDown={() => setSlideOpen(false)}><section className="foundry-explainer-slide" role="dialog" aria-modal="true" aria-labelledby="foundry-slide-title" onMouseDown={(event) => event.stopPropagation()}>
       <header><div><span>STEP {String(selectedIndex + 1).padStart(2, "0")} / {String(stages.length).padStart(2, "0")}</span><b>{selected.label}</b></div><button type="button" aria-label="Close explanation" onClick={() => setSlideOpen(false)}>×</button></header>
       <div className="foundry-slide-progress" aria-hidden="true">{stages.map((stage, index) => <i key={stage.id} data-active={index === selectedIndex} data-measured={Boolean(stage.card)} />)}</div>
-      {selected.id === "summary" ? <><h3 id="foundry-slide-title">WHAT THIS RUN PROVED</h3><strong>{reasoningOccurred ? "This run included O-Agent reasoning where deterministic matching ended." : "No O-Agent reasoning occurred to build or run this tool."}</strong><p>{reasoningOccurred ? "Reasoning activity was recorded in the earlier slides. Xact still governed the construction and any consequence." : "The governed tool construction and its read-only run were deterministic. No O-Agent token spend was recorded for this run."}</p><small>EVIDENCE · activity stream and runtime audit for this run</small></> : selectedCard ? <><h3 id="foundry-slide-title">{selectedCard.title}</h3><strong>{selectedCard.facts.find((fact) => fact.role === "PRIMARY")?.text}</strong>{selectedCard.facts.filter((fact) => fact.role === "SUPPORTING").length ? <ul>{selectedCard.facts.filter((fact) => fact.role === "SUPPORTING").map((fact, index) => <li key={`${fact.text}-${index}`}>{fact.text}</li>)}</ul> : null}<small>EVIDENCE · {selectedCard.evidenceRefs.join(" · ") || "No additional event record"}</small></> : <><h3 id="foundry-slide-title">NOT MEASURED IN THIS RUN</h3><strong>This step did not occur.</strong><p>Run the tool or complete the preceding governed step before Xact can make a claim here.</p></>}
+      {selected.id === "summary" ? <><h3 id="foundry-slide-title">WHAT THIS RUN PROVED</h3><strong>{reasoningOccurred ? "This run included O-Agent reasoning where deterministic matching ended." : "No O-Agent reasoning occurred to build or run this tool."}</strong><p>{reasoningOccurred ? "Reasoning activity was recorded in the earlier slides. Xact still governed the construction and any consequence." : "The Boss relayed the governed descriptor to Xact Nodes, which composed the tool deterministically. No O-Agent token spend was recorded for this run."}</p>{buildElapsedMs !== undefined ? <div className="foundry-slide-timing"><span>REQUEST → BUILT TOOL</span><b>{(buildElapsedMs / 1000).toFixed(2)}s</b><small>Measured from SEND TO BOSS until the Foundry completed the tool response.</small></div> : null}<small>EVIDENCE · activity stream and runtime audit for this run</small></> : selectedCard ? <><h3 id="foundry-slide-title">{selectedCard.title}</h3><strong>{selectedCard.facts.find((fact) => fact.role === "PRIMARY")?.text}</strong>{selectedCard.facts.filter((fact) => fact.role === "SUPPORTING").length ? <ul>{selectedCard.facts.filter((fact) => fact.role === "SUPPORTING").map((fact, index) => <li key={`${fact.text}-${index}`}>{fact.text}</li>)}</ul> : null}<small>EVIDENCE · {selectedCard.evidenceRefs.join(" · ") || "No additional event record"}</small></> : <><h3 id="foundry-slide-title">NOT MEASURED IN THIS RUN</h3><strong>This step did not occur.</strong><p>Run the tool or complete the preceding governed step before Xact can make a claim here.</p></>}
       <footer><button type="button" onClick={() => moveSlide(-1)} disabled={selectedIndex === 0}>← PREVIOUS</button><button type="button" onClick={() => moveSlide(1)} disabled={selectedIndex === stages.length - 1}>NEXT →</button></footer>
     </section></div> : null}
   </section>;

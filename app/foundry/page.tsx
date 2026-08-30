@@ -424,6 +424,6 @@ export default function FoundryPage() {
         </> : <><h2>No artifact yet</h2><p className="foundry-empty">A governed, inert definition appears here only when Xact actually composes one.</p></>}
       </section>
     </section>
-    <FoundryRunExplainer prompt={turns.find((turn) => turn.speaker === "user")?.text} tool={tool} activity={activity} invocation={invocation} />
+    <FoundryRunExplainer prompt={turns.find((turn) => turn.speaker === "user")?.text} tool={tool} activity={activity} invocation={invocation} buildElapsedMs={buildElapsedMs} />
   </main>;
 }
