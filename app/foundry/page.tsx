@@ -84,6 +84,7 @@ export default function FoundryPage() {
   const [selectedCampaignRecipientId, setSelectedCampaignRecipientId] = useState<string>();
   const [busy, setBusy] = useState(false);
   const [buildElapsedMs, setBuildElapsedMs] = useState<number>();
+  const [liveReasoningBudget, setLiveReasoningBudget] = useState<{ maximum: number; used: number; remaining: number }>();
   const [error, setError] = useState<string>();
   const appliedEffects = useRef<AppliedEffect[]>([...SEEDED_AUDIT_HISTORY]);
   const buildStartedAt = useRef<number | undefined>(undefined);
@@ -100,6 +101,25 @@ export default function FoundryPage() {
       buildStartedAt.current = undefined;
     }
   }, [busy]);
+
+  async function refreshLiveReasoningBudget() {
+    try {
+      const response = await fetch("/api/o-agent/budget", { cache: "no-store" });
+      if (!response.ok) return;
+      const next = await response.json() as { maximum?: unknown; used?: unknown; remaining?: unknown };
+      if (typeof next.maximum === "number" && typeof next.used === "number" && typeof next.remaining === "number") {
+        setLiveReasoningBudget({ maximum: next.maximum, used: next.used, remaining: next.remaining });
+      }
+    } catch {
+      // The server remains the authority. A missing display counter must not
+      // weaken the route's identity-bound quota check.
+    }
+  }
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => { void refreshLiveReasoningBudget(); }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   function selectTool(nextTool: WebMCPToolDefinition) {
     setInvocationInput(Object.fromEntries(nextTool.inputSchema.required.map((field) => [field, field === "email" ? "ada@example.com" : field === "amount" ? "25" : field === "customerId" ? "1042" : ""])));
@@ -139,11 +159,14 @@ export default function FoundryPage() {
       }
       if (next.outcome === "NEEDS_INPUT" || next.outcome === "PENDING_GOVERNANCE") setPendingIntent(intent);
       else setPendingIntent(undefined);
-    } catch {
-      setError("LIVE REASONING UNAVAILABLE — Xact did not substitute a simulated result.");
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : "";
+      if (message.includes("(429)")) setError("LIVE BOSS REASONING ALLOWANCE EXHAUSTED — deterministic tools remain available, but Xact will not substitute a simulated answer.");
+      else setError("LIVE REASONING UNAVAILABLE — Xact did not substitute a simulated result.");
       setPendingIntent(undefined);
     } finally {
       setBusy(false);
+      void refreshLiveReasoningBudget();
     }
   }
 
@@ -317,6 +340,7 @@ export default function FoundryPage() {
       <section className="foundry-panel foundry-conversation">
         <p className="foundry-kicker">BOSS CHAT · O-AGENT LIAISON</p><h2>Tell the Boss what tool you need.</h2>
         <p className="foundry-empty">The Boss understands your request, asks for missing bounds, and explains refusals. Xact—not chat—governs construction, authority, and Commit.</p>
+        <p className="foundry-live-budget" aria-live="polite">{liveReasoningBudget ? <>LIVE BOSS REASONING · <b>{liveReasoningBudget.remaining} / {liveReasoningBudget.maximum} AVAILABLE</b><span>Identity-bound judge allowance. Consumed only when the Boss actually reasons.</span></> : "LIVE BOSS REASONING · CHECKING JUDGE ALLOWANCE…"}</p>
         <div className="foundry-transcript" aria-live="polite">
           {!turns.length ? <p className="foundry-empty">Describe the WebMCP tool you want. The Boss will distinguish what it understands, what it needs, and what Xact can actually construct.</p> : turns.map((turn, index) => <article className={`foundry-turn foundry-turn-${turnTone(turn.kind)}`} key={`${turn.kind}-${index}`}>
             <span>{turn.speaker === "user" ? "YOU" : `XACT · ${turn.kind.replaceAll("_", " ")}`}</span>

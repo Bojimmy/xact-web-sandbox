@@ -1,10 +1,26 @@
 import type { ReasoningRequest } from "../../../src/telemetry/o-agent-provider";
+import { env } from "cloudflare:workers";
+import { JudgeLiveReasoningBudgetStore } from "../../../src/server/judge-live-reasoning-budget";
+import { LiveReasoningAllowanceExhaustedError, MissingJudgeIdentityError, invokeWithLiveReasoningAllowance } from "../../../src/server/live-reasoning-quota-gate";
 
 const MAX_UNRESOLVED_FIELDS = 50;
 const MAX_CONTEXT_BYTES = 8_000;
 
 function response(body: unknown, status = 200): Response {
   return Response.json(body, { status, headers: { "cache-control": "no-store" } });
+}
+
+function responseWithRemaining(body: unknown, remaining: number, status = 200): Response {
+  return Response.json(body, {
+    status,
+    headers: { "cache-control": "no-store", "x-oagent-remaining": String(remaining) },
+  });
+}
+
+function budgetStore(): JudgeLiveReasoningBudgetStore {
+  const db = (env as unknown as { DB?: D1Database }).DB;
+  if (!db) throw new Error("Live reasoning budget storage is unavailable.");
+  return new JudgeLiveReasoningBudgetStore(db);
 }
 
 function isReasoningRequest(value: unknown): value is ReasoningRequest {
@@ -32,16 +48,25 @@ export async function POST(request: Request): Promise<Response> {
   if (!gatewayUrl || !gatewayToken) return response({ error: "Live O-Agent is not configured; use the labeled simulation fallback." }, 503);
 
   try {
-    const upstream = await fetch(gatewayUrl, {
-      method: "POST",
-      headers: { "content-type": "application/json", authorization: `Bearer ${gatewayToken}` },
-      body: JSON.stringify(body),
-      cache: "no-store",
-    });
-    if (!upstream.ok) return response({ error: "Live O-Agent gateway failed closed." }, 502);
-    const payload = await upstream.json();
-    return response(payload);
-  } catch {
+    const result = await invokeWithLiveReasoningAllowance(
+      request.headers.get("oai-authenticated-user-id"),
+      budgetStore(),
+      async () => {
+        const upstream = await fetch(gatewayUrl, {
+          method: "POST",
+          headers: { "content-type": "application/json", authorization: `Bearer ${gatewayToken}` },
+          body: JSON.stringify(body),
+          cache: "no-store",
+        });
+        if (!upstream.ok) throw new Error("Live O-Agent gateway failed closed.");
+        return upstream.json();
+      },
+    );
+    return responseWithRemaining(result.value, result.remaining);
+  } catch (cause) {
+    if (cause instanceof MissingJudgeIdentityError) return response({ error: cause.message }, 401);
+    if (cause instanceof LiveReasoningAllowanceExhaustedError) return response({ error: cause.message }, 429);
+    if (cause instanceof Error && cause.message === "Live reasoning budget storage is unavailable.") return response({ error: cause.message }, 503);
     return response({ error: "Live O-Agent gateway is unavailable." }, 502);
   }
 }
