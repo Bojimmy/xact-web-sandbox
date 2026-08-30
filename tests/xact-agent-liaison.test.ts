@@ -48,6 +48,25 @@ test("the Boss finds a matching registered tool before it rebuilds", () => {
   assert.equal(agent().findExistingTool("Build a tool to find customers by email", [existing]), undefined);
 });
 
+test("the Boss does not reuse a tool with a different governed limit", () => {
+  const existing = composeWebMCPTool(describeCapability({
+    id: "issue_service_credit",
+    capabilityKind: "MUTATION",
+    label: "Issue customer service credit",
+    inputs: ["customerId", "amount", "reason"],
+    resolves: ["credit-applied"],
+    boundaries: [
+      { primitive: "ACTOR_BINDING", description: "actor requires SERVICE_RECOVERY", actor: "SERVICE_RECOVERY" },
+      { primitive: "COMMIT_BOUNDARY", description: "amount must not exceed $25", limit: { operator: "<=", value: 25 } },
+      { primitive: "AUDIT_EVENT", description: "audit event required", auditRequired: true },
+      { primitive: "SESSION_REQUIREMENT", description: "state freshness required", freshnessRequired: true },
+    ],
+  }));
+
+  assert.equal(agent().findExistingTool("Build a tool that lets support agents issue a service credit up to $25", [existing]), existing);
+  assert.equal(agent().findExistingTool("Build a tool that lets support agents issue a service credit up to $100", [existing]), undefined);
+});
+
 test("a request missing both amount and actor asks for both bounds", async () => {
   const turns = await agent().converse("Build a tool that issues a service credit");
 

@@ -11,6 +11,7 @@ import {
   type RegistrationResult,
 } from "./webmcp-host-registration";
 import type { WebMCPToolDefinition } from "./webmcp-tool-builder";
+import { stableFingerprint } from "../xact/authorization-artifact";
 
 /**
  * The Xact Agent — the conversational "boss" liaison (ADR 0019).
@@ -78,7 +79,23 @@ export class XactAgentLiaison {
    */
   findExistingTool(intent: string, shelf: readonly WebMCPToolDefinition[]): WebMCPToolDefinition | undefined {
     const descriptor = decomposeIntent(intent).descriptor;
-    return descriptor ? shelf.find((tool) => tool.name === descriptor.id) : undefined;
+    if (!descriptor) return undefined;
+
+    const requestedContract = stableFingerprint({
+      name: descriptor.id,
+      capabilityKind: descriptor.capabilityKind,
+      requiredInputs: descriptor.inputs,
+      boundaries: descriptor.boundaries,
+      requiresCommit: descriptor.capabilityKind === "MUTATION",
+    });
+
+    return shelf.find((tool) => stableFingerprint({
+      name: tool.name,
+      capabilityKind: tool.capabilityKind,
+      requiredInputs: tool.inputSchema.required,
+      boundaries: tool.boundaries,
+      requiresCommit: tool.requiresCommit,
+    }) === requestedContract);
   }
 
   /** The "understand" decomposition: what is resolved deterministically vs genuine U. */
