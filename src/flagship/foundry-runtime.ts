@@ -54,6 +54,28 @@ export interface FreshCommitResult {
   reason?: string;
 }
 
+/**
+ * A composed tool's schema is part of its governed contract. Validate it at
+ * the host boundary so a blank form value can never turn a scoped READ into a
+ * broad query (or reach a mutation's Commit path).
+ */
+function requireDeclaredInputs(tool: WebMCPToolDefinition, input: unknown): void {
+  if (!input || typeof input !== "object" || Array.isArray(input)) {
+    throw new Error(`Tool ${tool.name} requires an object input.`);
+  }
+
+  const values = input as Record<string, unknown>;
+  for (const field of tool.inputSchema.required) {
+    const value = values[field];
+    const missing = value === undefined
+      || value === null
+      || (typeof value === "string" && value.trim().length === 0);
+    if (missing) {
+      throw new Error(`Missing required input: ${field}.`);
+    }
+  }
+}
+
 export class FoundryRuntime {
   constructor(
     private readonly registry: FoundryToolRegistry,
@@ -71,6 +93,7 @@ export class FoundryRuntime {
     if (!tool) {
       throw new Error(`Tool "${name}" is not on the Foundry shelf.`);
     }
+    requireDeclaredInputs(tool, input);
     const audit: string[] = [];
 
     // READ — deterministic substrate, no consequence, no Commit.

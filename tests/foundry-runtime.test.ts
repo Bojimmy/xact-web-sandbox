@@ -77,6 +77,21 @@ test("a READ tool on the shelf resolves through the deterministic substrate", as
   assert.ok(result.audit.length >= 1);
 });
 
+test("a required READ input cannot silently broaden a query", async () => {
+  const registry = new FoundryToolRegistry();
+  registry.add(readTool());
+  let reads = 0;
+  const runtime = new FoundryRuntime(
+    registry,
+    () => { reads += 1; return { customerId: "1042" }; },
+    () => ({ authorized: false }),
+    () => undefined,
+  );
+
+  await assert.rejects(() => runtime.invoke("find_customer_by_email", { email: "" }), /Missing required input: email/);
+  assert.equal(reads, 0);
+});
+
 test("a MUTATION without a fresh Commit blocks with no effect", async () => {
   const registry = new FoundryToolRegistry();
   registry.add(mutationTool());

@@ -163,7 +163,11 @@ export default function FoundryPage() {
     setInvocation(undefined);
     const input: Record<string, unknown> = {};
     for (const field of tool.inputSchema.required) {
-      const value = invocationInput[field] ?? "";
+      const value = (invocationInput[field] ?? "").trim();
+      if (!value) {
+        setInvocationError(`Required input: ${field}.`);
+        return;
+      }
       input[field] = field === "amount" ? Number(value) : value;
     }
     if (tool.capabilityKind === "MUTATION") {
@@ -180,8 +184,9 @@ export default function FoundryPage() {
             return CUSTOMER_DIRECTORY.find((customer) => customer.email === email) ?? { found: false, email };
           }
           if (readTool.name === "get_audit_history") {
-            const customerId = typeof values.customerId === "string" ? values.customerId : undefined;
-            return appliedEffects.current.filter((effect) => !customerId || effect.customerId === customerId);
+            const customerId = typeof values.customerId === "string" ? values.customerId.trim() : "";
+            if (!customerId) throw new Error("Missing required input: customerId.");
+            return appliedEffects.current.filter((effect) => effect.customerId === customerId);
           }
           if (readTool.name === "read_active_users_and_open_requests") {
             const activeUsers = CUSTOMER_DIRECTORY.filter((customer) => customer.status === "ACTIVE").length;
