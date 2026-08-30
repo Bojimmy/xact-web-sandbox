@@ -3,6 +3,8 @@ import test from "node:test";
 import { XactAgentLiaison } from "../src/flagship/xact-agent-liaison";
 import { XactFoundryLiaison } from "../src/flagship/foundry-liaison";
 import { SecureEndpointOAgentProvider } from "../src/telemetry/o-agent-provider";
+import { composeWebMCPTool } from "../src/flagship/webmcp-tool-builder";
+import { describeCapability } from "../src/flagship/capability-vocabulary";
 
 function liveProvider(): SecureEndpointOAgentProvider {
   return new SecureEndpointOAgentProvider(
@@ -31,6 +33,19 @@ test("a complete request flows understand → propose → build without clarific
   assert.ok(turns[0].text.includes("2 need(s) interpretation"));
   assert.ok(turns[0].text.includes("credit eligibility"));
   assert.equal(turns[2].result?.outcome, "COMPOSED_DEFINITION");
+});
+
+test("the Boss finds a matching registered tool before it rebuilds", () => {
+  const existing = composeWebMCPTool(describeCapability({
+    id: "get_audit_history",
+    capabilityKind: "READ",
+    label: "Read customer audit history",
+    inputs: ["customerId"],
+    resolves: ["service-history"],
+  }));
+
+  assert.equal(agent().findExistingTool("Build a tool to read audit history", [existing]), existing);
+  assert.equal(agent().findExistingTool("Build a tool to find customers by email", [existing]), undefined);
 });
 
 test("a request missing both amount and actor asks for both bounds", async () => {

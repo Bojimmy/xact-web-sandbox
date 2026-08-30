@@ -71,6 +71,16 @@ export interface ConverseAndRegisterResult {
 export class XactAgentLiaison {
   constructor(private readonly foundry: XactFoundryLiaison = new XactFoundryLiaison()) {}
 
+  /**
+   * Checks the governed shelf before construction. This is intentionally a
+   * deterministic name/ontology match: it never invokes reasoning, rebuilds a
+   * capability, or treats a merely proposed definition as reusable.
+   */
+  findExistingTool(intent: string, shelf: readonly WebMCPToolDefinition[]): WebMCPToolDefinition | undefined {
+    const descriptor = decomposeIntent(intent).descriptor;
+    return descriptor ? shelf.find((tool) => tool.name === descriptor.id) : undefined;
+  }
+
   /** The "understand" decomposition: what is resolved deterministically vs genuine U. */
   understand(intent: string): Understanding {
     const d = decomposeIntent(intent);

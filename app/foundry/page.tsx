@@ -10,6 +10,7 @@ import { FoundryRuntime, FoundryToolRegistry, type FoundryInvocationResult } fro
 import { preparePromotionalEmailCampaign, type CampaignPreparation } from "../../src/flagship/promotional-campaign-nodes";
 import type { FoundryActivity } from "../../src/flagship/foundry-liaison";
 import type { FoundryWebMCPHost } from "../../src/flagship/webmcp-host-registration";
+import type { WebMCPToolDefinition } from "../../src/flagship/webmcp-tool-builder";
 
 type ConversationTurn = XactTurn & { speaker?: "user" };
 
@@ -61,6 +62,8 @@ export default function FoundryPage() {
   const [activity, setActivity] = useState<FoundryActivity[]>([]);
   const [result, setResult] = useState<ConverseAndRegisterResult>();
   const [shelf, setShelf] = useState<string[]>([]);
+  const [existingToolOffer, setExistingToolOffer] = useState<WebMCPToolDefinition>();
+  const [selectedExistingTool, setSelectedExistingTool] = useState<WebMCPToolDefinition>();
   const [invocationInput, setInvocationInput] = useState<Record<string, string>>({});
   const [actor, setActor] = useState("SERVICE_RECOVERY");
   const [confirmation, setConfirmation] = useState(false);
@@ -84,10 +87,20 @@ export default function FoundryPage() {
     }
   }, [busy]);
 
+  function selectTool(nextTool: WebMCPToolDefinition) {
+    setInvocationInput(Object.fromEntries(nextTool.inputSchema.required.map((field) => [field, field === "email" ? "ada@example.com" : field === "amount" ? "25" : ""])));
+    setActor("SERVICE_RECOVERY");
+    setConfirmation(false);
+    setInvocation(undefined);
+    setInvocationError(undefined);
+  }
+
   async function converse(intent: string, userText: string) {
     setBusy(true);
     setBuildElapsedMs(undefined);
     setError(undefined);
+    setExistingToolOffer(undefined);
+    setSelectedExistingTool(undefined);
     setTurns((current) => [...current, { kind: "UNDERSTAND", text: userText, speaker: "user" }]);
     try {
       const liaison = new XactAgentLiaison();
@@ -108,11 +121,7 @@ export default function FoundryPage() {
         const builtTool = next.tool;
         registry.current.add(builtTool);
         setShelf(registry.current.list().map((tool) => tool.name));
-        setInvocationInput(Object.fromEntries(builtTool.inputSchema.required.map((field) => [field, field === "email" ? "ada@example.com" : field === "amount" ? "25" : ""])));
-        setActor("SERVICE_RECOVERY");
-        setConfirmation(false);
-        setInvocation(undefined);
-        setInvocationError(undefined);
+        selectTool(builtTool);
         setActivity((current) => [...current, { type: "REGISTER", label: "Foundry shelf", detail: `Added "${builtTool.name}" to the Foundry's internal tool shelf.`, status: "PASS" }]);
       }
       if (next.outcome === "NEEDS_INPUT" || next.outcome === "PENDING_GOVERNANCE") setPendingIntent(intent);
@@ -131,7 +140,27 @@ export default function FoundryPage() {
     setDraft("");
     setActivity([]);
     setResult(undefined);
+    const existing = new XactAgentLiaison().findExistingTool(intent, registry.current.list());
+    if (existing) {
+      setPendingIntent(undefined);
+      setExistingToolOffer(existing);
+      setSelectedExistingTool(undefined);
+      setTurns((current) => [...current,
+        { kind: "UNDERSTAND", text: intent, speaker: "user" },
+        { kind: "UNDERSTAND", text: `I already built and verified "${existing.name}" on the Foundry shelf. Do you want to use that existing governed tool instead of rebuilding it?` },
+      ]);
+      return;
+    }
     await converse(intent, intent);
+  }
+
+  function useExistingTool() {
+    if (!existingToolOffer) return;
+    const existing = existingToolOffer;
+    setExistingToolOffer(undefined);
+    setSelectedExistingTool(existing);
+    selectTool(existing);
+    setTurns((current) => [...current, { kind: "UNDERSTAND", text: `Using the existing "${existing.name}" tool. It remains governed by its original contract.` }]);
   }
 
   async function answerClarification() {
@@ -147,6 +176,8 @@ export default function FoundryPage() {
     setTurns([]);
     setActivity([]);
     setResult(undefined);
+    setExistingToolOffer(undefined);
+    setSelectedExistingTool(undefined);
     setInvocation(undefined);
     setInvocationError(undefined);
     setError(undefined);
@@ -223,7 +254,7 @@ export default function FoundryPage() {
 
   const clarification = [...turns].reverse().find((turn) => turn.kind === "CLARIFY");
   const pending = result?.outcome === "PENDING_GOVERNANCE";
-  const tool = result?.tool;
+  const tool = selectedExistingTool ?? result?.tool;
   const campaignPreparation = isCampaignPreparation(invocation?.result) ? invocation.result : undefined;
 
   return <main className="foundry">
@@ -254,11 +285,17 @@ export default function FoundryPage() {
           {pendingMode === "NOTIFICATION" ? <p className="foundry-error">Notifications need a governed delivery primitive. Xact will not pretend the current read tool can send them.</p> : null}
           <button className="foundry-build" type="button" onClick={() => void supplyBuildRequirements()} disabled={busy || pendingMode !== "ON_DEMAND_SNAPSHOT"}>{busy ? "XACT IS BUILDING…" : "GIVE XACT WHAT IT NEEDS → BUILD"}</button>
         </> : null}
+        {existingToolOffer ? <section className="foundry-existing-tool">
+          <span className="foundry-state">ALREADY ON THE FOUNDRY SHELF</span>
+          <p><b>{existingToolOffer.name}</b> is already registered and verified. Reuse does not rebuild the tool or invoke reasoning.</p>
+          <button className="foundry-build" type="button" onClick={useExistingTool}>USE EXISTING TOOL</button>
+          <button className="foundry-new-conversation" type="button" onClick={() => setExistingToolOffer(undefined)}>REQUEST A DIFFERENT TOOL</button>
+        </section> : null}
         <section className="foundry-chat-composer" aria-label="Message the Boss">
           <label className="foundry-label" htmlFor="foundry-intent">{pendingIntent ? "Reply to the Boss" : "Message the Boss"}</label>
           <textarea id="foundry-intent" value={draft} onChange={(event) => setDraft(event.target.value)} rows={4} placeholder={clarification?.questions?.join(" ") ?? (pending ? "Ask why this boundary exists, or supply a governed requirement…" : "Describe the WebMCP tool you want to build…")} />
           {!turns.length ? <div className="foundry-suggestions">{EXAMPLES.map((example) => <button key={example} type="button" onClick={() => setDraft(example)}>{example}</button>)}</div> : null}
-          <button className="foundry-build" type="button" onClick={() => void (pendingIntent ? answerClarification() : begin())} disabled={busy || !draft.trim()}>{busy ? "BOSS IS CHECKING…" : pendingIntent ? "SEND ANSWER TO BOSS" : "SEND TO BOSS"}</button>
+          <button className="foundry-build" type="button" onClick={() => void (pendingIntent ? answerClarification() : begin())} disabled={busy || !draft.trim() || Boolean(existingToolOffer)}>{busy ? "BOSS IS CHECKING…" : pendingIntent ? "SEND ANSWER TO BOSS" : "SEND TO BOSS"}</button>
           {turns.length ? <button className="foundry-new-conversation" type="button" onClick={resetConversation}>NEW TOOL REQUEST</button> : null}
         </section>
         {buildElapsedMs !== undefined ? <p className="foundry-build-time">{tool ? `TOOL BUILD TIME · ${(buildElapsedMs / 1000).toFixed(2)}s` : `XACT FINISHED IN · ${(buildElapsedMs / 1000).toFixed(2)}s`}</p> : null}
