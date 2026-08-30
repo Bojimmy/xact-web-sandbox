@@ -15,7 +15,7 @@ import type { FoundryActivity } from "../../src/flagship/foundry-liaison";
 import type { FoundryWebMCPHost } from "../../src/flagship/webmcp-host-registration";
 import type { WebMCPToolDefinition } from "../../src/flagship/webmcp-tool-builder";
 import { useFoundrySession } from "./foundry-session";
-import { FoundryToolflow } from "./foundry-toolflow";
+import { FoundryRunExplainer } from "./foundry-run-explainer";
 
 type ConversationTurn = XactTurn & { speaker?: "user" };
 
@@ -303,7 +303,7 @@ export default function FoundryPage() {
   const businessWorkspace = isBusinessWorkspaceResult(invocation?.result) ? invocation.result : undefined;
 
   return <main className="foundry">
-    <header className="foundry-top"><Link href="/">XACT</Link><span>WEBMCP FOUNDRY</span><Link className="foundry-catalog-link" href="/foundry/catalog">WHAT XACT CAN BUILD →</Link><a className="foundry-canvas-link" href="#toolflow">WATCH TOOLFLOW ↓</a><strong>The O-Agent understands. Xact decides what may become real.</strong></header>
+    <header className="foundry-top"><Link href="/">XACT</Link><span>WEBMCP FOUNDRY</span><Link className="foundry-catalog-link" href="/foundry/catalog">WHAT XACT CAN BUILD →</Link><strong>The O-Agent understands. Xact decides what may become real.</strong></header>
     <section className="foundry-grid">
       <section className="foundry-panel foundry-conversation">
         <p className="foundry-kicker">BOSS CHAT · O-AGENT LIAISON</p><h2>Tell the Boss what tool you need.</h2>
@@ -424,6 +424,6 @@ export default function FoundryPage() {
         </> : <><h2>No artifact yet</h2><p className="foundry-empty">A governed, inert definition appears here only when Xact actually composes one.</p></>}
       </section>
     </section>
-    <FoundryToolflow activity={activity} invocation={invocation} />
+    <FoundryRunExplainer prompt={turns.find((turn) => turn.speaker === "user")?.text} tool={tool} activity={activity} invocation={invocation} />
   </main>;
 }

@@ -77,10 +77,21 @@ export interface RenderPlan {
 export interface PreparedExplainer {
   explainerId: string;
   runId: string;
-  manifest: ExplainerManifest;
+  manifest: ExplainerManifest | FoundryExplainerManifest;
   narration: NarrationScript;
   storyboard: Storyboard;
   renderPlan: RenderPlan;
+}
+
+/**
+ * The public-safe evidence snapshot for a Foundry-hosted tool run. It is not
+ * coerced into a SimulationSession: its fingerprint binds render authority to
+ * the observed Foundry evidence exactly as it was prepared.
+ */
+export interface FoundryExplainerManifest {
+  kind: "FOUNDRY_EXPLAINER_MANIFEST";
+  runId: string;
+  stateFingerprint: { value: string };
 }
 
 /** The effect payload a render Commit authorizes (bound to explainer + run). */

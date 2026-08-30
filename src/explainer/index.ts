@@ -27,6 +27,8 @@
 
 // The React preview component (mount it with the prepared storyboard).
 export { StoryboardPreview } from "./storyboard-preview";
+export { prepareFoundryRunExplainer } from "./foundry-evidence";
+export type { FoundryRunEvidence } from "../flagship/foundry-run-explainer";
 
 // The real browser renderer (replaceable behind ExplainerRenderer).
 export { HtmlSlideshowRenderer } from "./html-renderer";
@@ -50,6 +52,7 @@ export type {
   PublishResult,
   RenderConsequenceEffect,
   PublishConsequenceEffect,
+  FoundryExplainerManifest,
 } from "./explainer-surface";
 
 // Render verification (bind the artifact to its inputs).
