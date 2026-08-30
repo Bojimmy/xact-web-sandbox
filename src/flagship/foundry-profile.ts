@@ -7,6 +7,7 @@ import type { CampaignBuildBrief } from "./promotional-campaign-nodes";
  */
 export interface FoundryProfile {
   readonly version: number;
+  readonly companyName: string;
   readonly focus: "CUSTOMER_OPERATIONS" | "CAMPAIGN_OPERATIONS";
   readonly approvedAudience: "FOUNDRY_MOCK_CUSTOMER_DIRECTORY";
   readonly deliveryMode: "DRAFT_ONLY";
@@ -19,6 +20,7 @@ export interface FoundryProfile {
 
 export const defaultFoundryProfile: FoundryProfile = Object.freeze({
   version: 1,
+  companyName: "Xact Demo",
   focus: "CUSTOMER_OPERATIONS",
   approvedAudience: "FOUNDRY_MOCK_CUSTOMER_DIRECTORY",
   deliveryMode: "DRAFT_ONLY",
@@ -34,7 +36,7 @@ export function campaignBriefFromProfile(profile: FoundryProfile): CampaignBuild
     audienceSource: profile.approvedAudience,
     deliveryMode: profile.deliveryMode,
     rotation: "Every Tuesday · 09:00 local time",
-    sender: "Offers at Xact Demo <offers@example.com>",
+    sender: `Offers at ${profile.companyName} <offers@example.com>`,
     offer: profile.campaignOffer,
     voice: profile.brandVoice,
     style: profile.campaignStyle,

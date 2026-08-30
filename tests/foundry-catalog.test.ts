@@ -13,10 +13,11 @@ test("every Foundry catalog recipe maps to an approved governed capability", () 
 });
 
 test("a Foundry Profile is an explicit draft input, not delivery authority", () => {
-  const brief = campaignBriefFromProfile({ ...defaultFoundryProfile, brandVoice: "Confident and concise", campaignOffer: "15% off with code DEMO15" });
+  const brief = campaignBriefFromProfile({ ...defaultFoundryProfile, companyName: "Acme Field Services", brandVoice: "Confident and concise", campaignOffer: "15% off with code DEMO15" });
   assert.equal(brief.voice, "Confident and concise");
   assert.equal(brief.offer, "15% off with code DEMO15");
   assert.equal(brief.deliveryMode, "DRAFT_ONLY");
+  assert.equal(brief.sender, "Offers at Acme Field Services <offers@example.com>");
 });
 
 test("the catalog ordering follows the judge's explicit business focus", () => {
