@@ -11,6 +11,7 @@ import { FoundryRuntime, FoundryToolRegistry, type FoundryInvocationResult } fro
 import { preparePromotionalEmailCampaign, type CampaignPreparation } from "../../src/flagship/promotional-campaign-nodes";
 import { campaignBriefFromProfile } from "../../src/flagship/foundry-profile";
 import { readCampaignDashboard, readCustomerHealth, readEmployeeDirectory, readOperationsReport, readSupportQueue, readWorkOrderQueue, type BusinessWorkspaceResult } from "../../src/flagship/business-workspace";
+import { readAbsorbedFoundryTool } from "../../src/flagship/foundry-read-substrate";
 import type { FoundryActivity } from "../../src/flagship/foundry-liaison";
 import type { FoundryWebMCPHost } from "../../src/flagship/webmcp-host-registration";
 import type { WebMCPToolDefinition } from "../../src/flagship/webmcp-tool-builder";
@@ -124,7 +125,7 @@ export default function FoundryPage() {
 
   function selectTool(nextTool: WebMCPToolDefinition) {
     setInvocationInput(Object.fromEntries(nextTool.inputSchema.required.map((field) => [field, field === "email" ? "ada@example.com" : field === "amount" ? "25" : field === "customerId" ? "1042" : ""])));
-    setActor("SERVICE_RECOVERY");
+    setActor(nextTool.boundaries.find((boundary) => boundary.primitive === "ACTOR_BINDING")?.actor ?? "SERVICE_RECOVERY");
     setConfirmation(false);
     setInvocation(undefined);
     setInvocationError(undefined);
@@ -286,6 +287,8 @@ export default function FoundryPage() {
         registry,
         (readTool, readInput) => {
           const values = readInput as Record<string, unknown>;
+          const absorbed = readAbsorbedFoundryTool(readTool.name, values);
+          if (absorbed) return absorbed;
           if (readTool.name === "find_customer_by_email") {
             const email = typeof values.email === "string" ? values.email.trim().toLowerCase() : "";
             return CUSTOMER_DIRECTORY.find((customer) => customer.email === email) ?? { found: false, email };
