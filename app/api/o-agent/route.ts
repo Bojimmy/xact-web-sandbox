@@ -2,7 +2,7 @@ import type { ReasoningRequest } from "../../../src/telemetry/o-agent-provider";
 import { env } from "cloudflare:workers";
 import { JudgeLiveReasoningBudgetStore } from "../../../src/server/judge-live-reasoning-budget";
 import { LiveReasoningAllowanceExhaustedError, MissingJudgeIdentityError, invokeWithLiveReasoningAllowance } from "../../../src/server/live-reasoning-quota-gate";
-import { invokeKimiOAgent } from "../../../src/server/kimi-o-agent";
+import { invokeOpenAIOAgent } from "../../../src/server/openai-o-agent";
 
 const MAX_UNRESOLVED_FIELDS = 50;
 const MAX_CONTEXT_BYTES = 8_000;
@@ -33,10 +33,9 @@ function isReasoningRequest(value: unknown): value is ReasoningRequest {
 }
 
 /**
- * Server-only transport boundary. Configure a protected model gateway with
- * OAGENT_PROVIDER_URL and OAGENT_PROVIDER_TOKEN; neither value is bundled into
- * the browser. The gateway must return the structured `{ kind, result }`
- * contract consumed by SecureEndpointOAgentProvider.
+ * Server-only transport boundary. OPENAI_API_KEY remains in the Sites runtime
+ * environment and is never bundled into the browser. Model output is evidence
+ * only and must re-enter Xact before any consequence can be authorized.
  */
 export async function POST(request: Request): Promise<Response> {
   let body: unknown;
@@ -44,31 +43,20 @@ export async function POST(request: Request): Promise<Response> {
   catch { return response({ error: "Structured reasoning request required." }, 400); }
   if (!isReasoningRequest(body)) return response({ error: "Reasoning request exceeds the public boundary." }, 400);
 
-  const runtime = env as unknown as { MOONSHOT_API_KEY?: string; OAGENT_PROVIDER_URL?: string; OAGENT_PROVIDER_TOKEN?: string };
-  const kimiApiKey = runtime.MOONSHOT_API_KEY ?? process.env.MOONSHOT_API_KEY;
-  const gatewayUrl = runtime.OAGENT_PROVIDER_URL ?? process.env.OAGENT_PROVIDER_URL;
-  const gatewayToken = runtime.OAGENT_PROVIDER_TOKEN ?? process.env.OAGENT_PROVIDER_TOKEN;
-  const gateway = gatewayUrl && gatewayToken ? { url: gatewayUrl, token: gatewayToken } : undefined;
-  if (!kimiApiKey && !gateway) return response({ error: "Live O-Agent is not configured; use the labeled simulation fallback." }, 503);
+  const runtime = env as unknown as { OPENAI_API_KEY?: string };
+  const openAIApiKey = runtime.OPENAI_API_KEY ?? process.env.OPENAI_API_KEY;
+  if (!openAIApiKey) return response({ error: "Live Boss reasoning is not configured." }, 503);
 
   try {
     const result = await invokeWithLiveReasoningAllowance(
       request.headers.get("oai-authenticated-user-id"),
       budgetStore(),
       async () => {
-        if (kimiApiKey) {
-          const result = await invokeKimiOAgent(body, kimiApiKey);
+        if (openAIApiKey) {
+          const result = await invokeOpenAIOAgent(body, openAIApiKey);
           return { kind: "LIVE_SANDBOX_MEASUREMENT", provider: result.provider, result };
         }
-        if (!gateway) throw new Error("Live O-Agent is not configured.");
-        const upstream = await fetch(gateway.url, {
-          method: "POST",
-          headers: { "content-type": "application/json", authorization: `Bearer ${gateway.token}` },
-          body: JSON.stringify(body),
-          cache: "no-store",
-        });
-        if (!upstream.ok) throw new Error("Live O-Agent gateway failed closed.");
-        return upstream.json();
+        throw new Error("Live Boss reasoning is not configured.");
       },
     );
     return responseWithRemaining(result.value, result.remaining);
