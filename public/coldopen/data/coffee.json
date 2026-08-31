@@ -1,0 +1,38 @@
+{
+    "title": "Global Coffee Production 2024",
+    "unit": "million 60-kg bags",
+    "items": [
+        {
+            "label": "Brazil",
+            "value": 66.3
+        },
+        {
+            "label": "Vietnam",
+            "value": 29.0
+        },
+        {
+            "label": "Colombia",
+            "value": 12.9
+        },
+        {
+            "label": "Indonesia",
+            "value": 11.0
+        },
+        {
+            "label": "Ethiopia",
+            "value": 8.3
+        },
+        {
+            "label": "Honduras",
+            "value": 6.1
+        },
+        {
+            "label": "India",
+            "value": 5.9
+        },
+        {
+            "label": "Uganda",
+            "value": 5.8
+        }
+    ]
+}

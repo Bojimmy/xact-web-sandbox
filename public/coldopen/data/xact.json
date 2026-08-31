@@ -1,0 +1,12 @@
+{
+  "title": "Xact WebMCP Foundry: Intent to Governed Agent Execution",
+  "unit": "metrics",
+  "items": [
+    { "label": "Deterministic Throughput (ops/s)", "value": 109500 },
+    { "label": "Reasoning Time Reduction (%)", "value": 86.7 },
+    { "label": "Initial 0-Agent Calls", "value": 30 },
+    { "label": "Post-Learning 0-Agent Calls", "value": 4 },
+    { "label": "Mean Decision Latency (µs)", "value": 9.0 },
+    { "label": "P99 Decision Latency (µs)", "value": 24.3 }
+  ]
+}

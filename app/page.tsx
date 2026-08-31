@@ -1,10 +1,6 @@
 import { redirect } from "next/navigation";
 
-/**
- * The Foundry is the product entrypoint. It begins with the O-Agent liaison
- * interpreting intent; no introductory compliance exercise is required before
- * a judge can ask Xact to build something.
- */
+/** Coldopen is the judge-facing opening experience; Foundry remains at /foundry. */
 export default function HomePage() {
-  redirect("/foundry");
+  redirect("/coldopen/index.html");
 }

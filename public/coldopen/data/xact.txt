@@ -1,0 +1,7 @@
+Xact WebMCP Foundry: From Human Intent to Governed Agent Capability
+The Boss understands and proposes, while deterministic X-Nodes own the consequences.
+Known operations execute in microseconds without consuming LLM inference tokens.
+The Build Brief triages intent into Resolved, Unresolved, and Commit Constraints.
+Governed learning absorbs expensive probabilistic reasoning into exact zero-token capability.
+Benchmark results demonstrate an 86.7 percent reduction across all reasoning metrics and latency.
+What required intelligence yesterday executes Xactly today.

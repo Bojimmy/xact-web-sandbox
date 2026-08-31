@@ -1,0 +1,2808 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>COLDOPEN — WebMCP Explainer Engine</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Archivo:wght@400..900&family=Archivo+Narrow:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --paper: #F2EDE2;
+            --paper2: #E9E3D4;
+            --ink: #17130C;
+            --ink2: #6E6656;
+            --acc: #E8481F;
+            --teal: #0E6B5B;
+            --och: #D6992B;
+            --line: rgba(23, 19, 12, .16);
+            --mono: 'IBM Plex Mono', ui-monospace, monospace;
+            --sans: 'Archivo', sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0
+        }
+
+        html,
+        body {
+            height: 100%
+        }
+
+        body {
+            background: var(--paper);
+            color: var(--ink);
+            font-family: var(--sans);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            -webkit-font-smoothing: antialiased
+        }
+
+        button {
+            font-family: inherit;
+            color: inherit;
+            background: none;
+            border: none;
+            cursor: pointer
+        }
+
+        :focus-visible {
+            outline: 2px solid var(--acc);
+            outline-offset: 2px
+        }
+
+        ::selection {
+            background: var(--acc);
+            color: var(--paper)
+        }
+
+        #mast,
+        #deck,
+        #tools {
+            user-select: none
+        }
+
+        /* ---------- masthead ---------- */
+        #mast {
+            height: 58px;
+            flex: 0 0 58px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 0 18px;
+            border-bottom: 1px solid var(--ink)
+        }
+
+        .glyph {
+            width: 24px;
+            height: 24px;
+            background: var(--acc);
+            position: relative;
+            flex: 0 0 24px
+        }
+
+        .glyph::after {
+            content: '';
+            position: absolute;
+            right: -5px;
+            bottom: -5px;
+            width: 10px;
+            height: 10px;
+            background: var(--ink)
+        }
+
+        .brand {
+            display: flex;
+            align-items: baseline;
+            gap: 12px
+        }
+
+        .brand b {
+            font-weight: 900;
+            font-size: 21px;
+            letter-spacing: .5px
+        }
+
+        .brand span {
+            font-family: var(--mono);
+            font-size: 10.5px;
+            letter-spacing: 2.5px;
+            color: var(--ink2)
+        }
+
+        .mright {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            font-family: var(--mono);
+            font-size: 11.5px;
+            letter-spacing: 1px
+        }
+
+        .dim {
+            color: var(--ink2)
+        }
+
+        .sep {
+            width: 1px;
+            height: 18px;
+            background: var(--line)
+        }
+
+        .rec {
+            color: var(--acc);
+            font-weight: 700;
+            animation: blink 1s steps(2) infinite
+        }
+
+        /* ---------- Xact opening splash ---------- */
+        #splash {
+            position: fixed;
+            inset: 0;
+            z-index: 100;
+            display: grid;
+            place-items: center;
+            overflow: auto;
+            padding: clamp(20px, 5vw, 72px);
+            background: #08120f;
+            color: #ecf5e8;
+            transition: opacity .42s ease, visibility .42s ease;
+        }
+
+        #splash[hidden] { display: none; }
+        #splash.leaving { opacity: 0; visibility: hidden; pointer-events: none; }
+
+        .splash-shell {
+            width: min(1160px, 100%);
+            display: grid;
+            grid-template-columns: minmax(0, 1.05fr) minmax(340px, .95fr);
+            gap: clamp(30px, 6vw, 90px);
+            align-items: center;
+        }
+
+        .splash-kicker, .splash-eyebrow, .splash-stat-label {
+            font: 600 11px var(--mono);
+            letter-spacing: 2.3px;
+            text-transform: uppercase;
+            color: #a7baac;
+        }
+
+        .splash-kicker { display: flex; align-items: center; gap: 10px; }
+        .splash-kicker::before { content: ''; width: 10px; height: 10px; border-radius: 50%; background: #c8f355; box-shadow: 0 0 20px #c8f355; }
+        .splash-close { position: absolute; top: 18px; right: 18px; z-index: 2; width: 42px; height: 42px; display: grid; place-items: center; border: 1px solid rgba(236,245,232,.38); color: #ecf5e8; font: 400 27px/1 var(--sans); }
+        .splash-close:hover { color: #07100d; background: #c8f355; border-color: #c8f355; }
+        .splash-copy h1 { max-width: 700px; margin: 22px 0 20px; font-size: clamp(46px, 7vw, 94px); line-height: .91; letter-spacing: -.07em; }
+        .splash-copy h1 em { font-style: normal; color: #c8f355; }
+        .splash-copy p { max-width: 560px; color: #b8c9bd; font-size: clamp(16px, 1.6vw, 20px); line-height: 1.5; }
+        .splash-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 34px; }
+        .splash-primary, .splash-secondary { min-height: 52px; padding: 0 20px; font-weight: 800; letter-spacing: .4px; }
+        .splash-primary { background: #c8f355; color: #07100d; }
+        .splash-primary:hover { background: #e2ff86; transform: translateY(-1px); }
+        .splash-secondary { color: #ecf5e8; border: 1px solid rgba(236,245,232,.35); }
+        .splash-secondary:hover { border-color: #c8f355; color: #c8f355; }
+        .splash-facts { display: flex; flex-wrap: wrap; gap: 24px; margin-top: 32px; }
+        .splash-stat { border-left: 1px solid rgba(236,245,232,.24); padding-left: 12px; }
+        .splash-stat b { display: block; margin-top: 5px; font-size: 17px; }
+
+        .splash-feature {
+            position: relative;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+        }
+        .splash-feature::before { content: none; }
+        .splash-feature img { width: 100%; height: auto; min-height: 0; display: block; object-fit: contain; object-position: center; filter: saturate(.8) contrast(1.06); }
+        .splash-feature-copy { display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; padding: 18px 6px 4px; }
+        .splash-feature-copy strong { display: block; margin-top: 6px; font-size: 21px; }
+        .splash-runtime { font: 600 11px var(--mono); color: #c8f355; white-space: nowrap; }
+        .splash-mini { padding: 8px 10px; font: 700 10px var(--mono); letter-spacing: 1px; color: #ecf5e8; border: 1px solid rgba(236,245,232,.35); }
+        .splash-mini:hover { border-color: #c8f355; color: #c8f355; }
+
+        #splash.player-open { padding: 24px; }
+        #splash.player-open .splash-shell { width: min(1320px, 100%); display: block; }
+        #splash.player-open .splash-copy { display: none; }
+        #splash.player-open .splash-feature { height: min(82vh, 780px); min-height: 460px; padding: 14px; background: #10211c; border: 1px solid rgba(200,243,85,.55); }
+        #splash.player-open .splash-feature > img { display: none; }
+        #splash.player-open #frame { width: 100%; flex: 1; min-height: 0; display: grid; }
+        #splash.player-open #cv { width: 100%; height: auto; max-height: 100%; border-color: rgba(200,243,85,.72); }
+        #splash.player-open .splash-feature-copy { flex: 0 0 auto; }
+
+        @media (max-width: 780px) {
+            #splash { padding: 24px; }
+            .splash-shell { grid-template-columns: 1fr; }
+            .splash-feature { min-height: 0; }
+            .splash-feature img { min-height: 0; }
+        }
+
+        @keyframes blink {
+            50% {
+                opacity: .15
+            }
+        }
+
+        /* ---------- console ---------- */
+        main {
+            flex: 1;
+            display: flex;
+            min-height: 0
+        }
+
+        #console {
+            width: 392px;
+            flex: 0 0 392px;
+            background: var(--ink);
+            color: var(--paper);
+            display: flex;
+            flex-direction: column;
+            min-height: 0
+        }
+
+        .chead {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            padding: 11px 16px;
+            font-family: var(--mono);
+            font-size: 11px;
+            letter-spacing: 2px;
+            border-bottom: 1px solid rgba(242, 237, 226, .14)
+        }
+
+        .chead .dot {
+            width: 8px;
+            height: 8px;
+            background: var(--acc);
+            border-radius: 50%;
+            animation: blink 2.4s steps(2) infinite
+        }
+
+        .chead .dim {
+            margin-left: auto;
+            color: rgba(242, 237, 226, .45);
+            letter-spacing: .5px;
+            font-size: 10px;
+            text-align: right
+        }
+
+        .csec {
+            font-family: var(--mono);
+            font-size: 9.5px;
+            letter-spacing: 3px;
+            color: rgba(242, 237, 226, .45);
+            padding: 12px 16px 7px
+        }
+
+        .feedrow {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 7px;
+            padding: 0 16px 4px
+        }
+
+        .chip {
+            font-family: var(--mono);
+            font-size: 11px;
+            letter-spacing: .5px;
+            padding: 6px 10px;
+            border: 1px solid rgba(242, 237, 226, .35);
+            color: var(--paper);
+            transition: .15s
+        }
+
+        .chip:hover {
+            background: var(--paper);
+            color: var(--ink)
+        }
+
+        .chip.solid {
+            background: var(--acc);
+            border-color: var(--acc)
+        }
+
+        .chip.solid:hover {
+            background: var(--paper);
+            border-color: var(--paper)
+        }
+
+        #tools {
+            max-height: 168px;
+            overflow: auto;
+            padding: 0 8px;
+            flex: 0 0 auto
+        }
+
+        .trow {
+            display: flex;
+            align-items: baseline;
+            gap: 10px;
+            width: 100%;
+            text-align: left;
+            padding: 5px 8px;
+            font-family: var(--mono);
+            font-size: 11.5px;
+            border-left: 2px solid transparent;
+            transition: .12s
+        }
+
+        .trow:hover {
+            background: rgba(242, 237, 226, .08);
+            border-left-color: var(--acc)
+        }
+
+        .trow b {
+            font-weight: 600;
+            color: var(--paper);
+            white-space: nowrap
+        }
+
+        .trow span {
+            color: rgba(242, 237, 226, .42);
+            font-size: 10.5px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap
+        }
+
+        #clog {
+            flex: 1;
+            overflow: auto;
+            padding: 6px 16px 10px;
+            font-family: var(--mono);
+            font-size: 11px;
+            line-height: 1.55;
+            min-height: 60px
+        }
+
+        .ent {
+            margin-bottom: 10px
+        }
+
+        .eh {
+            letter-spacing: .5px
+        }
+
+        .eh.req {
+            color: var(--acc)
+        }
+
+        .eh.res {
+            color: #5FBBA6
+        }
+
+        .eh b {
+            font-weight: 600;
+            color: var(--paper)
+        }
+
+        .ent pre {
+            white-space: pre-wrap;
+            word-break: break-word;
+            color: rgba(242, 237, 226, .66);
+            margin-top: 3px;
+            font-family: var(--mono)
+        }
+
+        .jk {
+            color: #E7C46B
+        }
+
+        .js {
+            color: #DDE5D8
+        }
+
+        .jn {
+            color: #8FD0BE
+        }
+
+        .jb {
+            color: #E0A33F
+        }
+
+        .cline {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-top: 1px solid rgba(242, 237, 226, .14);
+            padding: 10px 14px
+        }
+
+        .cline>span {
+            color: var(--acc);
+            font-family: var(--mono);
+            font-weight: 700
+        }
+
+        .cline input {
+            flex: 1;
+            background: none;
+            border: none;
+            outline: none;
+            color: var(--paper);
+            font-family: var(--mono);
+            font-size: 11.5px;
+            min-width: 0
+        }
+
+        .cline input::placeholder {
+            color: rgba(242, 237, 226, .3)
+        }
+
+        .cline button {
+            width: 30px;
+            height: 30px;
+            border: 1px solid rgba(242, 237, 226, .3);
+            display: grid;
+            place-items: center;
+            color: var(--paper);
+            flex: 0 0 30px
+        }
+
+        .cline button:hover {
+            background: var(--paper);
+            color: var(--ink)
+        }
+
+        .cline svg {
+            width: 15px;
+            height: 15px
+        }
+
+        #tools::-webkit-scrollbar,
+        #clog::-webkit-scrollbar {
+            width: 8px
+        }
+
+        #tools::-webkit-scrollbar-thumb,
+        #clog::-webkit-scrollbar-thumb {
+            background: rgba(242, 237, 226, .2)
+        }
+
+        /* ---------- stage ---------- */
+        #stage {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            padding: 14px 22px 10px;
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="26" height="26"><circle cx="1.2" cy="1.2" r="1.2" fill="%2317130C" fill-opacity=".10"/></svg>')
+        }
+
+        .caprow {
+            display: flex;
+            justify-content: space-between;
+            font-family: var(--mono);
+            font-size: 10.5px;
+            letter-spacing: 2px;
+            color: var(--ink2);
+            margin-bottom: 8px
+        }
+
+        #frame {
+            position: relative;
+            flex: 1;
+            min-height: 0;
+            display: grid;
+            place-items: center
+        }
+
+        #cv {
+            max-width: 100%;
+            max-height: 100%;
+            border: 1px solid var(--ink);
+            background: var(--paper);
+            display: block
+        }
+
+        #dpass {
+            position: absolute;
+            inset: 0;
+            display: grid;
+            place-items: center;
+            background: rgba(242, 237, 226, .42);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity .25s
+        }
+
+        #dpass.on {
+            opacity: 1
+        }
+
+        #dlines {
+            background: var(--paper);
+            border: 1px solid var(--ink);
+            box-shadow: 8px 8px 0 var(--ink);
+            padding: 20px 26px;
+            font-family: var(--mono);
+            font-size: 12px;
+            line-height: 1.95;
+            letter-spacing: .5px;
+            min-width: 400px;
+            max-width: 84%
+        }
+
+        #dlines .cue {
+            color: var(--acc);
+            font-weight: 700
+        }
+
+        #toasts {
+            position: absolute;
+            right: 14px;
+            bottom: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            align-items: flex-end;
+            z-index: 10
+        }
+
+        .toast {
+            background: var(--ink);
+            color: var(--paper);
+            font-family: var(--mono);
+            font-size: 11.5px;
+            letter-spacing: .5px;
+            padding: 10px 14px;
+            border-left: 3px solid var(--acc);
+            opacity: 0;
+            transform: translateY(8px);
+            transition: .25s;
+            max-width: 72%
+        }
+
+        .toast.in {
+            opacity: 1;
+            transform: none
+        }
+
+        /* ---------- deck ---------- */
+        #deck {
+            flex: 0 0 122px;
+            border-top: 1px solid var(--ink);
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            padding: 0 22px
+        }
+
+        .transport {
+            display: flex;
+            flex-direction: column;
+            gap: 8px
+        }
+
+        .trowbtns {
+            display: flex;
+            gap: 8px
+        }
+
+        .icb {
+            width: 42px;
+            height: 42px;
+            border: 1px solid var(--ink);
+            display: grid;
+            place-items: center;
+            background: var(--paper);
+            transition: .12s
+        }
+
+        .icb:hover {
+            background: var(--ink);
+            color: var(--paper)
+        }
+
+        .icb svg {
+            width: 19px;
+            height: 19px
+        }
+
+        .icb.tgl.on {
+            box-shadow: inset 0 -4px 0 var(--acc)
+        }
+
+        .icb.txt {
+            width: auto;
+            padding: 0 12px;
+            font-family: var(--mono);
+            font-size: 12.5px;
+            font-weight: 600;
+            letter-spacing: 1px
+        }
+
+        .hint {
+            font-family: var(--mono);
+            font-size: 9.5px;
+            letter-spacing: 1.5px;
+            color: var(--ink2)
+        }
+
+        #strip {
+            flex: 1;
+            position: relative;
+            height: 88px;
+            display: flex;
+            gap: 3px;
+            min-width: 0;
+            cursor: crosshair;
+            touch-action: none
+        }
+
+        #stripEmpty {
+            position: absolute;
+            inset: 0;
+            border: 1px dashed var(--line);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: var(--mono);
+            font-size: 11px;
+            letter-spacing: 2px;
+            color: var(--ink2)
+        }
+
+        .seg {
+            position: relative;
+            flex-basis: 0;
+            overflow: hidden;
+            border: 1px solid var(--line);
+            background: var(--paper2);
+            min-width: 34px
+        }
+
+        .seg img {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            filter: saturate(.9)
+        }
+
+        .seg::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: var(--paper);
+            opacity: .55;
+            transition: .2s
+        }
+
+        .seg.on::after {
+            opacity: 0
+        }
+
+        .seg.on {
+            border-color: var(--ink)
+        }
+
+        .seg .lb {
+            position: absolute;
+            left: 0;
+            bottom: 0;
+            z-index: 2;
+            background: var(--ink);
+            color: var(--paper);
+            font-family: var(--mono);
+            font-size: 9px;
+            letter-spacing: 1px;
+            padding: 2px 6px;
+            max-width: 100%;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis
+        }
+
+        .seg .du {
+            position: absolute;
+            right: 0;
+            top: 0;
+            z-index: 2;
+            background: var(--paper);
+            color: var(--ink2);
+            font-family: var(--mono);
+            font-size: 9px;
+            padding: 1px 5px;
+            border: 1px solid var(--line);
+            border-top: none;
+            border-right: none
+        }
+
+        .ph {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: var(--acc);
+            z-index: 5;
+            pointer-events: none
+        }
+
+        .ph::before {
+            content: '';
+            position: absolute;
+            top: -1px;
+            left: -4px;
+            border: 5px solid transparent;
+            border-top-color: var(--acc)
+        }
+
+        .out {
+            display: flex;
+            flex-direction: column;
+            gap: 9px;
+            align-items: flex-end
+        }
+
+        .tcode {
+            font-family: var(--mono);
+            font-size: 16px;
+            font-weight: 700;
+            letter-spacing: 1px
+        }
+
+        .tcode span {
+            color: var(--ink2);
+            font-weight: 500;
+            font-size: 13px
+        }
+
+        .orow {
+            display: flex;
+            gap: 8px
+        }
+
+        .exp {
+            height: 42px;
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            padding: 0 16px;
+            background: var(--acc);
+            color: var(--paper);
+            font-family: var(--mono);
+            font-weight: 700;
+            font-size: 12px;
+            letter-spacing: 1.5px;
+            border: 1px solid var(--ink)
+        }
+
+        .exp:hover {
+            background: var(--ink)
+        }
+
+        .exp.rec {
+            background: var(--ink)
+        }
+
+        .exp .rd {
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+            background: var(--paper);
+            display: none
+        }
+
+        .exp.rec .rd {
+            display: block;
+            animation: blink 1s steps(2) infinite
+        }
+
+        /* ---------- drop overlay ---------- */
+        #drop {
+            position: fixed;
+            inset: 0;
+            z-index: 60;
+            background: rgba(242, 237, 226, .93);
+            display: none
+        }
+
+        body.dragging #drop {
+            display: block
+        }
+
+        .dframe {
+            position: absolute;
+            inset: 16px;
+            border: 2px dashed var(--ink);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            text-align: center;
+            padding: 20px
+        }
+
+        .dframe b {
+            font-size: min(6vw, 72px);
+            font-weight: 900;
+            letter-spacing: -1px
+        }
+
+        .dframe span {
+            font-family: var(--mono);
+            font-size: 13px;
+            letter-spacing: 3px;
+            color: var(--ink2)
+        }
+
+        #consoleBtn {
+            display: none
+        }
+
+        @media (max-width:1120px) {
+            #console {
+                position: fixed;
+                top: 58px;
+                bottom: 122px;
+                right: 0;
+                z-index: 40;
+                transform: translateX(102%);
+                transition: .28s;
+                box-shadow: -10px 0 0 rgba(23, 19, 12, .08)
+            }
+
+            body.copen #console {
+                transform: none
+            }
+
+            #consoleBtn {
+                display: grid
+            }
+
+            #deck {
+                gap: 12px;
+                padding: 0 12px
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <section id="splash" aria-label="Xact explainer introduction">
+        <button class="splash-close" id="closeSplash" aria-label="Close explainer and open studio">×</button>
+        <div class="splash-shell">
+            <div class="splash-copy">
+                <div class="splash-kicker">XACT · WEBMCP EXPLAINER</div>
+                <h1>Turn intent into <em>governed</em> capability.</h1>
+                <p>Watch the Xact story: the Boss interprets what matters, deterministic X-Nodes build what is known, and Commit keeps consequence under control.</p>
+                <div class="splash-actions">
+                    <button class="splash-primary" id="watchXact">WATCH THE XACT EXPLAINER →</button>
+                    <button class="splash-secondary" id="openStudio">OPEN EXPLAINER STUDIO</button>
+                </div>
+                <div class="splash-facts">
+                    <div class="splash-stat"><span class="splash-stat-label">Featured deck</span><b>11 scenes</b></div>
+                    <div class="splash-stat"><span class="splash-stat-label">Presentation</span><b>Voice + captions</b></div>
+                    <div class="splash-stat"><span class="splash-stat-label">Build path</span><b>WebMCP-driven</b></div>
+                </div>
+            </div>
+            <div class="splash-feature">
+                <img src="data/xact_slides/slide_01.jpg" alt="Xact WebMCP Foundry explainer preview" />
+                <div class="splash-feature-copy">
+                    <div><span class="splash-eyebrow">Featured explainer</span><strong>Xact WebMCP Foundry</strong></div>
+                    <div style="display:flex;align-items:center;gap:10px;">
+                        <button class="splash-mini" id="splashBack" hidden>← BACK</button>
+                        <button class="splash-mini" id="openStudioFromPlayer" hidden>OPEN STUDIO ↗</button>
+                        <span class="splash-runtime">11-SCENE DECK</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <header id="mast">
+        <div class="glyph"></div>
+        <div class="brand"><b>COLDOPEN</b><span>WEBMCP EXPLAINER ENGINE</span></div>
+        <div class="mright">
+            <span id="recind" class="rec" hidden>● REC</span>
+            <span class="dim" id="mstat">MCP · — TOOLS · LISTENING</span>
+            <span class="sep"></span>
+            <span class="dim" id="clock">--:--:--</span>
+            <button class="icb" id="consoleBtn" title="Toggle MCP console">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                    stroke-linejoin="round">
+                    <polyline points="4 17 10 11 4 5" />
+                    <line x1="12" y1="19" x2="20" y2="19" />
+                </svg>
+            </button>
+        </div>
+    </header>
+
+    <main>
+        <aside id="console">
+            <div class="chead"><span class="dot"></span>MCP·CONSOLE <span class="dim" id="feedsrc">json-rpc 2.0 · postMessage
+                    bridge</span></div>
+            <div class="csec">FEED</div>
+            <div class="feedrow">
+                <button class="chip solid" data-sample="xact" style="background:var(--acc);color:var(--paper);border-color:var(--acc);">xact_deck.json</button>
+                <button class="chip" data-sample="coffee">coffee.json</button>
+                <button class="chip" data-sample="streaming">streaming.csv</button>
+                <button class="chip" data-sample="ocean">ocean.txt</button>
+                <button class="chip" id="rnd">random</button>
+                <button class="chip solid" id="openfile">open file…</button>
+                <button class="chip" id="topCutMode" title="Toggle Long Multi-Chapter / Short Punchy Explainer">FORMAT: LONG</button>
+            </div>
+            <div class="csec">TOOLS — CLICK TO PRE-FILL</div>
+            <div id="tools"></div>
+            <div class="csec">LOG</div>
+            <div id="clog"></div>
+            <div class="cline">
+                <span>›</span>
+                <input id="cinput" spellcheck="false" placeholder='ingest_data {"raw":"…"} — enter to call' />
+                <button id="crun" title="Run call"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="9 10 4 15 9 20" />
+                        <path d="M20 4v7a4 4 0 0 1-4 4H4" />
+                    </svg></button>
+            </div>
+        </aside>
+
+        <section id="stage">
+            <div class="caprow"><span id="capL">MONITOR A — 1600×900 · 60 FPS</span><span id="capR">NO FEED</span></div>
+            <div id="frame">
+                <canvas id="cv" width="1600" height="900"></canvas>
+                <div id="dpass">
+                    <div id="dlines"></div>
+                </div>
+                <div id="toasts"></div>
+            </div>
+        </section>
+    </main>
+
+    <footer id="deck">
+        <div class="transport">
+            <div class="trowbtns">
+                <button class="icb" id="bPlay" title="Play / pause (space)"></button>
+                <button class="icb" id="bRestart" title="Back to start">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                        <path d="M3 3v5h5" />
+                    </svg>
+                </button>
+                <button class="icb tgl" id="bVoice" title="Synthetic voiceover (M)"></button>
+                <button class="icb tgl" id="bCC" title="Burned-in captions (C)">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <rect x="2.5" y="5" width="19" height="14" rx="2" />
+                        <path d="M10.2 10.4a2.3 2.3 0 1 0 0 3.2" />
+                        <path d="M16.4 10.4a2.3 2.3 0 1 0 0 3.2" />
+                    </svg>
+                </button>
+            </div>
+            <div class="hint">SPACE PLAY/PAUSE · ← → SCRUB · DRAG THE FILMSTRIP</div>
+        </div>
+        <div id="strip">
+            <div id="stripEmpty">NO SCENES — FEED DATA TO BUILD A CUT</div>
+        </div>
+        <div class="out">
+            <div class="tcode"><span id="tcCur">00:00.0</span> <span id="tcTot">/ 00:00.0</span></div>
+            <div class="orow">
+                <button class="icb txt" id="bCutMode" title="Cut format: Long Multi-Chapter / Short Punchy">LONG FORM</button>
+                <button class="icb txt" id="bSpeed" title="Playback speed">1.0×</button>
+                <button class="exp" id="bExport"><span class="rd"></span><span id="expLbl">EXPORT .WEBM</span></button>
+            </div>
+        </div>
+    </footer>
+
+    <div id="drop">
+        <div class="dframe"><b>RELEASE TO INGEST</b><span>JSON · CSV · PLAIN TEXT — PARSED &amp; STORYBOARDED
+                LOCALLY</span></div>
+    </div>
+    <input type="file" id="file" accept=".json,.csv,.txt,text/*" hidden />
+
+    <script>
+        'use strict';
+        /* ============ shorthands & math ============ */
+        const $ = s => document.querySelector(s);
+        const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
+        const eOutExpo = t => t >= 1 ? 1 : 1 - Math.pow(2, -10 * t);
+        const eInOut = t => t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+        const st = (t, s, d = .6) => eOutExpo(clamp((t - s) / d));
+        const sleep = ms => new Promise(r => setTimeout(r, ms));
+        const pad2 = n => String(n).padStart(2, '0');
+        const nf = new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 });
+        const nf1 = new Intl.NumberFormat('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+        const fmt = n => nf.format(Math.round(n * 100) / 100);
+        const fmtS = n => Math.abs(n) >= 1000 ? nf.format(Math.round(n / 100) / 10) + 'K' : fmt(n);
+        const tc = s => `${pad2(Math.floor(s / 60))}:${(s % 60).toFixed(1).padStart(4, '0')}`;
+        const dsid = () => 'F-' + Math.random().toString(16).slice(2, 6).toUpperCase();
+        const SID = dsid();
+        const er = m => { const e = new Error(m); e.rpcCode = -32602; return e; };
+
+        const C = { paper: '#F2EDE2', ink: '#17130C', ink2: '#6E6656', acc: '#E8481F', teal: '#0E6B5B', och: '#D6992B' };
+        const W = 1600, H = 900, M = 76;
+        const cv = $('#cv'), ctx = cv.getContext('2d');
+        let grainPat = null;
+
+        function F(x, w, s, f = 'Archivo', ls = 0) { x.font = `${w} ${s}px "${f}"`; if ('letterSpacing' in x) x.letterSpacing = ls + 'px'; }
+        function txt(x, s, px, py, o = {}) {
+            x.save(); F(x, o.w || 400, o.size || 18, o.font || 'Archivo', o.ls || 0);
+            x.globalAlpha = o.alpha ?? 1; x.fillStyle = o.color || C.ink; x.textAlign = o.align || 'left'; x.textBaseline = o.base || 'alphabetic';
+            if (o.dx) x.translate(o.dx, 0); if (o.dy) x.translate(0, o.dy); x.fillText(String(s), px, py); x.restore();
+        }
+        function hline(x, x1, x2, y, a = .18, col = C.ink) { x.save(); x.strokeStyle = col; x.globalAlpha = a; x.lineWidth = 1; x.beginPath(); x.moveTo(x1, y); x.lineTo(x2, y); x.stroke(); x.restore(); }
+        function paper(x, dark = false) { x.fillStyle = dark ? C.ink : C.paper; x.fillRect(0, 0, W, H); }
+        function regMarks(x, dark) {
+            x.save(); x.strokeStyle = dark ? 'rgba(242,237,226,.35)' : 'rgba(22,19,14,.3)'; x.lineWidth = 1; const o = 30, l = 9;
+            [[o, o], [W - o, o], [o, H - o], [W - o, H - o]].forEach(([px, py]) => { x.beginPath(); x.moveTo(px - l, py); x.lineTo(px + l, py); x.moveTo(px, py - l); x.lineTo(px, py + l); x.stroke(); }); x.restore();
+        }
+        function wrapWords(x, words, maxW) {
+            const lines = []; let cur = []; for (const wd of words) {
+                const tst = [...cur, wd].join(' ');
+                if (x.measureText(tst).width > maxW && cur.length) { lines.push(cur); cur = [wd]; } else cur.push(wd);
+            }
+            if (cur.length) lines.push(cur); return lines;
+        }
+        function niceMax(v) {
+            if (v <= 0) return 1; const p = Math.pow(10, Math.floor(Math.log10(v)));
+            for (const m of [1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10]) { if (m * p >= v) return m * p; } return 10 * p;
+        }
+        function chunk(text, n = 7) { const w = String(text).split(/\s+/); const out = []; for (let i = 0; i < w.length; i += n)out.push(w.slice(i, i + n).join(' ')); return out; }
+
+        /* Kinetic block type: word-by-word rise, optional accent predicate */
+        function bigText(x, text, px, py, maxW, o) {
+            const size = o.size, lh = o.lh || size * 1.12;
+            F(x, o.w || 800, size, 'Archivo', o.ls || 0); x.textBaseline = 'alphabetic';
+            const lines = wrapWords(x, String(text).split(/\s+/).filter(Boolean), maxW);
+            let idx = 0;
+            lines.forEach((ln, li) => {
+                let cx = px;
+                for (const wd of ln) {
+                    const p = eOutExpo(clamp((o.t - o.t0 - idx * (o.per ?? .05)) / (o.dur ?? .6)));
+                    const cw = x.measureText(wd).width, sp = x.measureText(wd + ' ').width - cw;
+                    if (p > 0) {
+                        x.globalAlpha = Math.min(1, p * 1.5); x.fillStyle = o.accent && o.accent(wd, idx) ? C.acc : (o.color || C.ink);
+                        x.fillText(wd, cx, py + li * lh + (1 - p) * size * .45);
+                    }
+                    x.globalAlpha = 1; cx += cw + sp; idx++;
+                }
+            });
+            return lines.length;
+        }
+
+        /* ============ dataset normalization ============ */
+        const STOP = new Set('the a an and or of to in on for with is are was were be been it its this that these those from as at by has have had not but they we you he she i than then there here more most over under about into out up down can will just also'.split(' '));
+        const parseNum = v => {
+            if (typeof v === 'number') return isFinite(v) ? v : null; if (v == null) return null;
+            const s = String(v).replace(/[,%\s$€£]/g, ''); if (!s || !/[-\d.]/.test(s)) return null;
+            const n = parseFloat(s); return isFinite(n) ? n : null;
+        };
+        const isNumCol = arr => { const nn = arr.filter(x => x !== '' && x != null); return nn.length > 0 && nn.filter(x => parseNum(x) != null).length >= nn.length * .8; };
+
+        function parseCSV(text) {
+            const rows = []; let row = [], cur = '', inQ = false;
+            for (let i = 0; i < text.length; i++) {
+                const c = text[i];
+                if (inQ) { if (c === '"') { if (text[i + 1] === '"') { cur += '"'; i++; } else inQ = false; } else cur += c; }
+                else {
+                    if (c === '"') inQ = true;
+                    else if (c === ',') { row.push(cur); cur = ''; }
+                    else if (c === '\n' || c === '\r') {
+                        if (c === '\r' && text[i + 1] === '\n') i++; row.push(cur); cur = '';
+                        if (row.some(x => x !== '')) rows.push(row); row = [];
+                    }
+                    else cur += c;
+                }
+            }
+            if (cur !== '' || row.length) { row.push(cur); if (row.some(x => x !== '')) rows.push(row); }
+            return rows;
+        }
+
+        function seriesDS(title, items, unit = 'units') {
+            items = (items || []).map(it => ({ label: String(it.label).slice(0, 28), value: parseNum(it.value) ?? 0 }))
+                .sort((a, b) => b.value - a.value);
+            const total = items.reduce((s, i) => s + i.value, 0);
+            const vs = items.map(i => i.value).sort((a, b) => a - b);
+            const med = vs.length ? (vs[Math.floor((vs.length - 1) / 2)] + vs[Math.ceil((vs.length - 1) / 2)]) / 2 : 0;
+            return {
+                kind: 'series', title: String(title || 'Untitled series').slice(0, 80), unit, items, total,
+                count: items.length, series: [], id: dsid(),
+                fields: [['RECORDS', items.length], ['TOTAL', Math.round(total * 100) / 100],
+                ['MEDIAN', Math.round(med * 100) / 100], ['LEADER', items[0] ? items[0].label : '—']]
+            };
+        }
+
+        function timelineDS(title, series, unit = 'units') {
+            series = (series || []).map(s2 => ({ name: String(s2.name).slice(0, 20), points: s2.points.filter(p => isFinite(p.v)) }))
+                .filter(s2 => s2.points.length > 1);
+            const count = series.reduce((s2, x) => s2 + x.points.length, 0);
+            let peak = { v: -Infinity }, p0 = null, pN = null;
+            series.forEach(s2 => { s2.points.forEach(p => { if (p.v > peak.v) peak = p; }); });
+            if (series.length) { p0 = series[0].points[0]; pN = series[0].points[series[0].points.length - 1]; }
+            return {
+                kind: 'timeline', title: String(title || 'Timeline').slice(0, 80), unit, items: [], series, count, total: 0, id: dsid(),
+                fields: [['SERIES', series.length], ['SPAN', p0 ? `${p0.t} – ${pN.t}` : '—'], ['POINTS', count],
+                ['PEAK', peak.v > -Infinity ? Math.round(peak.v * 100) / 100 : '—']]
+            };
+        }
+
+        function fromText(text, titleHint) {
+            const rawLines = String(text).split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+            let lines = rawLines;
+            if (lines.length < 2) { lines = text.match(/[^.!?]+[.!?]+/g) || [text]; lines = lines.map(s => s.trim()); }
+            const title = (titleHint || lines.shift() || 'Untitled text').replace(/^#+\s*/, '').slice(0, 90);
+            const points = lines.map(s => s.replace(/^[-•*\d.)\s]+/, '').trim()).filter(s => s.length > 2)
+                .slice(0, 16).map(s => s.length > 130 ? s.slice(0, 127) + '…' : s);
+            const freq = {};
+            (title + ' ' + lines.join(' ')).toLowerCase().replace(/[^a-z\s]/g, ' ').split(/\s+/)
+                .forEach(w => { if (w.length > 3 && !STOP.has(w)) freq[w] = (freq[w] || 0) + 1; });
+            const keywords = Object.entries(freq).map(([word, count]) => ({ word: word.toUpperCase(), count }))
+                .sort((a, b) => b.count - a.count).slice(0, 8);
+            const words = title.split(/\s+/).concat(...lines.map(l => l.split(/\s+/))).length;
+            return {
+                kind: 'text', title, unit: 'mentions', series: [], keywords, points, id: dsid(),
+                items: keywords.map(k => ({ label: k.word, value: k.count })), total: keywords.reduce((s, k) => s + k.count, 0),
+                count: points.length,
+                fields: [['POINTS', points.length], ['WORDS', words],
+                ['READ TIME', Math.max(5, Math.round(words / 2.8)) + 's'], ['TOPIC', keywords[0] ? keywords[0].word : '—']]
+            };
+        }
+
+        function fromJSON(o, name) {
+            const t0 = name ? name.replace(/\.[a-z]+$/i, '').replace(/[_-]+/g, ' ') : null;
+            if (o && typeof o === 'object') {
+                if (Array.isArray(o.slides) || o.kind === 'presentation') {
+                    const slides = (o.slides || []).map((sl, i) => ({
+                        type: sl.type || (sl.diagramType ? 'diagram' : (sl.image ? 'slide' : 'facts')),
+                        diagramType: sl.diagramType,
+                        category: sl.category,
+                        steps: sl.steps,
+                        header: sl.header,
+                        cards: sl.cards,
+                        title: sl.title || `Slide ${i + 1}`,
+                        slug: sl.slug || `SLIDE ${pad2(i + 1)}`,
+                        image: sl.image || sl.src || '',
+                        narr: sl.narration || sl.narr || sl.title || '',
+                        dur: sl.dur || Math.max(5.5, String(sl.narration || sl.narr || sl.title || '').split(/\s+/).filter(Boolean).length / 2.3 + 1.8),
+                        sub: sl.sub || ''
+                    }));
+                    return {
+                        kind: 'presentation',
+                        title: o.title || t0 || 'Presentation Deck',
+                        unit: 'slides',
+                        slides,
+                        items: slides.map((s, i) => ({ label: s.title, value: i + 1 })),
+                        count: slides.length,
+                        fields: [['SLIDES', slides.length], ['TITLE', o.title || t0 || 'Deck'], ['TYPE', 'Visual Deck']],
+                        series: [],
+                        id: dsid()
+                    };
+                }
+            }
+            if (Array.isArray(o)) {
+                if (o.every(x => typeof x === 'number'))
+                    return seriesDS(t0 || 'Untitled series', o.map((v, i) => ({ label: 'ITEM ' + (i + 1), value: v })));
+                if (o.every(x => x && typeof x === 'object')) {
+                    const keys = Object.keys(o[0] || {});
+                    const labelKey = keys.find(k => ['label', 'name', 'key', 'category', 'country', 'item', 'title', 'id', 'region'].includes(String(k).toLowerCase()))
+                        || keys.find(k => o.some(r => typeof r[k] === 'string' && parseNum(r[k]) == null)) || keys[0];
+                    const numKeys = keys.filter(k => k !== labelKey && o.some(r => parseNum(r[k]) != null));
+                    const timeKey = keys.find(k => /^(year|date|time|month|quarter|t|period|day)$/i.test(k));
+                    if (timeKey && numKeys.length >= 1) {
+                        const rows = [...o].sort((a, b) => String(a[timeKey]).localeCompare(String(b[timeKey]), undefined, { numeric: true }));
+                        return timelineDS(t0 || 'Timeline', numKeys.map(k => ({ name: String(k), points: rows.map(r => ({ t: String(r[timeKey]), v: parseNum(r[k]) ?? 0 })) })));
+                    }
+                    if (numKeys.length >= 1) {
+                        return seriesDS(t0 || 'Untitled series', o.map((r, i) => ({ label: String(r[labelKey] ?? ('ITEM ' + (i + 1))).slice(0, 28), value: parseNum(r[numKeys[0]]) ?? 0 })));
+                    }
+                    return fromText(o.map(r => Object.values(r).join(' — ')).join('\n'), t0);
+                }
+                return fromText(o.map(String).join('\n'), t0);
+            }
+            if (o && typeof o === 'object') {
+                if (Array.isArray(o.items)) {
+                    return seriesDS(o.title || t0 || 'Untitled series',
+                        o.items.map((r, i) => typeof r === 'object'
+                            ? { label: String(r.label ?? r.name ?? i), value: parseNum(r.value ?? r.count ?? r.v) ?? 0 }
+                            : { label: String(r.label ?? i), value: parseNum(r) ?? 0 }), o.unit || 'units');
+                }
+                const vals = Object.values(o);
+                if (vals.length && vals.every(v => parseNum(v) != null))
+                    return seriesDS(t0 || 'Untitled series', Object.entries(o).map(([k, v]) => ({ label: k, value: parseNum(v) })));
+                const arrKey = Object.keys(o).find(k => Array.isArray(o[k]));
+                if (arrKey) { const ds = fromJSON(o[arrKey], t0 || arrKey); if (/^Untitled/.test(ds.title)) ds.title = t0 || ds.title; return ds; }
+                const fields = Object.entries(o).slice(0, 6).map(([k, v]) => [String(k).toUpperCase().slice(0, 24), String(v).slice(0, 26)]);
+                return { kind: 'facts', title: t0 || 'Field report', unit: '', fields, count: fields.length, total: 0, items: [], series: [], id: dsid() };
+            }
+            return fromText(String(o), t0);
+        }
+
+        function fromCSV(text, name) {
+            const rows = parseCSV(text); if (rows.length < 1) throw new Error('NO ROWS');
+            const head = rows[0].map(h => String(h).trim());
+            const body = rows.slice(1).filter(r => r.some(c => c !== ''));
+            const t0 = name ? name.replace(/\.[a-z]+$/i, '').replace(/[_-]+/g, ' ') : null;
+            if (!body.length) return fromText(rows.map(r => r.join(' ')).join('\n'), t0);
+            const numCols = [], strCols = [];
+            head.forEach((h, i) => { (isNumCol(body.map(r => r[i])) ? numCols : strCols).push(i); });
+            const labelCol = strCols[0] ?? 0;
+            const timeLike = /^(year|date|time|month|quarter|period|t)$/i.test(head[labelCol] || '')
+                || body.map(r => r[0]).every(v => /^\d{4}$/.test(String(v).trim()));
+            if (body.length === 1 && numCols.length > 1) {
+                const fields = head.map((h, i) => [String(h || 'F' + i).toUpperCase().slice(0, 22), parseNum(body[0][i]) ?? String(body[0][i]).slice(0, 18)])
+                    .filter(f => f[1] !== '').slice(0, 6);
+                return { kind: 'facts', title: t0 || 'Snapshot', unit: '', fields, count: fields.length, total: 0, items: [], series: [], id: dsid() };
+            }
+            if (timeLike && numCols.length >= 1) {
+                const sb = [...body].sort((a, b) => String(a[labelCol]).localeCompare(String(b[labelCol]), undefined, { numeric: true }));
+                const ds = timelineDS(t0 || 'Timeline', numCols.map(ci => ({ name: head[ci] || ('S' + ci), points: sb.map(r => ({ t: String(r[labelCol]).trim(), v: parseNum(r[ci]) ?? 0 })) })));
+                return ds;
+            }
+            if (numCols.length >= 1) {
+                const vc = numCols[0];
+                const ds = seriesDS(t0 || 'Untitled series', body.map((r, i) => ({ label: String(r[labelCol] || ('ROW ' + (i + 1))).slice(0, 28), value: parseNum(r[vc]) ?? 0 })));
+                ds.unit = head[vc] ? String(head[vc]).slice(0, 20) : 'units';
+                return ds;
+            }
+            return fromText(body.map(r => r.join(' — ')).join('\n'), t0);
+        }
+
+        function normalizeDS(raw, name) {
+            raw = String(raw ?? '').trim(); if (!raw) throw new Error('EMPTY FEED');
+            let f = 'text';
+            try { JSON.parse(raw); f = 'json'; } catch (_) {
+                const l = raw.split(/\r?\n/);
+                if (l.length > 1 && l[0].includes(',') && l[1] && l[1].includes(',')) f = 'csv';
+            }
+            const ds = f === 'json' ? fromJSON(JSON.parse(raw), name) : f === 'csv' ? fromCSV(raw, name) : fromText(raw, name);
+            ds.fmt = f.toUpperCase();
+            if (ds.kind === 'series' && ds.items.length > 9) { ds.clipped = ds.items.length - 9; ds.items = ds.items.slice(0, 9); }
+            if (!ds.title) ds.title = 'Untitled feed';
+            return ds;
+        }
+
+        /* ============ storyboard ============ */
+        function factsNarr(ds) {
+            const f = ds.fields;
+            if (ds.kind === 'series') return `First, the basics: ${f[0][1]} records, a combined total of ${fmt(f[1][1])} ${ds.unit}. ${f[3] ? f[3][1] : '—'} is the current front-runner.`;
+            if (ds.kind === 'timeline') return `First, the basics: ${f[0][1]} data series across ${String(f[1][1]).replace(/ – /, ' to ')}, ${f[2][1]} plotted points.`;
+            if (ds.kind === 'text') return `A short read: ${f[1][1]} words across ${f[0][1]} points. The recurring theme is ${ds.keywords[0] ? ds.keywords[0].word.toLowerCase() : 'open'}.`;
+            return f.map(x => `${String(x[0]).toLowerCase()} ${x[1]}`).join(', ') + '.';
+        }
+
+        function takeawayText(ds) {
+            if (ds.kind === 'series' && ds.items.length) {
+                const L = ds.items[0];
+                const pct = ds.total > 0 ? Math.round(L.value / ds.total * 100) : 0;
+                return `${ds.title}: ${L.label} leads at ${fmt(L.value)} ${ds.unit} — ${pct} percent of everything measured.`;
+            }
+            if (ds.kind === 'timeline' && ds.series.length) {
+                const g = [...ds.series].sort((a, b) => Math.abs(b.points[b.points.length - 1].v - b.points[0].v) - Math.abs(a.points[a.points.length - 1].v - a.points[0].v))[0];
+                const a = g.points[0], b = g.points[g.points.length - 1], up = b.v >= a.v;
+                return `${ds.title}: ${g.name} ${up ? 'climbs' : 'falls'} from ${fmt(a.v)} in ${a.t} to ${fmt(b.v)} in ${b.t} ${ds.unit}.`;
+            }
+            if (ds.kind === 'text' && ds.keywords.length)
+                return `The through-line is “${ds.keywords[0].word.toLowerCase()}” — raised ${ds.keywords[0].count} times across ${ds.points.length} points.`;
+            if (ds.fields && ds.fields.length)
+                return `${ds.title}: ${String(ds.fields[0][0]).toLowerCase()} is ${ds.fields[0][1]}${ds.fields[1] ? `, and ${String(ds.fields[1][0]).toLowerCase()} is ${ds.fields[1][1]}` : ''}.`;
+            return `${ds.title}: cut, captioned and ready to screen.`;
+        }
+
+        let cutMode = 'long';
+
+        const IMG_CACHE = new Map();
+        function getSlideImage(src) {
+            if (!src) return null;
+            if (IMG_CACHE.has(src)) return IMG_CACHE.get(src);
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.src = src;
+            IMG_CACHE.set(src, img);
+            return img;
+        }
+
+        function storyboard(ds, mode = cutMode) {
+            const isLong = mode === 'long';
+            const S = [];
+            const mk = (type, dur, slug, narr, dark = false, extra = {}) => {
+                const words = narr.split(/\s+/).filter(Boolean).length;
+                dur = Math.max(dur, words / 2.3 + 1.8);
+                const sc = { type, dur, slug, narr, dark, caps: chunk(narr, 7), id: S.length + 1, ...extra };
+                sc.render = SCENE[type] || SCENE.slide;
+                S.push(sc);
+            };
+
+            if (ds.kind === 'presentation' && ds.slides && ds.slides.length) {
+                let activeSlides = ds.slides;
+                if (!isLong) {
+                    // Executive short-form cut: select 4 pivotal highlight scenes
+                    // (Title Intro -> Triage Architecture Diagram -> Governance Gates Diagram -> Strategic Result Payoff)
+                    const keySlugs = ['TITLE · INTRO', 'INTENT TRIAGE PRISM', 'FOUR GOVERNED GATES', 'THE RESULT'];
+                    const filtered = ds.slides.filter(s => keySlugs.includes(s.slug) || s.diagramType === 'triage' || s.diagramType === 'gates' || s.type === 'takeaway');
+                    activeSlides = filtered.length >= 3 ? filtered : ds.slides.slice(0, 4);
+                }
+                activeSlides.forEach((sl, idx) => {
+                    const stype = sl.type || (sl.diagramType ? 'diagram' : (sl.image ? 'slide' : 'facts'));
+                    mk(stype, sl.dur || 6.5, sl.slug || `SLIDE ${pad2(idx + 1)}`, sl.narr, true, {
+                        ...sl,
+                        slideNum: idx + 1,
+                        totalSlides: activeSlides.length
+                    });
+                });
+                S.forEach(sc => { sc.ds = ds; sc.render = SCENE[sc.type] || SCENE.slide; });
+                return S;
+            }
+
+            const L = ds.items && ds.items[0] ? ds.items[0] : { label: 'Leader', value: 0 };
+            const L2 = ds.items && ds.items[1] ? ds.items[1] : null;
+
+            if (isLong) {
+                // ================= ACT I: PROLOGUE & MACRO METRICS =================
+                mk('title', 4.8, 'COLD OPEN', `This is ${ds.title}. A deep-dive exploration of the dataset.`);
+                mk('chapter', 4.5, 'ACT I', `Act One: The macro picture and foundational metrics.`, true, {
+                    act: 'ACT 01', title: 'THE MACRO PICTURE', sub: `${ds.fmt} FEED · ${ds.count || (ds.items ? ds.items.length : 0)} TOTAL DATA POINTS`
+                });
+                if (ds.fields && ds.fields.length) {
+                    mk('facts', 3.4 + ds.fields.length * .9, 'THE BASICS', factsNarr(ds));
+                }
+
+                // Grid KPI Cards
+                let gridCards = [];
+                if (ds.kind === 'series') {
+                    const vs = ds.items.map(i => i.value);
+                    const avg = vs.length ? vs.reduce((a, b) => a + b, 0) / vs.length : 0;
+                    gridCards = [
+                        { label: 'AGGREGATE TOTAL', value: fmtS(ds.total), sub: ds.unit.toUpperCase() },
+                        { label: 'FRONT RUNNER', value: L.label.toUpperCase(), sub: `${fmt(L.value)} ${ds.unit}` },
+                        { label: 'SERIES AVERAGE', value: fmt(avg), sub: 'PER RECORD' },
+                        { label: 'TOTAL ENTITIES', value: String(ds.items.length), sub: 'MEASURED' }
+                    ];
+                } else if (ds.kind === 'timeline') {
+                    const allPts = ds.series.flatMap(s => s.points.map(p => p.v));
+                    const maxV = allPts.length ? Math.max(...allPts) : 0;
+                    const minV = allPts.length ? Math.min(...allPts) : 0;
+                    gridCards = [
+                        { label: 'ACTIVE SERIES', value: String(ds.series.length), sub: 'TRACKED' },
+                        { label: 'HISTORICAL PEAK', value: fmtS(maxV), sub: ds.unit.toUpperCase() },
+                        { label: 'BASELINE LEVEL', value: fmtS(minV), sub: ds.unit.toUpperCase() },
+                        { label: 'DATA POINTS', value: String(ds.count), sub: 'PLOTTED' }
+                    ];
+                } else {
+                    gridCards = [
+                        { label: 'WORD COUNT', value: String(ds.fields[1] ? ds.fields[1][1] : 0), sub: 'WORDS' },
+                        { label: 'KEY POINTS', value: String(ds.points ? ds.points.length : 0), sub: 'EXTRACTED' },
+                        { label: 'TOP THEME', value: (ds.keywords && ds.keywords[0] ? ds.keywords[0].word : 'CORE').toUpperCase(), sub: 'DOMINANT TOPIC' },
+                        { label: 'READ DURATION', value: String(ds.fields[2] ? ds.fields[2][1] : '30s'), sub: 'ESTIMATED' }
+                    ];
+                }
+                mk('grid', 6.0, 'KEY METRICS', `Here are the top-level indicators: aggregate scale, dominant leaders, and structural benchmarks.`, false, { cards: gridCards });
+
+                // ================= ACT II: LEADERS & DISTRIBUTION =================
+                mk('chapter', 4.5, 'ACT II', `Act Two: Leadership distribution and comparative analysis.`, true, {
+                    act: 'ACT 02', title: 'DISTRIBUTION & SHARES', sub: 'HEAD-TO-HEAD AND CONCENTRATION'
+                });
+
+                if (ds.kind === 'series' && ds.items.length > 1) {
+                    const pct = ds.total > 0 ? Math.round(L.value / ds.total * 100) : 0;
+                    mk('ranking', 5.2 + Math.min(ds.items.length, 9) * .6, 'RANKED',
+                        `Ranked from first to last. ${L.label} leads with ${fmt(L.value)} ${ds.unit} — roughly ${pct} percent of the total${L2 ? `, ahead of ${L2.label} at ${fmt(L2.value)}` : ''}.`);
+                    mk('share', 5.8, 'LEADER SHARE',
+                        `Put another way: ${L.label} alone accounts for ${ds.total > 0 ? nf1.format(L.value / ds.total * 100) : '0.0'} percent of everything measured.`);
+                    if (L2) {
+                        mk('compare', 6.2, 'HEAD TO HEAD', `Comparing the top two: ${L.label} vs ${L2.label}. ${L.label} maintains a significant operational margin.`, false, {
+                            a: { label: L.label, value: L.value, sub: `${ds.total > 0 ? (L.value / ds.total * 100).toFixed(1) : 0}% OF TOTAL` },
+                            b: { label: L2.label, value: L2.value, sub: `${ds.total > 0 ? (L2.value / ds.total * 100).toFixed(1) : 0}% OF TOTAL` }
+                        });
+                    }
+                } else if (ds.kind === 'timeline' && ds.series.length > 1) {
+                    const s1 = ds.series[0], s2 = ds.series[1];
+                    const last1 = s1.points[s1.points.length - 1], last2 = s2.points[s2.points.length - 1];
+                    mk('compare', 6.2, 'HEAD TO HEAD', `Comparing ${s1.name} and ${s2.name} at their current trajectories.`, false, {
+                        a: { label: s1.name, value: last1.v, sub: `AT ${last1.t}` },
+                        b: { label: s2.name, value: last2.v, sub: `AT ${last2.t}` }
+                    });
+                } else if (ds.kind === 'text') {
+                    mk('lines', 4.0 + (ds.points.length) * .9, 'KEY POINTS', `${ds.points.length} primary assertions from the source text.`);
+                }
+
+                // ================= ACT III: TRAJECTORY & DRIVERS =================
+                mk('chapter', 4.5, 'ACT III', `Act Three: Trajectory, dynamics, and structural milestones.`, true, {
+                    act: 'ACT 03', title: 'TRAJECTORY & DRIVERS', sub: 'HISTORICAL CURVES AND SHIFTS'
+                });
+
+                if (ds.kind === 'timeline' && ds.series.some(s2 => s2.points.length > 1)) {
+                    const g = [...ds.series].sort((a, b) => Math.abs(b.points[b.points.length - 1].v - b.points[0].v) - Math.abs(a.points[a.points.length - 1].v - a.points[0].v))[0];
+                    const a = g.points[0], b = g.points[g.points.length - 1];
+                    const x = a.v !== 0 ? Math.abs(b.v / a.v) : 0;
+                    mk('trend', 9.0, 'THE CURVE',
+                        `From ${a.t} to ${b.t}, ${g.name} moves from ${fmt(a.v)} to ${fmt(b.v)} ${ds.unit}${x && isFinite(x) ? ` — about ${nf1.format(x)} times ${b.v >= a.v ? 'growth' : 'of its starting level'}` : ''}.`);
+
+                    const mSteps = ds.series[0].points.filter((_, idx) => idx % Math.max(1, Math.floor(ds.series[0].points.length / 4)) === 0).slice(0, 4)
+                        .map(pt => ({ label: pt.t, desc: `${fmt(pt.v)} ${ds.unit}` }));
+                    mk('milestones', 6.5, 'MILESTONES', `Tracking the timeline across key milestone phases from start to conclusion.`, false, {
+                        header: 'HISTORICAL PROGRESSION', steps: mSteps
+                    });
+                } else if (ds.kind === 'series') {
+                    const clusters = [
+                        { label: 'TOP TIER', desc: `${L.label} (${fmt(L.value)})` },
+                        { label: 'CHALLENGERS', desc: L2 ? `${L2.label} & Mid Tier` : 'Mid Tier cluster' },
+                        { label: 'TAIL', desc: `${ds.items.length > 3 ? (ds.items.length - 2) + ' more entities' : 'Remaining records'}` }
+                    ];
+                    mk('milestones', 6.0, 'TIER SEGMENTS', `Segmented into three tiers: dominant leader, challenger tier, and the distributed tail.`, false, {
+                        header: 'DISTRIBUTION CLUSTERS', steps: clusters
+                    });
+                } else if (ds.kind === 'text') {
+                    if (ds.items.length > 2) mk('ranking', 6.0, 'BY FREQUENCY', `By frequency, “${ds.items[0].label}” leads with ${ds.items[0].value} mentions.`);
+                    const pSteps = ds.points.slice(0, 3).map((pt, idx) => ({ label: `PILLAR 0${idx + 1}`, desc: pt }));
+                    if (pSteps.length) {
+                        mk('milestones', 6.5, 'KEY PILLARS', `The structure of the text rests on three central pillars.`, false, {
+                            header: 'CORE PILLARS', steps: pSteps
+                        });
+                    }
+                }
+
+                // ================= ACT IV: SYNTHESIS & CONCLUSIONS =================
+                mk('chapter', 4.5, 'ACT IV', `Act Four: Strategic synthesis, central thesis, and conclusion.`, true, {
+                    act: 'ACT 04', title: 'SYNTHESIS & TAKEAWAYS', sub: 'FINAL ASSESSMENT'
+                });
+
+                const quoteText = ds.kind === 'text' && ds.points && ds.points[0]
+                    ? ds.points[0]
+                    : ds.kind === 'timeline'
+                        ? `${ds.title} demonstrates sustained momentum across ${ds.series.length} series.`
+                        : `${L.label} commands the field with ${fmt(L.value)} ${ds.unit}, shaping the entire category.`;
+                mk('quote', 6.5, 'CENTRAL THESIS', `The bottom line: ${quoteText}`, true, {
+                    quote: quoteText, attr: ds.title
+                });
+
+                const twText = takeawayText(ds);
+                mk('takeaway', Math.max(6.5, twText.split(/\s+/).filter(Boolean).length / 2.5 + 2.0), 'TAKEAWAY', twText, true);
+
+            } else {
+                // ================= STANDARD / SHORT-FORM CUT (~35s) =================
+                mk('title', 4.6, 'COLD OPEN', `This is ${ds.title}. Here is what the data says.`);
+                if (ds.fields && ds.fields.length) mk('facts', 3.2 + ds.fields.length * .95, 'THE BASICS', factsNarr(ds));
+                if (ds.kind === 'series' && ds.items.length > 1) {
+                    const pct = ds.total > 0 ? Math.round(L.value / ds.total * 100) : 0;
+                    mk('ranking', 5.0 + Math.min(ds.items.length, 9) * .6, 'RANKED',
+                        `Ranked from first to last. ${L.label} leads with ${fmt(L.value)} ${ds.unit} — roughly ${pct} percent of the total${L2 ? `, ahead of ${L2.label} at ${fmt(L2.value)}` : ''}.`);
+                    mk('share', 5.8, 'LEADER SHARE',
+                        `Put another way: ${L.label} alone is ${ds.total > 0 ? nf1.format(L.value / ds.total * 100) : '0.0'} percent of everything measured.`);
+                }
+                if (ds.kind === 'timeline' && ds.series.some(s2 => s2.points.length > 1)) {
+                    const g = [...ds.series].sort((a, b) => Math.abs(b.points[b.points.length - 1].v - b.points[0].v) - Math.abs(a.points[a.points.length - 1].v - a.points[0].v))[0];
+                    const a = g.points[0], b = g.points[g.points.length - 1];
+                    const x = a.v !== 0 ? Math.abs(b.v / a.v) : 0;
+                    mk('trend', 8.8, 'THE CURVE',
+                        `From ${a.t} to ${b.t}, ${g.name} moves from ${fmt(a.v)} to ${fmt(b.v)} ${ds.unit}${x && isFinite(x) ? ` — about ${nf1.format(x)} times ${b.v >= a.v ? 'growth' : 'of its starting level'}` : ''}.`);
+                }
+                if (ds.kind === 'text') {
+                    mk('lines', 3.6 + ds.points.length * 1.0, 'KEY POINTS', `${ds.points.length} key points from the source text.`);
+                    if (ds.items.length > 2) mk('ranking', 6.0, 'BY FREQUENCY', `By frequency, “${ds.items[0].label}” leads with ${ds.items[0].value} mentions.`);
+                }
+                const twText = takeawayText(ds);
+                mk('takeaway', Math.max(6.2, twText.split(/\s+/).filter(Boolean).length / 2.5 + 2.0), 'TAKEAWAY', twText, true);
+            }
+
+            S.forEach(sc => { sc.ds = ds; sc.render = SCENE[sc.type]; });
+            return S;
+        }
+
+        /* ============ scene renderers (pure: ctx, local time, scene) ============ */
+        const SCENE = {
+            title(x, t, s) {
+                const ds = s.ds; paper(x);
+                const p0 = st(t, 0, .5);
+                txt(x, `AUTO-CUT · ${ds.fmt} FEED · LOCAL RENDER`, M, 168, { font: 'IBM Plex Mono', w: 500, size: 17, ls: 4, color: C.ink2, alpha: p0, dx: (1 - p0) * 22 });
+                F(x, 900, 120, 'Archivo', -2);
+                const words = String(ds.title).toUpperCase().split(/\s+/).filter(Boolean);
+                const probe = wrapWords(x, words, 1420);
+                const size = probe.length > 2 ? 92 : 118, lh = size * 1.08;
+                F(x, 900, size, 'Archivo', -2);
+                const lines = wrapWords(x, words, 1420);
+                const accIdx = words.reduce((b, wd, i) => wd.length > words[b].length ? i : b, 0);
+                let idx = 0;
+                lines.forEach((ln, li) => {
+                    let cx = M;
+                    for (const wd of ln) {
+                        const p = eOutExpo(clamp((t - .32 - idx * .07) / .7));
+                        const cw = x.measureText(wd).width, sp = x.measureText(wd + ' ').width - cw;
+                        if (p > 0) {
+                            x.globalAlpha = Math.min(1, p * 1.5); x.fillStyle = idx === accIdx ? C.acc : C.ink;
+                            x.fillText(wd, cx, 300 + li * lh + (1 - p) * size * .5);
+                        }
+                        x.globalAlpha = 1; cx += cw + sp; idx++;
+                    }
+                });
+                const yEnd = 300 + lines.length * lh;
+                const pr = st(t, .32 + idx * .07 + .1, .5);
+                x.globalAlpha = pr; x.fillStyle = C.acc; x.fillRect(M, yEnd + 18, 96 * pr, 5); x.globalAlpha = 1;
+                const p2 = st(t, .32 + idx * .07 + .25, .5);
+                txt(x, `${ds.count ?? 0} RECORDS · ${ds.unit ? ds.unit.toUpperCase() : 'NO UNIT'} · SOURCE ${ds.id}`, M, yEnd + 64,
+                    { font: 'IBM Plex Mono', w: 500, size: 18, ls: 2, color: C.ink2, alpha: p2, dx: (1 - p2) * 18 });
+            },
+
+            chapter(x, t, s) {
+                const ds = s.ds; paper(x, true);
+                const p0 = st(t, .08, .5);
+                const act = s.act || 'ACT ' + pad2(s.actNum || 1);
+                txt(x, act, M, 240, { font: 'IBM Plex Mono', w: 600, size: 20, ls: 6, color: C.acc, alpha: p0, dx: (1 - p0) * 20 });
+                F(x, 900, 78, 'Archivo', -1);
+                const titleText = String(s.title || s.slug || 'CHAPTER').toUpperCase();
+                const words = titleText.split(/\s+/).filter(Boolean);
+                const lines = wrapWords(x, words, 1380);
+                const lh = 88;
+                lines.forEach((ln, li) => {
+                    const p = st(t, .3 + li * .12, .55);
+                    if (p <= 0) return;
+                    txt(x, ln.join(' '), M, 340 + li * lh, { w: 900, size: 78, color: C.paper, alpha: p, dx: (1 - p) * 24 });
+                });
+                const subY = 340 + lines.length * lh + 20;
+                const ps = st(t, .6, .5);
+                if (s.sub) {
+                    txt(x, s.sub.toUpperCase(), M, subY, { font: 'IBM Plex Mono', w: 500, size: 17, ls: 3, color: 'rgba(242,237,226,.65)', alpha: ps, dx: (1 - ps) * 16 });
+                }
+                const pe = st(t, .8, .5);
+                hline(x, M, W - M, H - 120, .25 * pe, C.paper);
+                txt(x, `SECTION ${s.id} OF ${TL.scenes.length} · RUNTIME ${s.dur.toFixed(1)}S`, M, H - 84, { font: 'IBM Plex Mono', w: 500, size: 14, ls: 2, color: 'rgba(242,237,226,.5)', alpha: pe });
+            },
+
+            facts(x, t, s) {
+                const ds = s.ds; paper(x);
+                const p0 = st(t, .05, .45);
+                txt(x, 'THE BASICS', M, 196, { w: 900, size: 46, alpha: p0, dx: (1 - p0) * 18 });
+                hline(x, M, W - M, 222, .2);
+                const n = ds.fields.length, y0 = 286, rh = Math.min(118, (H - 286 - 150) / n);
+                ds.fields.forEach(([k, v], i) => {
+                    const p = st(t, .4 + i * .14, .55); if (p <= 0) return;
+                    const dy = (1 - p) * 22, al = Math.min(1, p * 1.5);
+                    txt(x, String(k), M, y0 + i * rh + dy, { font: 'IBM Plex Mono', w: 500, size: 15, ls: 3, color: C.ink2, alpha: al });
+                    if (typeof v === 'number') txt(x, fmt(v * eOutExpo(p)), W - M, y0 + i * rh + 8 + dy, { w: 800, size: 56, align: 'right', alpha: al });
+                    else txt(x, String(v), W - M, y0 + i * rh + 6 + dy, { w: 800, size: 44, align: 'right', alpha: al });
+                    hline(x, M, W - M, y0 + i * rh + 42, .14 * p);
+                });
+            },
+
+            grid(x, t, s) {
+                const ds = s.ds; paper(x);
+                const p0 = st(t, .05, .45);
+                txt(x, 'KEY PERFORMANCE INDICATORS', M, 196, { w: 900, size: 46, alpha: p0, dx: (1 - p0) * 18 });
+                txt(x, (ds.unit || 'METRICS').toUpperCase(), W - M, 196, { font: 'IBM Plex Mono', w: 500, size: 15, ls: 2, color: C.ink2, align: 'right', alpha: p0 });
+                hline(x, M, W - M, 222, .2);
+                const cards = s.cards || [];
+                const gw = (W - 2 * M - 32) / 2, gh = (H - 250 - 100 - 24) / 2;
+                cards.slice(0, 4).forEach((c, i) => {
+                    const row = Math.floor(i / 2), col = i % 2;
+                    const bx = M + col * (gw + 32), by = 250 + row * (gh + 24);
+                    const p = st(t, .25 + i * .12, .6);
+                    if (p <= 0) return;
+                    const dy = (1 - p) * 16;
+                    x.save();
+                    x.globalAlpha = p;
+                    x.strokeStyle = i === 0 ? C.acc : C.ink;
+                    x.lineWidth = i === 0 ? 2 : 1;
+                    x.fillStyle = i === 0 ? 'rgba(232,72,31,.04)' : 'rgba(23,19,12,.02)';
+                    x.fillRect(bx, by + dy, gw, gh);
+                    x.strokeRect(bx, by + dy, gw, gh);
+                    txt(x, c.label.toUpperCase(), bx + 28, by + 44 + dy, { font: 'IBM Plex Mono', w: 600, size: 14, ls: 2.5, color: i === 0 ? C.acc : C.ink2 });
+                    txt(x, String(c.value), bx + 28, by + gh - 46 + dy, { w: 900, size: 54, color: i === 0 ? C.acc : C.ink });
+                    if (c.sub) {
+                        txt(x, c.sub, bx + 28, by + gh - 18 + dy, { font: 'IBM Plex Mono', w: 500, size: 13, ls: 1, color: C.ink2 });
+                    }
+                    x.restore();
+                });
+            },
+
+            ranking(x, t, s) {
+                const ds = s.ds; paper(x);
+                const p0 = st(t, .05, .45);
+                txt(x, ds.kind === 'text' ? 'BY FREQUENCY' : 'RANKED', M, 196, { w: 900, size: 46, alpha: p0, dx: (1 - p0) * 18 });
+                txt(x, (ds.unit || '').toUpperCase(), W - M, 196, { font: 'IBM Plex Mono', w: 500, size: 15, ls: 2, color: C.ink2, align: 'right', alpha: p0 });
+                const items = ds.items, n = items.length; if (n < 1) return;
+                const y0 = 252, bot = H - 170, rowH = Math.min(96, (bot - y0) / n), barH = Math.min(34, rowH - 40);
+                const maxW = W - 2 * M - 150, maxV = Math.max(...items.map(i => i.value), 1e-9), top = niceMax(maxV * 1.03);
+                for (let k = 0; k <= 4; k++) {
+                    const gx = M + maxW * k / 4;
+                    if (k > 0) { x.save(); x.strokeStyle = C.ink; x.globalAlpha = .1; x.beginPath(); x.moveTo(gx, y0); x.lineTo(gx, bot); x.stroke(); x.restore(); }
+                    txt(x, fmtS(top * k / 4), gx, bot + 26, { font: 'IBM Plex Mono', w: 500, size: 13, color: C.ink2, align: k === 0 ? 'left' : k === 4 ? 'right' : 'center' });
+                }
+                hline(x, M, M + maxW, bot, .35);
+                items.forEach((it, i) => {
+                    const p = st(t, .4 + i * .09, .85); if (p <= 0) return; const e = eOutExpo(p);
+                    const y = y0 + i * rowH;
+                    txt(x, String(it.label).toUpperCase(), M, y + 14, { font: 'IBM Plex Mono', w: 600, size: 16, ls: 1, alpha: Math.min(1, p * 2), dx: (1 - p) * 22, color: i === 0 ? C.acc : C.ink });
+                    x.globalAlpha = .1; x.fillStyle = C.ink; x.fillRect(M, y + 26, maxW, barH); x.globalAlpha = 1;
+                    x.fillStyle = i === 0 ? C.acc : C.ink; x.globalAlpha = Math.min(1, p * 2); x.fillRect(M, y + 26, maxW * it.value / top * e, barH); x.globalAlpha = 1;
+                    const bx = M + maxW * it.value / top * e;
+                    txt(x, fmt(it.value * e), bx + 14, y + 26 + barH - 9, { font: 'IBM Plex Mono', w: 700, size: 21, color: i === 0 ? C.acc : C.ink, alpha: Math.min(1, p * 1.6) });
+                    if (i === 0 && t > 1.45) {
+                        const pct = ds.total > 0 ? Math.round(it.value / ds.total * 100) : 0;
+                        const lbl = `TOP · ${pct}%`; F(x, 700, 13, 'IBM Plex Mono', 1); const lw = x.measureText(lbl).width;
+                        const cx0 = Math.min(bx + 140, W - M - lw - 24);
+                        x.fillStyle = C.acc; x.fillRect(cx0, y + 26 + barH / 2 - 13, lw + 20, 26);
+                        x.fillStyle = C.paper; x.textAlign = 'left'; x.textBaseline = 'middle'; x.fillText(lbl, cx0 + 10, y + 26 + barH / 2);
+                    }
+                });
+                if (ds.clipped) txt(x, `+ ${ds.clipped} MORE — CLIPPED FOR SCREEN`, M, bot + 58, { font: 'IBM Plex Mono', w: 500, size: 13, ls: 2, color: C.ink2 });
+            },
+
+            compare(x, t, s) {
+                const ds = s.ds; paper(x);
+                const p0 = st(t, .05, .45);
+                txt(x, 'HEAD-TO-HEAD COMPARISON', M, 196, { w: 900, size: 46, alpha: p0, dx: (1 - p0) * 18 });
+                txt(x, (ds.unit || '').toUpperCase(), W - M, 196, { font: 'IBM Plex Mono', w: 500, size: 15, ls: 2, color: C.ink2, align: 'right', alpha: p0 });
+                hline(x, M, W - M, 222, .2);
+                const a = s.a || { label: 'Leader', value: 100 };
+                const b = s.b || { label: 'Challenger', value: 50 };
+                const midX = W / 2, y0 = 260, h = H - 380;
+                const pa = st(t, .3, .6), pb = st(t, .45, .6);
+                if (pa > 0) {
+                    const dyA = (1 - pa) * 20;
+                    txt(x, '01 · ' + a.label.toUpperCase(), M, y0 + 32 + dyA, { font: 'IBM Plex Mono', w: 700, size: 18, ls: 2, color: C.acc, alpha: pa });
+                    txt(x, fmt(a.value), M, y0 + 120 + dyA, { w: 900, size: 84, color: C.acc, alpha: pa });
+                    if (a.sub) txt(x, a.sub, M, y0 + 164 + dyA, { font: 'IBM Plex Mono', w: 500, size: 15, color: C.ink2, alpha: pa });
+                }
+                const pdiv = st(t, .2, .5);
+                x.save(); x.strokeStyle = C.ink; x.globalAlpha = .15 * pdiv; x.lineWidth = 1;
+                x.beginPath(); x.moveTo(midX, y0); x.lineTo(midX, y0 + h); x.stroke(); x.restore();
+                const pdel = st(t, .7, .5);
+                if (pdel > 0 && isFinite(a.value) && isFinite(b.value) && b.value > 0) {
+                    const ratio = (a.value / b.value).toFixed(1);
+                    const lbl = `${ratio}× SPREAD`;
+                    F(x, 700, 14, 'IBM Plex Mono', 2); const lw = x.measureText(lbl).width;
+                    x.save(); x.globalAlpha = pdel;
+                    x.fillStyle = C.ink; x.fillRect(midX - lw / 2 - 16, y0 + h / 2 - 18, lw + 32, 36);
+                    x.fillStyle = C.paper; x.textAlign = 'center'; x.textBaseline = 'middle';
+                    x.fillText(lbl, midX, y0 + h / 2); x.restore();
+                }
+                if (pb > 0) {
+                    const dyB = (1 - pb) * 20;
+                    txt(x, '02 · ' + b.label.toUpperCase(), midX + 60, y0 + 32 + dyB, { font: 'IBM Plex Mono', w: 700, size: 18, ls: 2, color: C.ink, alpha: pb });
+                    txt(x, fmt(b.value), midX + 60, y0 + 120 + dyB, { w: 900, size: 84, color: C.ink, alpha: pb });
+                    if (b.sub) txt(x, b.sub, midX + 60, y0 + 164 + dyB, { font: 'IBM Plex Mono', w: 500, size: 15, color: C.ink2, alpha: pb });
+                }
+            },
+
+            trend(x, t, s) {
+                const ds = s.ds; paper(x);
+                const p0 = st(t, .05, .45);
+                txt(x, 'THE CURVE', M, 196, { w: 900, size: 46, alpha: p0, dx: (1 - p0) * 18 });
+                txt(x, (ds.unit || '').toUpperCase() + ' · ' + ds.count + ' POINTS', M, 232, { font: 'IBM Plex Mono', w: 500, size: 14, ls: 2, color: C.ink2, alpha: p0 });
+                const S = ds.series.filter(sr => sr.points.length > 1); if (!S.length) return;
+                const x0 = M + 70, x1 = W - M - 16, y0 = 272, y1 = H - 160;
+                const all = S.flatMap(sr => sr.points.map(p => p.v));
+                const top = niceMax(Math.max(...all) * 1.06), cols = [C.ink, C.acc, C.teal, C.och];
+                for (let k = 0; k <= 4; k++) {
+                    const gy = y1 - (y1 - y0) * k / 4;
+                    hline(x, x0, x1, gy, k === 0 ? .35 : .1);
+                    txt(x, fmtS(top * k / 4), x0 - 12, gy + 5, { font: 'IBM Plex Mono', w: 500, size: 13, color: C.ink2, align: 'right' });
+                }
+                const m = S[0].points.length, step = Math.max(1, Math.ceil(m / 7));
+                S[0].points.forEach((p, i) => {
+                    if (i % step === 0 || i === m - 1) {
+                        const gx = x0 + (x1 - x0) * i / (m - 1);
+                        txt(x, String(p.t), gx, y1 + 30, { font: 'IBM Plex Mono', w: 500, size: 13, color: C.ink2, align: i === 0 ? 'left' : i === m - 1 ? 'right' : 'center' });
+                    }
+                });
+                let lx = W - M;
+                for (let si = S.length - 1; si >= 0; si--) {
+                    const nm = String(S[si].name).toUpperCase();
+                    F(x, 600, 14, 'IBM Plex Mono', 1.5); const w2 = x.measureText(nm).width;
+                    const bx0 = lx - 20 - w2;
+                    txt(x, nm, bx0 + 20, 236, { font: 'IBM Plex Mono', w: 600, size: 14, color: C.ink });
+                    x.fillStyle = cols[si % 4]; x.fillRect(bx0, 225, 12, 12); lx = bx0 - 22;
+                }
+                const t0 = .55, dur = 2.4, del = .35; let peak = { v: -Infinity };
+                S.forEach((sr, si) => {
+                    const col = cols[si % 4];
+                    const p = eInOut(clamp((t - t0 - si * del) / dur)); if (p <= 0) return;
+                    const pts = sr.points, nP = pts.length;
+                    const X = i => x0 + (x1 - x0) * i / (nP - 1), Y = v => y1 - (y1 - y0) * clamp(v / top, 0, 1.0001);
+                    const prog = p * (nP - 1);
+                    x.save(); x.strokeStyle = col; x.lineWidth = 4.5; x.lineJoin = 'round'; x.lineCap = 'round';
+                    x.beginPath(); x.moveTo(X(0), Y(pts[0].v));
+                    let hx = X(0), hv = pts[0].v;
+                    for (let i = 1; i < nP; i++) {
+                        if (i <= prog) { x.lineTo(X(i), Y(pts[i].v)); hx = X(i); hv = pts[i].v; }
+                        else { const f = prog - (i - 1); hx = X(i - 1) + (X(i) - X(i - 1)) * f; hv = pts[i - 1].v + (pts[i].v - pts[i - 1].v) * f; x.lineTo(hx, Y(hv)); break; }
+                    }
+                    x.stroke();
+                    x.beginPath(); x.fillStyle = col; x.arc(hx, Y(hv), p >= 1 ? 7 : 9, 0, 7); x.fill();
+                    x.strokeStyle = C.paper; x.lineWidth = 3; x.stroke();
+                    if (p < 1) {
+                        const s2 = fmt(hv); F(x, 700, 17, 'IBM Plex Mono', 0); const w2 = x.measureText(s2).width;
+                        const tX = Math.min(hx + 18, x1 - w2 - 16), tY = clamp(Y(hv), y0 + 16, y1 - 16);
+                        x.fillStyle = C.paper; x.fillRect(tX - 8, tY - 30, w2 + 16, 30);
+                        x.strokeStyle = col; x.lineWidth = 1.5; x.strokeRect(tX - 8, tY - 30, w2 + 16, 30);
+                        x.fillStyle = col; x.fillText(s2, tX, tY - 9);
+                    }
+                    pts.forEach(pt => { if (pt.v > peak.v) peak = { v: pt.v, x: X(pts.indexOf(pt)), y: Y(pt.v) }; });
+                });
+                const revealEnd = t0 + (S.length - 1) * del + dur;
+                if (t > revealEnd && peak.v > 0 && isFinite(peak.x)) {
+                    x.save(); x.strokeStyle = C.acc; x.lineWidth = 2.5; x.beginPath(); x.arc(peak.x, peak.y, 13, 0, 7); x.stroke(); x.restore();
+                    const lbl = `PEAK ${fmt(peak.v)}`; F(x, 600, 14, 'IBM Plex Mono', 1); const lw = x.measureText(lbl).width;
+                    txt(x, lbl, clamp(peak.x - lw / 2, x0, W - M - lw), Math.max(y0 + 14, peak.y - 34), { font: 'IBM Plex Mono', w: 600, size: 14, color: C.acc });
+                }
+            },
+
+            share(x, t, s) {
+                const ds = s.ds, L = ds.items[0]; paper(x);
+                const frac = ds.total > 0 ? clamp(L.value / ds.total, 0, 1) : 0;
+                const p0 = st(t, .05, .45);
+                txt(x, 'LEADER SHARE OF TOTAL', M, 300, { font: 'IBM Plex Mono', w: 500, size: 15, ls: 3, color: C.ink2, alpha: p0, dx: (1 - p0) * 16 });
+                const pe = eOutExpo(st(t, .4, 1.4));
+                F(x, 900, 236, 'Archivo', -3); x.textBaseline = 'alphabetic';
+                const finalN = nf1.format(frac * 100), finalW = x.measureText(finalN).width;
+                x.fillStyle = C.ink; x.fillText(nf1.format(frac * 100 * pe), M, 540);
+                const pp = st(t, 1.2, .5);
+                if (pp > 0) { F(x, 900, 130, 'Archivo', -2); x.globalAlpha = pp; x.fillStyle = C.acc; x.fillText('%', M + finalW + 16, 540); x.globalAlpha = 1; }
+                const lp = st(t, 1.5, .5);
+                txt(x, '— ' + String(L.label), M, 620, { w: 800, size: 46, color: C.acc, alpha: lp, dx: (1 - lp) * 20 });
+                txt(x, `OF ${fmt(ds.total)} ${ds.unit.toUpperCase()} TOTAL`, M, 664, { font: 'IBM Plex Mono', w: 500, size: 15, ls: 2, color: C.ink2, alpha: st(t, 1.7, .5) });
+                const cx = W - M - 270, cy = 470, r = 196, sw = eOutExpo(st(t, .55, 1.25));
+                x.lineCap = 'butt';
+                x.beginPath(); x.strokeStyle = 'rgba(22,19,14,.12)'; x.lineWidth = 34; x.arc(cx, cy, r, 0, Math.PI * 2); x.stroke();
+                x.beginPath(); x.strokeStyle = C.acc; x.lineWidth = 34; x.arc(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * frac * sw); x.stroke();
+                for (let k = 0; k < 4; k++) {
+                    const a = k * Math.PI / 2;
+                    x.save(); x.strokeStyle = 'rgba(22,19,14,.3)'; x.lineWidth = 1.5; x.beginPath();
+                    x.moveTo(cx + Math.cos(a) * (r + 30), cy + Math.sin(a) * (r + 30)); x.lineTo(cx + Math.cos(a) * (r + 42), cy + Math.sin(a) * (r + 42)); x.stroke(); x.restore();
+                }
+                txt(x, fmt(L.value), cx, cy + 2, { w: 800, size: 44, align: 'center' });
+                txt(x, ds.unit.toUpperCase(), cx, cy + 34, { font: 'IBM Plex Mono', w: 500, size: 13, ls: 2, color: C.ink2, align: 'center' });
+                txt(x, 'NO. 01', cx, cy - r - 28, { font: 'IBM Plex Mono', w: 600, size: 14, ls: 3, color: C.acc, align: 'center', alpha: st(t, 1.9, .5) });
+            },
+
+            lines(x, t, s) {
+                const ds = s.ds; paper(x);
+                const p0 = st(t, .05, .45);
+                txt(x, 'KEY POINTS', M, 196, { w: 900, size: 46, alpha: p0, dx: (1 - p0) * 18 });
+                hline(x, M, W - M, 222, .2);
+                const pts = ds.points, y0 = 278, rh = (H - 278 - 140) / Math.max(pts.length, 1);
+                pts.forEach((pt, i) => {
+                    const p = st(t, .4 + i * .13, .55); if (p <= 0) return;
+                    const dy = (1 - p) * 20;
+                    txt(x, '0' + (i + 1), M, y0 + i * rh + 30 + dy, { font: 'IBM Plex Mono', w: 700, size: 19, color: C.acc, alpha: Math.min(1, p * 1.5) });
+                    F(x, 600, 31, 'Archivo', 0);
+                    const ls = wrapWords(x, String(pt).split(/\s+/), W - 2 * M - 84);
+                    x.globalAlpha = Math.min(1, p * 1.4); x.fillStyle = C.ink;
+                    ls.slice(0, 2).forEach((ln, li2) => x.fillText(ln.join(' '), M + 74, y0 + i * rh + 30 + li2 * 38 + dy));
+                    x.globalAlpha = 1;
+                    hline(x, M, W - M, y0 + (i + 1) * rh - 16, .1 * p);
+                });
+            },
+
+            milestones(x, t, s) {
+                const ds = s.ds; paper(x);
+                const p0 = st(t, .05, .45);
+                txt(x, s.header || 'CHRONOLOGICAL PHASES', M, 196, { w: 900, size: 46, alpha: p0, dx: (1 - p0) * 18 });
+                txt(x, `${(s.steps || []).length} PHASES`, W - M, 196, { font: 'IBM Plex Mono', w: 500, size: 15, ls: 2, color: C.ink2, align: 'right', alpha: p0 });
+                hline(x, M, W - M, 222, .2);
+                const steps = s.steps || [];
+                const n = Math.max(steps.length, 1);
+                const trackY = 360, stepW = (W - 2 * M) / n;
+                const pline = st(t, .2, .8);
+                x.save(); x.strokeStyle = C.ink; x.globalAlpha = .15; x.lineWidth = 4;
+                x.beginPath(); x.moveTo(M, trackY); x.lineTo(W - M, trackY); x.stroke();
+                x.strokeStyle = C.acc; x.globalAlpha = 1;
+                x.beginPath(); x.moveTo(M, trackY); x.lineTo(M + (W - 2 * M) * pline, trackY); x.stroke(); x.restore();
+                steps.forEach((stg, i) => {
+                    const cx = M + stepW * i + stepW / 2;
+                    const p = st(t, .35 + i * .15, .55);
+                    if (p <= 0) return;
+                    x.save(); x.fillStyle = p >= 1 ? C.acc : C.ink;
+                    x.beginPath(); x.arc(cx, trackY, 12, 0, 7); x.fill();
+                    x.strokeStyle = C.paper; x.lineWidth = 3; x.stroke(); x.restore();
+                    const dy = (1 - p) * 18;
+                    txt(x, 'PHASE 0' + (i + 1), cx, trackY - 28 + dy, { font: 'IBM Plex Mono', w: 600, size: 13, ls: 2, color: C.acc, align: 'center', alpha: p });
+                    txt(x, String(stg.label).toUpperCase(), cx, trackY + 44 + dy, { font: 'IBM Plex Mono', w: 700, size: 18, align: 'center', alpha: p });
+                    if (stg.desc) {
+                        F(x, 400, 16, 'Archivo', 0);
+                        const wrapped = wrapWords(x, String(stg.desc).split(/\s+/), stepW - 32);
+                        wrapped.slice(0, 3).forEach((ln, li) => {
+                            txt(x, ln.join(' '), cx, trackY + 74 + li * 22 + dy, { w: 400, size: 16, color: C.ink2, align: 'center', alpha: p });
+                        });
+                    }
+                });
+            },
+
+            quote(x, t, s) {
+                const ds = s.ds; paper(x, true);
+                const p0 = st(t, .05, .45);
+                txt(x, 'CENTRAL THESIS', M, 196, { font: 'IBM Plex Mono', w: 600, size: 16, ls: 5, color: C.acc, alpha: p0, dx: (1 - p0) * 18 });
+                const pq = st(t, .1, .6);
+                txt(x, '“', M - 12, 340, { font: 'Archivo', w: 900, size: 180, color: C.acc, alpha: .22 * pq });
+                bigText(x, s.quote || s.narr, M + 36, 360, 1320, { size: 52, w: 800, lh: 68, t, t0: .35, per: .04, color: C.paper, accent: wd => /[\d%×."]/.test(wd) });
+                const pe = st(t, 1.2, .5);
+                if (s.attr || ds.title) {
+                    hline(x, M, W - M, H - 130, .2 * pe, C.paper);
+                    txt(x, '— ' + (s.attr || ds.title).toUpperCase(), M, H - 88, { font: 'IBM Plex Mono', w: 600, size: 15, ls: 2, color: C.acc, alpha: pe });
+                }
+            },
+
+            takeaway(x, t, s) {
+                const ds = s.ds; paper(x, true);
+                const p0 = st(t, .1, .4);
+                txt(x, 'TAKEAWAY', M, 182, { font: 'IBM Plex Mono', w: 600, size: 15, ls: 5, color: C.acc, alpha: p0, dx: (1 - p0) * 18 });
+                bigText(x, s.narr, M, 320, 1380, { size: 60, w: 800, lh: 74, t, t0: .4, per: .05, color: C.paper, accent: wd => /[\d%×."]/.test(wd) });
+                const words = s.narr.split(/\s+/).length, endT = .4 + words * .05 + .5;
+                const pe = st(t, endT, .6);
+                hline(x, M, W - M, H - 128, .25 * pe, C.paper);
+                const line = `CUT · RENDERED LOCALLY IN-BROWSER · NO CLOUD · SESSION ${SID}`;
+                txt(x, line, M, H - 88, { font: 'IBM Plex Mono', w: 500, size: 14, ls: 2, color: 'rgba(242,237,227,.62)', alpha: pe });
+                if (t % 1 < .55 && pe > .5) {
+                    F(x, 500, 14, 'IBM Plex Mono', 2);
+                    x.fillStyle = C.acc; x.fillRect(M + x.measureText(line).width + 14, H - 102, 11, 17);
+                }
+            },
+
+            slide(x, t, s) {
+                const ds = s.ds;
+                paper(x, true);
+                const img = s.image ? getSlideImage(s.image) : null;
+                const cardW = 1560, cardH = 878;
+                const cx0 = (W - cardW) / 2, cy0 = (H - cardH) / 2 - 20;
+                const p0 = st(t, 0, .45);
+                const zoom = 1 + 0.025 * clamp(t / s.dur, 0, 1);
+
+                x.save();
+                x.shadowColor = 'rgba(0,0,0,.75)';
+                x.shadowBlur = 40;
+                x.shadowOffsetY = 18;
+                x.fillStyle = '#100D09';
+                x.fillRect(cx0, cy0, cardW, cardH);
+                x.restore();
+
+                x.save();
+                x.beginPath();
+                x.rect(cx0, cy0, cardW, cardH);
+                x.clip();
+
+                if (img && img.complete && img.naturalWidth > 0) {
+                    x.save();
+                    x.translate(cx0 + cardW / 2, cy0 + cardH / 2);
+                    x.scale(zoom, zoom);
+                    x.drawImage(img, -cardW / 2, -cardH / 2, cardW, cardH);
+                    x.restore();
+                } else {
+                    x.fillStyle = '#18140E';
+                    x.fillRect(cx0, cy0, cardW, cardH);
+                    txt(x, 'SLIDE ' + pad2(s.slideNum || 1), cx0 + 60, cy0 + 120, { font: 'IBM Plex Mono', w: 600, size: 22, color: C.acc, ls: 4 });
+                    txt(x, s.title || s.slug, cx0 + 60, cy0 + 220, { w: 900, size: 64, color: C.paper });
+                    if (s.narr) {
+                        F(x, 400, 28, 'Archivo', 0);
+                        const lns = wrapWords(x, s.narr.split(/\s+/), cardW - 120);
+                        lns.slice(0, 4).forEach((ln, li) => {
+                            txt(x, ln.join(' '), cx0 + 60, cy0 + 340 + li * 46, { w: 400, size: 28, color: 'rgba(242,237,226,.85)' });
+                        });
+                    }
+                }
+
+                x.strokeStyle = 'rgba(242,237,226,.22)';
+                x.lineWidth = 2;
+                x.strokeRect(cx0, cy0, cardW, cardH);
+                x.restore();
+
+                txt(x, `SLIDE ${pad2(s.slideNum || 1)} / ${pad2(s.totalSlides || 9)} · ${String(s.title || s.slug).toUpperCase()}`, cx0, cy0 - 24, {
+                    font: 'IBM Plex Mono', w: 600, size: 14, ls: 3, color: C.acc, alpha: p0
+                });
+            },
+
+            diagram(x, t, s) {
+                const ds = s.ds;
+                paper(x, true);
+                const p0 = st(t, 0, .45);
+
+                x.save();
+                x.strokeStyle = 'rgba(242,237,226,.06)';
+                x.lineWidth = 1;
+                const gridSpacing = 48;
+                for (let gx = M; gx < W - M; gx += gridSpacing) {
+                    x.beginPath(); x.moveTo(gx, 160); x.lineTo(gx, H - 140); x.stroke();
+                }
+                for (let gy = 160; gy < H - 140; gy += gridSpacing) {
+                    x.beginPath(); x.moveTo(M, gy); x.lineTo(W - M, gy); x.stroke();
+                }
+                x.restore();
+
+                txt(x, (s.category || 'SYSTEM ARCHITECTURE').toUpperCase(), M, 196, { font: 'IBM Plex Mono', w: 600, size: 16, ls: 4, color: C.acc, alpha: p0 });
+                txt(x, s.title || s.slug, M, 246, { w: 900, size: 48, color: C.paper, alpha: p0 });
+
+                const dType = s.diagramType || 'pipeline';
+                const yMid = 560;
+
+                if (dType === 'triage' || dType === 'branch') {
+                    const inX = M + 80, prismX = M + 480, outX = W - M - 380;
+                    x.save();
+                    x.fillStyle = 'rgba(242,237,226,.05)';
+                    x.strokeStyle = C.paper;
+                    x.lineWidth = 2;
+                    x.fillRect(inX, yMid - 60, 240, 120);
+                    x.strokeRect(inX, yMid - 60, 240, 120);
+                    txt(x, 'NATURAL LANGUAGE', inX + 24, yMid - 16, { font: 'IBM Plex Mono', w: 600, size: 14, ls: 2, color: C.acc });
+                    txt(x, 'REQUEST STREAM', inX + 24, yMid + 20, { w: 800, size: 22, color: C.paper });
+                    x.restore();
+
+                    x.save();
+                    x.fillStyle = 'rgba(232,72,31,.12)';
+                    x.strokeStyle = C.acc;
+                    x.lineWidth = 3;
+                    x.fillRect(prismX, yMid - 100, 220, 200);
+                    x.strokeRect(prismX, yMid - 100, 220, 200);
+                    txt(x, 'THE BUILD BRIEF', prismX + 24, yMid - 30, { font: 'IBM Plex Mono', w: 700, size: 18, ls: 2, color: C.acc });
+                    txt(x, 'TRIAGE CORE', prismX + 24, yMid + 10, { w: 800, size: 28, color: C.paper });
+                    txt(x, 'SEMANTIC SEPARATION', prismX + 24, yMid + 48, { font: 'IBM Plex Mono', w: 500, size: 12, ls: 1, color: 'rgba(242,237,226,.6)' });
+                    x.restore();
+
+                    x.save();
+                    x.strokeStyle = C.acc; x.lineWidth = 3;
+                    x.beginPath(); x.moveTo(inX + 240, yMid); x.lineTo(prismX, yMid); x.stroke();
+                    const pulseT = (t * 2.2) % 1;
+                    x.fillStyle = C.paper;
+                    x.beginPath(); x.arc(inX + 240 + (prismX - (inX + 240)) * pulseT, yMid, 6, 0, 7); x.fill();
+                    x.restore();
+
+                    const branches = [
+                        { tag: '[R] RESOLVED', title: 'Deterministic X-Nodes', desc: '0 inference tokens · 9.0 µs latency', col: C.teal, y: yMid - 130 },
+                        { tag: '[U] UNRESOLVED', title: 'Boss Reasoning', desc: 'Semantic reasoning on uncertainty', col: C.och, y: yMid },
+                        { tag: '[C] CONSTRAINTS', title: 'Commit Boundaries', desc: 'Authority & state invariant checks', col: C.acc, y: yMid + 130 }
+                    ];
+
+                    branches.forEach((b, bi) => {
+                        const pb = st(t, .35 + bi * .15, .5);
+                        if (pb <= 0) return;
+                        x.save();
+                        x.strokeStyle = b.col; x.lineWidth = 2.5;
+                        x.beginPath();
+                        x.moveTo(prismX + 220, yMid);
+                        x.lineTo(prismX + 320, b.y);
+                        x.lineTo(outX, b.y);
+                        x.stroke();
+                        const bp = ((t * 1.8 + bi * .33) % 1);
+                        const curX = bp < .5 ? prismX + 220 + 100 * (bp * 2) : prismX + 320 + (outX - (prismX + 320)) * ((bp - .5) * 2);
+                        const curY = bp < .5 ? yMid + (b.y - yMid) * (bp * 2) : b.y;
+                        x.fillStyle = b.col; x.beginPath(); x.arc(curX, curY, 5, 0, 7); x.fill();
+                        x.restore();
+
+                        x.save();
+                        x.globalAlpha = pb;
+                        x.fillStyle = 'rgba(242,237,226,.04)';
+                        x.strokeStyle = b.col;
+                        x.lineWidth = 1.5;
+                        x.fillRect(outX, b.y - 42, 380, 84);
+                        x.strokeRect(outX, b.y - 42, 380, 84);
+                        txt(x, b.tag, outX + 20, b.y - 14, { font: 'IBM Plex Mono', w: 700, size: 14, ls: 2, color: b.col });
+                        txt(x, b.title, outX + 20, b.y + 12, { w: 700, size: 20, color: C.paper });
+                        txt(x, b.desc, outX + 20, b.y + 30, { font: 'IBM Plex Mono', w: 400, size: 11, color: 'rgba(242,237,226,.65)' });
+                        x.restore();
+                    });
+
+                } else if (dType === 'gates' || dType === 'governance') {
+                    const gates = [
+                        { num: '01', name: 'PROPOSE', desc: 'The Boss returns structured evidence', status: 'VERIFIED' },
+                        { num: '02', name: 'DOOR', desc: 'Gateway checks governed language', status: 'ADMITTED' },
+                        { num: '03', name: 'LEDGER', desc: 'Applies domain invariants & authority', status: 'CONSTRAINED' },
+                        { num: '04', name: 'COMMIT', desc: 'Consequence is permitted to become real', status: 'EXECUTED' }
+                    ];
+                    const cardW = 320, cardH = 340, gap = 44;
+                    const totalW = gates.length * cardW + (gates.length - 1) * gap;
+                    const startX = (W - totalW) / 2;
+
+                    gates.forEach((g, gi) => {
+                        const gx = startX + gi * (cardW + gap);
+                        const gy = yMid - 160;
+                        const pg = st(t, .2 + gi * .18, .55);
+                        if (pg <= 0) return;
+
+                        if (gi > 0) {
+                            const arrX = gx - gap;
+                            x.save();
+                            x.strokeStyle = C.acc; x.lineWidth = 3;
+                            x.beginPath(); x.moveTo(arrX + 6, yMid + 10); x.lineTo(arrX + gap - 6, yMid + 10); x.stroke();
+                            x.fillStyle = C.acc;
+                            x.beginPath(); x.moveTo(arrX + gap - 6, yMid + 10); x.lineTo(arrX + gap - 16, yMid + 4); x.lineTo(arrX + gap - 16, yMid + 16); x.fill();
+                            x.restore();
+                        }
+
+                        x.save();
+                        x.globalAlpha = pg;
+                        x.fillStyle = gi === 3 ? 'rgba(232,72,31,.1)' : 'rgba(242,237,226,.04)';
+                        x.strokeStyle = gi === 3 ? C.acc : 'rgba(242,237,226,.25)';
+                        x.lineWidth = gi === 3 ? 2.5 : 1.5;
+                        x.fillRect(gx, gy, cardW, cardH);
+                        x.strokeRect(gx, gy, cardW, cardH);
+
+                        txt(x, `GATE ${g.num}`, gx + 24, gy + 44, { font: 'IBM Plex Mono', w: 700, size: 15, ls: 3, color: gi === 3 ? C.acc : C.ink2 });
+                        txt(x, g.name, gx + 24, gy + 100, { w: 900, size: 36, color: C.paper });
+
+                        F(x, 400, 16, 'Archivo', 0);
+                        const lns = wrapWords(x, g.desc.split(/\s+/), cardW - 48);
+                        lns.forEach((ln, li) => {
+                            txt(x, ln.join(' '), gx + 24, gy + 150 + li * 24, { w: 400, size: 16, color: 'rgba(242,237,226,.75)' });
+                        });
+
+                        const badgeY = gy + cardH - 54;
+                        x.fillStyle = gi === 3 ? C.acc : 'rgba(242,237,226,.1)';
+                        x.fillRect(gx + 24, badgeY, cardW - 48, 34);
+                        txt(x, `[✓] ${g.status}`, gx + 38, badgeY + 22, {
+                            font: 'IBM Plex Mono', w: 700, size: 13, ls: 2, color: gi === 3 ? C.paper : C.teal
+                        });
+                        x.restore();
+                    });
+
+                } else {
+                    const blocks = [
+                        { tag: 'STREAM A', title: 'Intent Input', sub: 'Natural language & raw context', col: C.och },
+                        { tag: 'CORE 01', title: 'WebMCP Processor', sub: 'Triage & state resolution', col: C.teal },
+                        { tag: 'ENGINE 02', title: 'Governed Execution', sub: 'Deterministic X-Node cluster', col: C.acc },
+                        { tag: 'OUTPUT', title: 'Exact Consequence', sub: 'Zero token latency result', col: C.paper }
+                    ];
+                    const bW = 310, bH = 260, bGap = 56;
+                    const totalBW = blocks.length * bW + (blocks.length - 1) * bGap;
+                    const sX = (W - totalBW) / 2;
+
+                    blocks.forEach((b, bi) => {
+                        const bx = sX + bi * (bW + bGap), by = yMid - 130;
+                        const pb = st(t, .15 + bi * .16, .55);
+                        if (pb <= 0) return;
+
+                        if (bi > 0) {
+                            const px = bx - bGap;
+                            x.save();
+                            x.strokeStyle = 'rgba(242,237,226,.3)'; x.lineWidth = 2;
+                            x.beginPath(); x.moveTo(px, yMid); x.lineTo(px + bGap, yMid); x.stroke();
+                            const pT = (t * 2.5 + bi * .25) % 1;
+                            x.fillStyle = C.acc;
+                            x.beginPath(); x.arc(px + bGap * pT, yMid, 4.5, 0, 7); x.fill();
+                            x.restore();
+                        }
+
+                        x.save();
+                        x.globalAlpha = pb;
+                        x.fillStyle = 'rgba(242,237,226,.04)';
+                        x.strokeStyle = b.col;
+                        x.lineWidth = 1.5;
+                        x.fillRect(bx, by, bW, bH);
+                        x.strokeRect(bx, by, bW, bH);
+
+                        txt(x, b.tag, bx + 24, by + 40, { font: 'IBM Plex Mono', w: 600, size: 13, ls: 2.5, color: b.col });
+                        txt(x, b.title, bx + 24, by + 90, { w: 900, size: 28, color: C.paper });
+
+                        F(x, 400, 15, 'Archivo', 0);
+                        const lns = wrapWords(x, b.sub.split(/\s+/), bW - 48);
+                        lns.forEach((ln, li) => {
+                            txt(x, ln.join(' '), bx + 24, by + 134 + li * 22, { w: 400, size: 15, color: 'rgba(242,237,226,.7)' });
+                        });
+                        x.restore();
+                    });
+                }
+            }
+        };
+
+        /* ============ slate (no-feed state) ============ */
+        function slate(x, t) {
+            paper(x);
+            x.save(); x.strokeStyle = 'rgba(22,19,14,.14)'; x.lineWidth = 1;
+            x.beginPath(); x.moveTo(0, H / 2); x.lineTo(W, H / 2); x.moveTo(W / 2, 0); x.lineTo(W / 2, H - 120); x.stroke();
+            x.beginPath(); x.arc(W / 2, H / 2 - 40, 120, 0, 7); x.stroke(); x.restore();
+            const sy = (t * 46) % (H - 140);
+            x.save(); x.fillStyle = 'rgba(22,19,14,.05)'; x.fillRect(0, sy, W, 2); x.restore();
+            txt(x, 'COLDOPEN · MCP EXPLAINER · MONITOR A', M, 96, { font: 'IBM Plex Mono', w: 500, size: 15, ls: 3, color: C.ink2 });
+            txt(x, 'TC ' + tc(t % 3600), W - M, 96, { font: 'IBM Plex Mono', w: 500, size: 15, ls: 2, color: C.ink2, align: 'right' });
+            txt(x, 'NO SIGNAL — AWAITING FEED', W / 2, H / 2 - 78, { w: 900, size: 88, ls: -1, align: 'center' });
+            const sub = 'DROP JSON · CSV · TXT ANYWHERE — OR USE THE CONSOLE FEED';
+            txt(x, sub, W / 2, H / 2 - 16, { font: 'IBM Plex Mono', w: 500, size: 17, ls: 2, color: C.ink2, align: 'center' });
+            if (t % 1 < .55) {
+                F(x, 500, 17, 'IBM Plex Mono', 2);
+                x.fillStyle = C.acc; x.fillRect(W / 2 + x.measureText(sub).width / 2 + 10, H / 2 - 32, 12, 20);
+            }
+            txt(x, 'ALL PARSING · STORYBOARDING · RENDERING HAPPENS IN THIS TAB', W / 2, H / 2 + 42,
+                { font: 'IBM Plex Mono', w: 500, size: 13, ls: 3, color: 'rgba(22,19,14,.45)', align: 'center' });
+            const cols = [C.ink, C.acc, C.ink, C.teal, C.ink, C.och, C.ink, C.acc, C.teal, C.ink];
+            const bw = W / 10;
+            cols.forEach((c2, i) => { x.fillStyle = c2; x.fillRect(i * bw, H - 120, bw + 1, 120); });
+            hline(x, 0, W, H - 120, .4);
+            regMarks(x, false);
+        }
+
+        /* ============ timeline state & frame composition ============ */
+        const TL = { scenes: [], total: 0, t: 0, playing: false, speed: 1, curIdx: -1 };
+        let voiceOn = true, ccOn = true;
+        function sceneIdxAt(t) {
+            let acc = 0;
+            for (let i = 0; i < TL.scenes.length; i++) { if (t < acc + TL.scenes[i].dur) return i; acc += TL.scenes[i].dur; }
+            return Math.max(0, TL.scenes.length - 1);
+        }
+        function startOf(i) { let a = 0; for (let k = 0; k < i; k++)a += TL.scenes[k].dur; return a; }
+
+        function drawCaption(x, sc, lt) {
+            if (!ccOn || !sc.caps || !sc.caps.length) return;
+            const n = sc.caps.length, span = sc.dur * .9;
+            const i = clamp(Math.floor(lt / (span / n)), 0, n - 1);
+            const p = eOutExpo(clamp((lt - i * span / n) / .18));
+            const s2 = sc.caps[i];
+            x.save(); F(x, 600, 27, 'Archivo', 0); const wpx = x.measureText(s2).width, bw = wpx + 56, bx = (W - bw) / 2, by = H - 136;
+            x.globalAlpha = p;
+            x.fillStyle = sc.dark ? C.paper : C.ink; x.fillRect(bx, by + (1 - p) * 14, bw, 52);
+            x.fillStyle = sc.dark ? C.ink : C.paper; x.textAlign = 'center'; x.textBaseline = 'middle';
+            x.fillText(s2, W / 2, by + 27 + (1 - p) * 14); x.restore();
+        }
+
+        function chrome(x, idx, tg) {
+            const sc = TL.scenes[idx], dark = sc.dark;
+            const dim = dark ? 'rgba(242,237,226,.55)' : 'rgba(22,19,14,.55)';
+            regMarks(x, dark);
+            txt(x, `SC.${pad2(idx + 1)}/${pad2(TL.scenes.length)} — ${sc.slug}`, M, 66, { font: 'IBM Plex Mono', w: 500, size: 16, ls: 2.5, color: dim });
+            txt(x, 'COLDOPEN · WEBMCP', W - M, 66, { font: 'IBM Plex Mono', w: 500, size: 16, ls: 2.5, color: dim, align: 'right' });
+            hline(x, M, W - M, H - 64, dark ? .25 : .16, dark ? C.paper : C.ink);
+            txt(x, tc(tg), M, H - 34, { font: 'IBM Plex Mono', w: 500, size: 14, color: dim });
+            txt(x, `VO ${voiceOn ? 'ON' : 'OFF'} · CC ${ccOn ? 'ON' : 'OFF'} · ${TL.speed.toFixed(1)}×`, W - M, H - 34, { font: 'IBM Plex Mono', w: 500, size: 14, ls: 1, color: dim, align: 'right' });
+            x.fillStyle = C.acc; x.fillRect(0, H - 7, W * (tg / TL.total), 7);
+        }
+
+        function grainOn(x) { if (!grainPat) return; x.save(); x.globalAlpha = .055; x.fillStyle = grainPat; x.fillRect(0, 0, W, H); x.restore(); }
+
+        function sceneFail(x, sc, e) {
+            paper(x);
+            txt(x, 'RENDER FAULT — CUT KEEPS ROLLING', M, 220, { font: 'IBM Plex Mono', w: 600, size: 16, ls: 3, color: C.acc });
+            txt(x, `SC.${pad2(sc.id)} · ${sc.slug}`, M, 300, { w: 900, size: 64 });
+            txt(x, String(e && e.message || e).slice(0, 90), M, 360, { font: 'IBM Plex Mono', w: 500, size: 18, color: C.ink2 });
+            txt(x, 'SEE MCP LOG FOR DETAILS', M, H - 140, { font: 'IBM Plex Mono', w: 500, size: 14, ls: 2, color: C.ink2 });
+        }
+        function composeFrame() {
+            const x = ctx; x.setTransform(1, 0, 0, 1, 0, 0);
+            try {
+                if (!TL.scenes.length) { slate(x, performance.now() / 1000); grainOn(x); return; }
+                const t = clamp(TL.t, 0, TL.total);
+                let acc = 0, idx = TL.scenes.length - 1, local = 0;
+                for (let i = 0; i < TL.scenes.length; i++) {
+                    const s2 = TL.scenes[i];
+                    if (t < acc + s2.dur) { idx = i; local = t - acc; break; }
+                    acc += s2.dur;
+                    if (i === TL.scenes.length - 1) { idx = i; local = s2.dur; }
+                }
+                const sc = TL.scenes[idx];
+                if (local < .09 && idx > 0) {
+                    x.fillStyle = C.acc; x.fillRect(0, 0, W, H);
+                    txt(x, `SC.${pad2(idx + 1)} — ${sc.slug}`, M, 128, { font: 'IBM Plex Mono', w: 600, size: 20, ls: 4, color: C.paper });
+                } else {
+                    try { (sc.render || SCENE[sc.type])(x, Math.min(local, sc.dur), sc); }
+                    catch (e) {
+                        sceneFail(x, sc, e);
+                        if (!sc._err) { sc._err = true; logEnt('res', 'render fault · ' + sc.slug, String(e.message || e)); }
+                    }
+                }
+                chrome(x, idx, t);
+                drawCaption(x, sc, local);
+                grainOn(x);
+            } catch (e) { console.error('frame error', e); }
+        }
+
+        /* ============ voice (Web Speech, local) ============ */
+        let VOICES = [];
+        let curUtterance = null;
+        function loadVoices() { if ('speechSynthesis' in window) VOICES = speechSynthesis.getVoices(); }
+        if ('speechSynthesis' in window) { loadVoices(); speechSynthesis.onvoiceschanged = loadVoices; }
+        function pickVoice() {
+            const en = VOICES.filter(v => /^en/i.test(v.lang));
+            return en.find(v => /Google (UK|US) English/.test(v.name)) || en.find(v => /Daniel|Samantha|Aria|Zira/.test(v.name)) || en[0] || null;
+        }
+        function speak(text, dur) {
+            if (!('speechSynthesis' in window) || !voiceOn) return;
+            try {
+                if (speechSynthesis.speaking || speechSynthesis.pending) {
+                    speechSynthesis.cancel();
+                }
+                if (speechSynthesis.paused) {
+                    speechSynthesis.resume();
+                }
+                const u = new SpeechSynthesisUtterance(String(text));
+                curUtterance = u;
+                window._activeUtterance = u;
+                const words = String(text).split(/\s+/).filter(Boolean);
+                const speechWindow = Math.max(dur - 0.75, 1.2);
+                const wps = words.length / speechWindow;
+                u.rate = clamp(wps / 2.5, 0.9, 1.35);
+                u.pitch = .95;
+                const v = pickVoice();
+                if (v) u.voice = v;
+                u.onend = () => {
+                    if (curUtterance === u) { curUtterance = null; window._activeUtterance = null; }
+                };
+                u.onerror = () => {
+                    if (curUtterance === u) { curUtterance = null; window._activeUtterance = null; }
+                };
+                setTimeout(() => {
+                    try {
+                        if (voiceOn && TL.playing) {
+                            speechSynthesis.resume();
+                            speechSynthesis.speak(u);
+                        }
+                    } catch (_) { }
+                }, 25);
+            } catch (_) { }
+        }
+        function hush() {
+            try {
+                curUtterance = null;
+                window._activeUtterance = null;
+                if ('speechSynthesis' in window) {
+                    speechSynthesis.cancel();
+                }
+            } catch (_) { }
+        }
+
+        /* ============ export (canvas → WebM) ============ */
+        const EXP = { on: false, rec: null, chunks: [], cancelled: false, prevVoice: true, n: 1, stream: null };
+        function startExport() {
+            const mime = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm']
+                .find(m => window.MediaRecorder && MediaRecorder.isTypeSupported(m));
+            if (!mime) { toast('MEDIARECORDER / WEBM NOT SUPPORTED IN THIS BROWSER'); throw er('unsupported'); }
+            EXP.chunks = []; EXP.cancelled = false; EXP.prevVoice = voiceOn; voiceOn = false; hush();
+            EXP.stream = cv.captureStream(60);
+            EXP.rec = new MediaRecorder(EXP.stream, { mimeType: mime, videoBitsPerSecond: 9e6 });
+            EXP.rec.ondataavailable = e => { if (e.data && e.data.size) EXP.chunks.push(e.data); };
+            EXP.rec.onstop = () => {
+                EXP.stream.getTracks().forEach(t => t.stop());
+                if (EXP.cancelled) { toast('EXPORT CANCELLED'); return; }
+                const blob = new Blob(EXP.chunks, { type: 'video/webm' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a'); a.href = url; a.download = `coldopen_take_${pad2(EXP.n++)}.webm`;
+                document.body.appendChild(a); a.click(); a.remove();
+                toast(`SAVED ${a.download} · ${(blob.size / 1048576).toFixed(1)} MB`);
+                setTimeout(() => URL.revokeObjectURL(url), 4000);
+            };
+            seek(0); TL.curIdx = 0; TL.playing = true; setPlayIcon();
+            EXP.on = true; EXP.rec.start(300); recUI(true);
+            toast('REC — CAPTURING IN REAL TIME · CLICK AGAIN TO CANCEL');
+        }
+        function cancelExport() {
+            EXP.cancelled = true; EXP.on = false;
+            try { EXP.rec && EXP.rec.state !== 'inactive' && EXP.rec.stop(); } catch (_) { }
+            voiceOn = EXP.prevVoice; syncToggles(); recUI(false); TL.playing = false; setPlayIcon();
+        }
+        function recUI(on) { $('#recind').hidden = !on; $('#bExport').classList.toggle('rec', on); }
+
+        /* ============ DOM: transport, strip, toasts ============ */
+        const ICON = {
+            play: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.3v15.4L20 12z"/></svg>',
+            pause: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg>',
+            vol: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.8 5.2a9 9 0 0 1 0 13.6"/></svg>',
+            volx: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="16" y1="9" x2="22" y2="15"/><line x1="22" y1="9" x2="16" y2="15"/></svg>'
+        };
+        const bPlay = $('#bPlay'), bVoice = $('#bVoice'), bCC = $('#bCC'), bSpeed = $('#bSpeed'), bCutMode = $('#bCutMode'),
+            bExport = $('#bExport'), expLbl = $('#expLbl'), strip = $('#strip'),
+            tcCur = $('#tcCur'), tcTot = $('#tcTot'), cinput = $('#cinput'), clog = $('#clog');
+        let playheadEl = null, segs = [];
+
+        function toast(msg) {
+            const d = document.createElement('div'); d.className = 'toast'; d.textContent = msg;
+            $('#toasts').appendChild(d); requestAnimationFrame(() => d.classList.add('in'));
+            setTimeout(() => { d.classList.remove('in'); setTimeout(() => d.remove(), 300); }, 3400);
+        }
+        function setPlayIcon() { bPlay.innerHTML = TL.playing ? ICON.pause : ICON.play; }
+        function syncToggles() {
+            bVoice.classList.toggle('on', voiceOn); bVoice.innerHTML = voiceOn ? ICON.vol : ICON.volx;
+            bCC.classList.toggle('on', ccOn);
+            bSpeed.textContent = TL.speed.toFixed(1) + '×';
+            if (bCutMode) bCutMode.textContent = cutMode === 'long' ? 'LONG FORM' : 'SHORT FORM';
+            const topBtn = $('#topCutMode');
+            if (topBtn) {
+                topBtn.textContent = cutMode === 'long' ? 'FORMAT: LONG' : 'FORMAT: SHORT';
+                topBtn.style.borderColor = cutMode === 'long' ? 'var(--acc)' : 'var(--border)';
+                topBtn.style.color = cutMode === 'long' ? 'var(--acc)' : 'var(--ink2)';
+            }
+        }
+        function toggleVoice() {
+            if (!('speechSynthesis' in window)) { toast('SPEECH SYNTHESIS UNAVAILABLE HERE'); return; }
+            voiceOn = !voiceOn; if (!voiceOn) hush(); syncToggles();
+        }
+        function toggleCC() { ccOn = !ccOn; syncToggles(); }
+
+        function buildStrip() {
+            strip.querySelectorAll('.seg,.ph').forEach(e => e.remove()); segs = []; playheadEl = null;
+            if (!TL.scenes.length) { $('#stripEmpty').style.display = 'flex'; return; }
+            $('#stripEmpty').style.display = 'none';
+            TL.scenes.forEach((sc, i) => {
+                const d = document.createElement('div'); d.className = 'seg';
+                d.style.flexGrow = sc.dur;
+                d.innerHTML = `<img draggable="false" src="${sc.thumb}" alt=""><span class="lb">${pad2(i + 1)}·${sc.slug}</span><span class="du">${sc.dur.toFixed(1)}s</span>`;
+                strip.appendChild(d); segs.push(d);
+            });
+            const ph = document.createElement('div'); ph.className = 'ph'; strip.appendChild(ph); playheadEl = ph;
+        }
+        function segActive(i) { segs.forEach((s2, k) => s2.classList.toggle('on', k === i)); }
+
+        function updateCap() {
+            $('#capR').textContent = DS
+                ? `FEED ${DS.id} · ${DS.kind.toUpperCase()} · ${TL.scenes.length} SCENES · ${TL.total.toFixed(1)}S` : 'NO FEED';
+        }
+
+        /* ============ compose pipeline ============ */
+        let DS = null;
+        function buildScenes(mode = cutMode) {
+            TL.scenes = storyboard(DS, mode);
+            TL.total = TL.scenes.reduce((s, x) => s + x.dur, 0); TL.t = 0; TL.curIdx = -1;
+            TL.scenes.forEach(sc => { // live-rendered filmstrip thumbnails
+                const tc2 = document.createElement('canvas'); tc2.width = 264; tc2.height = 148;
+                const x = tc2.getContext('2d'); x.save(); x.scale(264 / W, 148 / H);
+                const renderFn = sc.render || SCENE[sc.type];
+                try { if (renderFn) renderFn(x, Math.min(sc.dur * .82, sc.dur - .05), sc); } catch (_) { }
+                x.restore(); sc.thumb = tc2.toDataURL('image/jpeg', .72);
+            });
+        }
+        async function directorPass() {
+            const el = $('#dpass'), box = $('#dlines'); box.innerHTML = ''; el.classList.add('on');
+            const L = [
+                `> feed.parse        ok · ${DS.fmt}`,
+                `> normalize         ${DS.kind.toUpperCase()} · ${DS.count} records${DS.unit ? ' · unit ' + DS.unit.toUpperCase() : ''}`,
+                `> storyboard        ${cutMode.toUpperCase()} · ${TL.scenes.length} scenes · runtime ${TL.total.toFixed(1)}s`,
+                `> thumbs.render     ${TL.scenes.length}/${TL.scenes.length} ok`,
+                `> cue.transport     t=00:00.0 · voice ${voiceOn ? 'on' : 'off'} · cc ${ccOn ? 'on' : 'off'}`];
+            for (let i = 0; i < L.length; i++) {
+                const d = document.createElement('div');
+                if (i === L.length - 1) d.className = 'cue';
+                d.textContent = L[i]; box.appendChild(d); await sleep(140 + Math.random() * 170);
+            }
+            await sleep(430); el.classList.remove('on');
+        }
+        async function cutAndPlay(opts = {}) {
+            if (opts.mode) cutMode = opts.mode;
+            syncToggles();
+            buildScenes(cutMode); buildStrip(); updateCap();
+            await directorPass();
+            seek(0); TL.curIdx = 0; segActive(0);
+            if (opts.autoplay !== false) play();
+        }
+
+        /* ============ transport ============ */
+        function play() {
+            if (EXP.on) return;
+            if (!TL.scenes.length) { toast('NO FEED — DROP DATA OR PICK A SAMPLE'); return; }
+            if (TL.t >= TL.total - .05) { TL.t = 0; TL.curIdx = 0; segActive(0); }
+            TL.playing = true; setPlayIcon();
+            const i = sceneIdxAt(TL.t);
+            if (TL.t - startOf(i) < .4) speak(TL.scenes[i].narr, TL.scenes[i].dur);
+        }
+        function pause() { TL.playing = false; hush(); setPlayIcon(); }
+        function seek(t) {
+            if (EXP.on) return; hush();
+            TL.t = clamp(t, 0, Math.max(TL.total, 0)); TL.curIdx = sceneIdxAt(TL.t); segActive(TL.curIdx);
+        }
+
+        /* ============ MCP server (JSON-RPC 2.0) ============ */
+        const TOOLS = [
+            { name: 'ingest_data', description: 'Feed raw data — JSON, CSV or plain text. Parses locally, normalizes into a dataset and auto-storyboards an explainer video.', inputSchema: { type: 'object', properties: { raw: { type: 'string', description: 'The raw payload' }, name: { type: 'string', description: 'Optional source filename, used for titles' }, format: { type: 'string', enum: ['auto', 'json', 'csv', 'text'], description: 'Force a parser (default: auto-detect)' }, mode: { type: 'string', enum: ['long', 'short'], description: 'Cut format: long (multi-chapter deep dive) or short (punchy explainer)' }, autocut: { type: 'boolean', description: 'Storyboard + play immediately (default true)' } }, required: ['raw'] } },
+            { name: 'compose_video', description: 'Re-cut the current dataset into scenes and cue playback.', inputSchema: { type: 'object', properties: { voice: { type: 'boolean' }, mode: { type: 'string', enum: ['long', 'short'], description: 'Cut format: long (multi-chapter deep dive) or short (punchy explainer)' }, autoplay: { type: 'boolean', description: 'Start playback after the cut (default true)' } } } },
+            { name: 'list_scenes', description: 'List the scenes of the current cut with timings and narration.', inputSchema: { type: 'object', properties: {} } },
+            { name: 'get_state', description: 'Player state: time, duration, current scene, toggles, dataset summary.', inputSchema: { type: 'object', properties: {} } },
+            { name: 'play', description: 'Start playback.', inputSchema: { type: 'object', properties: {} } },
+            { name: 'pause', description: 'Pause playback.', inputSchema: { type: 'object', properties: {} } },
+            { name: 'seek', description: 'Seek the playhead to an absolute time in seconds.', inputSchema: { type: 'object', properties: { time: { type: 'number' } }, required: ['time'] } },
+            { name: 'set_speed', description: 'Set playback speed.', inputSchema: { type: 'object', properties: { speed: { type: 'number', enum: [0.6, 1, 1.5, 2] } }, required: ['speed'] } },
+            { name: 'export_webm', description: 'Start a real-time WebM capture of the canvas; the file downloads when the cut finishes.', inputSchema: { type: 'object', properties: {} } }];
+
+        function summarize(ds) {
+            return {
+                id: ds.id, title: ds.title, kind: ds.kind, records: ds.count, unit: ds.unit,
+                leader: ds.items && ds.items[0] ? ds.items[0].label : undefined
+            };
+        }
+        function sceneList() {
+            let a = 0;
+            return TL.scenes.map(s2 => { const o = { i: s2.id, type: s2.type, slug: s2.slug, start: +a.toFixed(2), dur: +s2.dur.toFixed(2), narration: s2.narr }; a += s2.dur; return o; });
+        }
+
+        const handlers = {
+            ingest_data: async a => {
+                const ds = normalizeDS(a.raw, a.name); DS = ds;
+                if (a.mode) cutMode = a.mode;
+                if (a.autocut === false) return { dataset: summarize(ds), note: 'normalized only — call compose_video to storyboard' };
+                await cutAndPlay({ autoplay: a.autoplay !== false, mode: a.mode });
+                return { dataset: summarize(ds), format: cutMode, scenes: sceneList() };
+            },
+            compose_video: async a => {
+                if (!DS) throw er('NO DATASET — call ingest_data first');
+                if (a.voice != null) { voiceOn = !!a.voice; syncToggles(); }
+                if (a.mode) cutMode = a.mode;
+                await cutAndPlay({ autoplay: a.autoplay !== false, mode: a.mode });
+                return { format: cutMode, scenes: sceneList(), runtime: +TL.total.toFixed(2) };
+            },
+            list_scenes: async () => ({ count: TL.scenes.length, scenes: sceneList() }),
+            get_state: async () => ({
+                time: +TL.t.toFixed(2), duration: +TL.total.toFixed(2), scene: TL.curIdx + 1,
+                playing: TL.playing, speed: TL.speed, voice: voiceOn, captions: ccOn, dataset: DS ? summarize(DS) : null
+            }),
+            play: async () => { play(); return { playing: TL.playing }; },
+            pause: async () => { pause(); return { playing: TL.playing }; },
+            seek: async a => {
+                if (typeof a.time !== 'number') throw er('time (number) required');
+                seek(a.time); return { time: +TL.t.toFixed(2) };
+            },
+            set_speed: async a => {
+                const v = +a.speed;
+                if (![0.6, 1, 1.5, 2].includes(v)) throw er('speed must be 0.6 | 1 | 1.5 | 2');
+                TL.speed = v; syncToggles(); return { speed: v };
+            },
+            export_webm: async () => {
+                if (!TL.scenes.length) throw er('NO SCENES — ingest data first');
+                if (EXP.on) throw er('ALREADY RECORDING');
+                startExport();
+                return { status: 'recording', runtime: +TL.total.toFixed(2), note: 'real-time capture — the .webm downloads when the cut ends' };
+            }
+        };
+
+        const server = {
+            async handle(req) {
+                const id = 'id' in req ? req.id : null;
+                if (id == null) return null; // notifications get no reply
+                try {
+                    let result; const m = req.method;
+                    if (m === 'initialize') result = {
+                        protocolVersion: '2025-06-18',
+                        serverInfo: { name: 'coldopen', title: 'COLDOPEN — WebMCP Explainer Engine', version: '1.0.0' },
+                        capabilities: { tools: { listChanged: false } }
+                    };
+                    else if (m === 'ping') result = {};
+                    else if (m === 'tools/list') result = { tools: TOOLS };
+                    else if (m === 'tools/call') {
+                        const { name, arguments: args = {} } = req.params || {};
+                        const fn = handlers[name];
+                        if (!fn) throw er(`unknown tool: ${name}`);
+                        const out = await fn(args);
+                        result = { content: [{ type: 'text', text: JSON.stringify(out, null, 2) }] };
+                    }
+                    else throw Object.assign(new Error(`method not found: ${m}`), { rpcCode: -32601 });
+                    return { jsonrpc: '2.0', id, result };
+                }
+                catch (e) { return { jsonrpc: '2.0', id, error: { code: e.rpcCode || -32000, message: e.message || String(e) } }; }
+            }
+        };
+
+        // External bridge: any tab / extension / devtools can drive this app
+        window.addEventListener('message', e => {
+            const d = e.data;
+            if (!d || d.jsonrpc !== '2.0' || typeof d.method !== 'string') return;
+            server.handle(d).then(r => { if (r && e.source) try { e.source.postMessage(r, '*'); } catch (_) { } });
+        });
+        window.COLDOPEN = { call: (method, params = {}) => server.handle({ jsonrpc: '2.0', id: 'ext', method, params }), server };
+
+        /* ============ console UI ============ */
+        const esc = s => String(s).replace(/[&<>]/g, c2 => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c2]));
+        function hl(obj) {
+            let s;
+            try { s = typeof obj === 'string' ? obj : JSON.stringify(obj); } catch (_) { s = String(obj); }
+            if (s == null) s = ''; if (s.length > 900) s = s.slice(0, 900) + ' …';
+            return esc(s).replace(/("(\\.|[^"\\])*")(\s*:)?|\b(true|false|null)\b|-?\d+\.?\d*(e[+-]?\d+)?/gi, m => {
+                let cls = 'jn';
+                if (/^"/.test(m)) cls = /:$/.test(m) ? 'jk' : 'js';
+                else if (/^(true|false|null)$/i.test(m)) cls = 'jb';
+                return `<span class="${cls}">${m}</span>`;
+            });
+        }
+        function logEnt(dir, title, body) {
+            const d = document.createElement('div'); d.className = 'ent';
+            d.innerHTML = `<div class="eh ${dir}">${dir === 'req' ? '→' : '←'} <b>${esc(title)}</b></div><pre>${body != null ? hl(body) : ''}</pre>`;
+            clog.appendChild(d);
+            while (clog.children.length > 70) clog.firstChild.remove();
+            clog.scrollTop = clog.scrollHeight;
+        }
+        let RID = 1;
+        async function call(name, args = {}) {
+            const req = { jsonrpc: '2.0', id: 'ui-' + (RID++), method: 'tools/call', params: { name, arguments: args } };
+            logEnt('req', `tools/call · ${name}`, args);
+            const res = await server.handle(req);
+            if (res.error) {
+                logEnt('res', `error · ${res.error.message}`, null);
+                toast('MCP ERROR — ' + res.error.message); return null;
+            }
+            let parsed = null;
+            try { parsed = JSON.parse(res.result.content[0].text); } catch (_) { }
+            logEnt('res', `${name} · ok`, parsed ?? res.result);
+            return parsed;
+        }
+
+        const EX = {
+            'ingest_data': '{"raw":"<paste JSON / CSV / text>"}', 'compose_video': '{}', 'list_scenes': '{}',
+            'get_state': '{}', 'play': '{}', 'pause': '{}', 'seek': '{"time":5}', 'set_speed': '{"speed":1.5}', 'export_webm': '{}'
+        };
+        TOOLS.forEach(t2 => {
+            const b = document.createElement('button'); b.className = 'trow';
+            b.innerHTML = `<b>${t2.name}</b><span>${esc(t2.description.split('.')[0])}</span>`;
+            b.onclick = () => { cinput.value = t2.name + ' ' + (EX[t2.name] || '{}'); cinput.focus(); };
+            $('#tools').appendChild(b);
+        });
+
+        const hist = []; let hi = -1;
+        async function execLine() {
+            const s = cinput.value.trim(); if (!s) return;
+            cinput.value = ''; hist.unshift(s); hi = -1;
+            try {
+                if (s.startsWith('{')) {
+                    const req = JSON.parse(s);
+                    logEnt('req', req.method || '?', req.params ?? null);
+                    const res = await server.handle(req);
+                    if (res.error) logEnt('res', `error ${res.error.code}`, res.error.message);
+                    else logEnt('res', req.method, res.result);
+                }
+                else {
+                    const m = s.match(/^([\w.-]+)\s*(\{[\s\S]*\})?$/);
+                    if (!m) throw new Error('BAD CALL — use tool_name {json}');
+                    await call(m[1], m[2] ? JSON.parse(m[2]) : {});
+                }
+            }
+            catch (e) { logEnt('res', 'parse error', String(e.message || e)); }
+        }
+        $('#crun').onclick = execLine;
+        cinput.addEventListener('keydown', e => {
+            if (e.key === 'Enter') execLine();
+            else if (e.key === 'ArrowUp') { e.preventDefault(); if (hist.length) { hi = Math.min(hi + 1, hist.length - 1); cinput.value = hist[hi]; } }
+            else if (e.key === 'ArrowDown') { e.preventDefault(); hi = Math.max(hi - 1, -1); cinput.value = hi < 0 ? '' : hist[hi]; }
+        });
+
+        /* ============ samples & file ingest ============ */
+        const SAMPLES = {
+            xact: JSON.stringify({
+                kind: "presentation",
+                title: "Xact WebMCP Foundry: Intent to Governed Agent Execution",
+                slides: [
+                    { type: "slide", title: "Xact WebMCP Foundry", slug: "TITLE · INTRO", image: "data/xact_slides/slide_01.jpg", narration: "Welcome to the Xact WebMCP Foundry. This is the blueprint for transforming human intent into governed, deterministic agent capability." },
+                    { type: "slide", title: "The Boss vs X-Nodes", slug: "THE BOSS & X-NODES", image: "data/xact_slides/slide_02.jpeg", narration: "Rule number one: Don't spend intelligence on work that doesn't require it. The Boss understands the conversation, while X-Nodes are deterministic units that own the real-world consequences." },
+                    { type: "diagram", diagramType: "triage", category: "INTENT TRIAGE ARCHITECTURE", title: "The Build Brief: Semantic Triage", slug: "INTENT TRIAGE PRISM", narration: "The Build Brief triages intent into three distinct streams: Resolved requirements route directly to X-Nodes, genuine uncertainty goes to the Boss, and Commit Constraints enforce strict policy checks." },
+                    { type: "slide", title: "Microsecond Execution", slug: "ZERO-TOKEN SPEED", image: "data/xact_slides/slide_04.jpeg", narration: "Known operations execute in microseconds with zero token overhead. With a nine microsecond mean latency and over one hundred and nine thousand decisions per second, known work never waits on model inference." },
+                    { type: "diagram", diagramType: "pipeline", category: "EXECUTION PIPELINE", title: "Parallelize & Concentrate", slug: "TWO PATHWAYS", narration: "Parallelize what is exact, and concentrate intelligence only where exactness ends. When semantic reasoning is genuinely necessary, Xact uses it. When it isn't, Xact eliminates the reasoning tax." },
+                    { type: "diagram", diagramType: "gates", category: "GOVERNANCE GATES", title: "Authority & Governance Lifecycle", slug: "FOUR GOVERNED GATES", narration: "Capability is knowing how; authority is being allowed to. Every action flows through four governed gates: Propose, Door, Ledger, and finally Commit." },
+                    { type: "slide", title: "Proof & Verification", slug: "VERIFICATION LOG", image: "data/xact_slides/slide_07.jpeg", narration: "If it lights up, Xact actually did it. Execution alone is not proof. We enforce a strict foundational rule: No evidence, no claim. No authorization, no commit." },
+                    { type: "milestones", header: "GOVERNED LEARNING PIPELINE", title: "Governed Learning", slug: "LEARNING PIPELINE", steps: [{ label: "OBSERVED", desc: "Raw LLM reasoning pattern identified" }, { label: "CANDIDATE", desc: "Candidate X-Node schema compiled" }, { label: "VALIDATED", desc: "Tested against invariant suite" }, { label: "APPROVED", desc: "Governed authority signed" }, { label: "ACTIVATED", desc: "Permanent zero-token fast path" }], narration: "Governed learning steadily absorbs expensive reasoning into exact capability. Once a pattern is validated and activated, future problems move permanently to the fast, zero-token path." },
+                    { type: "takeaway", title: "The Strategic Result", slug: "THE RESULT", narration: "The LLM didn't get faster; Xact simply stopped needing it. By reducing reasoning load by eighty-six percent, what required intelligence yesterday executes exactly today." },
+                    { type: "takeaway", title: "Nothing Here Is Prebuilt", slug: "LIVE BUILD PROOF", dur: 10.5, narration: "These tools are built live as you ask. Some prompts are convenient starting points. A millisecond build can look prebuilt. It is not." },
+                    { type: "takeaway", title: "Try a Business Tool Request", slug: "LIVE BUILD INVITATION", dur: 10.5, narration: "Try a custom business tool request. The Boss may ask for the bounds it needs. Xact decides whether that capability may become real." }
+                ]
+            }, null, 2),
+            coffee: JSON.stringify({
+                title: 'Global Coffee Production 2024', unit: 'million 60-kg bags',
+                items: [{ label: 'Brazil', value: 66.3 }, { label: 'Vietnam', value: 29 }, { label: 'Colombia', value: 12.9 },
+                { label: 'Indonesia', value: 11 }, { label: 'Ethiopia', value: 8.3 }, { label: 'Honduras', value: 6.1 },
+                { label: 'India', value: 5.9 }, { label: 'Uganda', value: 5.8 }]
+            }, null, 1),
+            streaming: ['year,netflix,disney+,prime video', '2019,167,0,112', '2020,204,95,120', '2021,222,116,142',
+                '2022,231,158,164', '2023,260,150,168', '2024,277,174,180'].join('\n'),
+            ocean: ['The Deep Ocean Is the Last Unmapped Frontier',
+                'More than 80 percent of the ocean has never been mapped or explored by humans.',
+                'Only about 25 percent of the seafloor has been surveyed at high resolution.',
+                'The hadal zone below 6,000 meters hosts life in every trench sampled so far.',
+                'A single liter of deep seawater can hold more than 50,000 microbes.',
+                'Deep-sea sediments store more carbon than all of the worlds soils combined.',
+                'Less than 0.0001 percent of the deep ocean has ever been visited by a human being.'].join('\n')
+        };
+        function randomSample() {
+            const topics = [['Quarterly Revenue by Region', 'k USD'], ['App Downloads by Platform', 'k installs'],
+            ['Solar Capacity by Country', 'GW'], ['Marathon Finish Times by City', 'minutes'], ['Coffee Cups per Studio', 'cups/day']];
+            const labels = [['EMEA', 'APAC', 'LATAM', 'NA', 'ANZ'], ['iOS', 'Android', 'Web', 'Desktop'],
+            ['China', 'USA', 'India', 'Germany', 'Brazil', 'Japan'], ['NYC', 'Berlin', 'Tokyo', 'Nairobi', 'Osaka'],
+            ['Design', 'Engineering', 'Growth', 'Support']];
+            const [title, unit] = topics[Math.floor(Math.random() * topics.length)];
+            const ls = labels[Math.floor(Math.random() * labels.length)];
+            return JSON.stringify({ title, unit, items: ls.map(l => ({ label: l, value: +(30 + Math.random() * 870).toFixed(1) })) });
+        }
+        /* --- live sample loading: http(s) fetches data/, file:// falls back to built-in --- */
+        const SAMPLE_FILES = { xact: 'xact_deck.json', coffee: 'coffee.json', streaming: 'streaming.csv', ocean: 'ocean.txt' };
+        const HTTP_MODE = /^https?:$/.test(location.protocol);
+        function setFeedSrc(mode, note) {
+            const el = $('#feedsrc');
+            if (el) el.textContent = 'json-rpc 2.0 · postMessage · feed ' + mode + (note ? ' · ' + note : '');
+        }
+        async function loadSample(k) {
+            const fname = SAMPLE_FILES[k] || k + '.txt';
+            if (HTTP_MODE) {
+                try {
+                    const r = await fetch('data/' + fname, { cache: 'reload' });
+                    if (!r.ok) throw new Error('HTTP ' + r.status);
+                    const t = await r.text();
+                    if (!t.trim()) throw new Error('empty file');
+                    return call('ingest_data', { raw: t, name: fname });
+                } catch (e) {
+                    setFeedSrc('built-in', 'data/ unreachable');
+                    toast('data/' + fname + ' UNREACHABLE (' + e.message + ') — USED BUILT-IN');
+                }
+            }
+            return call('ingest_data', { raw: SAMPLES[k], name: fname });
+        }
+        let splashFrameDocked = false;
+        const XACT_FOUNDRY_URL = 'https://xact-web-sandbox.bojimmy.chatgpt.site/foundry';
+        function dismissSplash() {
+            const splash = $('#splash');
+            if (!splash || splash.classList.contains('leaving')) return;
+            splash.classList.add('leaving');
+            setTimeout(() => { splash.hidden = true; }, 430);
+        }
+        function movePlayerIntoSplash() {
+            if (splashFrameDocked) return;
+            const feature = document.querySelector('.splash-feature');
+            feature.insertBefore($('#frame'), document.querySelector('.splash-feature-copy'));
+            splashFrameDocked = true;
+            $('#splash').classList.add('player-open');
+            document.querySelector('.splash-feature > img').hidden = true;
+            $('#splashBack').hidden = false;
+            $('#openStudioFromPlayer').hidden = false;
+        }
+        function restorePlayerToStudio() {
+            if (!splashFrameDocked) return;
+            pause();
+            $('#stage').appendChild($('#frame'));
+            splashFrameDocked = false;
+            $('#splash').classList.remove('player-open');
+            document.querySelector('.splash-feature > img').hidden = false;
+            $('#splashBack').hidden = true;
+            $('#openStudioFromPlayer').hidden = true;
+        }
+        $('#openStudio').onclick = () => { restorePlayerToStudio(); dismissSplash(); };
+        $('#openStudioFromPlayer').onclick = () => { restorePlayerToStudio(); dismissSplash(); };
+        $('#closeSplash').onclick = () => {
+            pause();
+            window.location.assign(XACT_FOUNDRY_URL);
+        };
+        $('#splashBack').onclick = restorePlayerToStudio;
+        $('#watchXact').onclick = async () => {
+            const watch = $('#watchXact');
+            watch.disabled = true;
+            watch.textContent = 'BUILDING THE XACT CUT…';
+            try {
+                movePlayerIntoSplash();
+                await loadSample('xact');
+            } finally {
+                watch.disabled = false;
+                watch.textContent = 'WATCH THE XACT EXPLAINER →';
+            }
+        };
+        async function probeDataDir() {
+            if (!HTTP_MODE) {
+                setFeedSrc('built-in', 'file://');
+                toast('FILE:// MODE — CHIPS USE BUILT-IN SAMPLES'); return;
+            }
+            try {
+                const r = await fetch('data/' + SAMPLE_FILES.coffee, { method: 'HEAD' });
+                if (r.ok) {
+                    setFeedSrc('data/ (live)');
+                    toast('LIVE DATA — CHIPS LOAD FROM ./data/ (EDITS APPLY ON NEXT CLICK)');
+                }
+                else setFeedSrc('built-in', 'data/ not found');
+            }
+            catch (_) { setFeedSrc('built-in', 'fetch failed'); }
+        }
+        document.querySelectorAll('[data-sample]').forEach(b => b.addEventListener('click', () => loadSample(b.dataset.sample)));
+        $('#rnd').onclick = () => call('ingest_data', { raw: randomSample(), name: 'random.json' });
+        $('#openfile').onclick = () => $('#file').click();
+        $('#file').addEventListener('change', async e => {
+            const f = e.target.files[0]; if (!f) return;
+            const raw = await f.text(); call('ingest_data', { raw, name: f.name }); e.target.value = '';
+        });
+
+        /* ============ drag & drop ============ */
+        let dragDepth = 0;
+        addEventListener('dragenter', e => { e.preventDefault(); dragDepth++; document.body.classList.add('dragging'); });
+        addEventListener('dragover', e => e.preventDefault());
+        addEventListener('dragleave', () => { dragDepth = Math.max(0, dragDepth - 1); if (!dragDepth) document.body.classList.remove('dragging'); });
+        addEventListener('drop', async e => {
+            e.preventDefault(); dragDepth = 0; document.body.classList.remove('dragging');
+            const f = e.dataTransfer.files && e.dataTransfer.files[0];
+            if (f) call('ingest_data', { raw: await f.text(), name: f.name });
+            else { const t2 = e.dataTransfer.getData('text'); if (t2) call('ingest_data', { raw: t2, name: 'dropped.txt' }); }
+        });
+
+        /* ============ transport wiring ============ */
+        bPlay.onclick = () => TL.playing ? pause() : play();
+        $('#bRestart').onclick = () => { seek(0); };
+        bVoice.onclick = toggleVoice;
+        bCC.onclick = toggleCC;
+        async function toggleCutFormat() {
+            cutMode = cutMode === 'long' ? 'short' : 'long';
+            syncToggles();
+            if (DS) {
+                await cutAndPlay({ autoplay: true, mode: cutMode });
+                toast(`FORMAT: ${cutMode === 'long' ? 'MULTI-CHAPTER DEEP DIVE' : 'PUNCHY SHORT CUT'} (${TL.scenes.length} SCENES · ${TL.total.toFixed(0)}s)`);
+            } else {
+                toast(`FORMAT: ${cutMode === 'long' ? 'LONG FORM' : 'SHORT FORM'} (LOAD DATA TO PLAY)`);
+            }
+        }
+        if (bCutMode) bCutMode.onclick = toggleCutFormat;
+        const topCut = $('#topCutMode');
+        if (topCut) topCut.onclick = toggleCutFormat;
+        const SPEEDS = [0.6, 1, 1.5, 2];
+        bSpeed.onclick = () => { TL.speed = SPEEDS[(SPEEDS.indexOf(TL.speed) + 1) % SPEEDS.length]; syncToggles(); };
+        bExport.onclick = () => { if (EXP.on) { cancelExport(); return; } call('export_webm'); };
+        $('#consoleBtn').onclick = () => document.body.classList.toggle('copen');
+
+        let scrubbing = false, wasPlaying = false;
+        function scrubTo(e) {
+            const r = strip.getBoundingClientRect();
+            seek(clamp((e.clientX - r.left) / r.width) * TL.total); segActive(TL.curIdx);
+        }
+        strip.addEventListener('pointerdown', e => {
+            if (EXP.on || !TL.scenes.length) return;
+            scrubbing = true; wasPlaying = TL.playing; pause();
+            try { strip.setPointerCapture(e.pointerId); } catch (_) { }
+            scrubTo(e);
+        });
+        strip.addEventListener('pointermove', e => { if (scrubbing) scrubTo(e); });
+        strip.addEventListener('pointerup', () => { if (!scrubbing) return; scrubbing = false; if (wasPlaying) play(); });
+
+        addEventListener('keydown', e => {
+            if (e.target === cinput) { if (e.key === 'Escape') cinput.blur(); return; }
+            if (e.code === 'Space') { e.preventDefault(); TL.playing ? pause() : play(); }
+            else if (e.key === 'ArrowLeft') seek(TL.t - (e.shiftKey ? 8 : 2));
+            else if (e.key === 'ArrowRight') seek(TL.t + (e.shiftKey ? 8 : 2));
+            else if (e.key === 'm' || e.key === 'M') toggleVoice();
+            else if (e.key === 'c' || e.key === 'C') toggleCC();
+        });
+
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) { hush(); }
+            else if (TL.playing && TL.scenes.length && !EXP.on) {
+                const sc = TL.scenes[sceneIdxAt(TL.t)];
+                speak(sc.narr, sc.dur);
+            }
+        });
+
+        /* ============ main loop ============ */
+        let last = performance.now();
+        function loop(now) {
+            const dt = Math.min(.06, (now - last) / 1000); last = now;
+            if (TL.playing && TL.scenes.length && !document.hidden) {
+                TL.t += dt * TL.speed;
+                if (TL.t >= TL.total) {
+                    TL.t = TL.total;
+                    if (EXP.on) {
+                        EXP.on = false; TL.playing = false; setPlayIcon();
+                        const r = EXP.rec; setTimeout(() => { try { r && r.state !== 'inactive' && r.stop(); } catch (_) { } }, 450);
+                        voiceOn = EXP.prevVoice; syncToggles(); recUI(false);
+                    }
+                    else {
+                        TL.playing = false;
+                        setPlayIcon();
+                    }
+                }
+                else {
+                    const i = sceneIdxAt(TL.t);
+                    if (i !== TL.curIdx) {
+                        TL.curIdx = i; segActive(i);
+                        if (TL.playing && !EXP.on) speak(TL.scenes[i].narr, TL.scenes[i].dur);
+                    }
+                }
+            }
+            composeFrame();
+            tcCur.textContent = tc(TL.t); tcTot.textContent = '/ ' + tc(TL.total);
+            if (playheadEl && TL.total > 0) playheadEl.style.left = (TL.t / TL.total * 100) + '%';
+            if (EXP.on) expLbl.textContent = 'REC ' + tc(TL.t);
+            else if (expLbl.textContent !== 'EXPORT .WEBM') expLbl.textContent = 'EXPORT .WEBM';
+            requestAnimationFrame(loop);
+        }
+
+        /* ============ boot ============ */
+        $('#mstat').textContent = `MCP · ${TOOLS.length} TOOLS · LISTENING`;
+        probeDataDir();
+        setInterval(() => { $('#clock').textContent = new Date().toISOString().slice(11, 19) + 'Z'; }, 1000);
+        setPlayIcon(); syncToggles();
+        if (!('speechSynthesis' in window)) { voiceOn = false; syncToggles(); }
+        (async () => {
+            requestAnimationFrame(ts => { last = ts; loop(ts); });
+            try {
+                await Promise.all([
+                    document.fonts.load('900 100px Archivo'), document.fonts.load('800 60px Archivo'),
+                    document.fonts.load('600 30px Archivo'), document.fonts.load('500 16px "IBM Plex Mono"'),
+                    document.fonts.load('700 16px "IBM Plex Mono"')]);
+                await document.fonts.ready;
+            } catch (_) { }
+            const nc = document.createElement('canvas'); nc.width = nc.height = 140;
+            const nx = nc.getContext('2d'); const im = nx.createImageData(140, 140);
+            for (let i = 0; i < im.data.length; i += 4) {
+                const v = Math.random() * 255 | 0;
+                im.data[i] = im.data[i + 1] = im.data[i + 2] = v; im.data[i + 3] = 26;
+            }
+            nx.putImageData(im, 0, 0); grainPat = ctx.createPattern(nc, 'repeat');
+        })();
+    </script>
+</body>
+
+</html>

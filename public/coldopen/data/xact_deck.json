@@ -1,0 +1,92 @@
+{
+  "kind": "presentation",
+  "title": "Xact WebMCP Foundry: Intent to Governed Agent Execution",
+  "slides": [
+    {
+      "type": "slide",
+      "title": "Xact WebMCP Foundry",
+      "slug": "TITLE · INTRO",
+      "image": "data/xact_slides/slide_01.jpg",
+      "narration": "Welcome to the Xact WebMCP Foundry. This is the blueprint for transforming human intent into governed, deterministic agent capability."
+    },
+    {
+      "type": "slide",
+      "title": "The Boss vs X-Nodes",
+      "slug": "THE BOSS & X-NODES",
+      "image": "data/xact_slides/slide_02.jpeg",
+      "narration": "Rule number one: Don't spend intelligence on work that doesn't require it. The Boss understands the conversation, while X-Nodes are deterministic units that own the real-world consequences."
+    },
+    {
+      "type": "diagram",
+      "diagramType": "triage",
+      "category": "INTENT TRIAGE ARCHITECTURE",
+      "title": "The Build Brief: Semantic Triage",
+      "slug": "INTENT TRIAGE PRISM",
+      "narration": "The Build Brief triages intent into three distinct streams: Resolved requirements route directly to X-Nodes, genuine uncertainty goes to the Boss, and Commit Constraints enforce strict policy checks."
+    },
+    {
+      "type": "slide",
+      "title": "Microsecond Execution",
+      "slug": "ZERO-TOKEN SPEED",
+      "image": "data/xact_slides/slide_04.jpeg",
+      "narration": "Known operations execute in microseconds with zero token overhead. With a nine microsecond mean latency and over one hundred and nine thousand decisions per second, known work never waits on model inference."
+    },
+    {
+      "type": "diagram",
+      "diagramType": "pipeline",
+      "category": "EXECUTION PIPELINE",
+      "title": "Parallelize & Concentrate",
+      "slug": "TWO PATHWAYS",
+      "narration": "Parallelize what is exact, and concentrate intelligence only where exactness ends. When semantic reasoning is genuinely necessary, Xact uses it. When it isn't, Xact eliminates the reasoning tax."
+    },
+    {
+      "type": "diagram",
+      "diagramType": "gates",
+      "category": "GOVERNANCE GATES",
+      "title": "Authority & Governance Lifecycle",
+      "slug": "FOUR GOVERNED GATES",
+      "narration": "Capability is knowing how; authority is being allowed to. Every action flows through four governed gates: Propose, Door, Ledger, and finally Commit."
+    },
+    {
+      "type": "slide",
+      "title": "Proof & Verification",
+      "slug": "VERIFICATION LOG",
+      "image": "data/xact_slides/slide_07.jpeg",
+      "narration": "If it lights up, Xact actually did it. Execution alone is not proof. We enforce a strict foundational rule: No evidence, no claim. No authorization, no commit."
+    },
+    {
+      "type": "milestones",
+      "header": "GOVERNED LEARNING PIPELINE",
+      "title": "Governed Learning",
+      "slug": "LEARNING PIPELINE",
+      "steps": [
+        { "label": "OBSERVED", "desc": "Raw LLM reasoning pattern identified" },
+        { "label": "CANDIDATE", "desc": "Candidate X-Node schema compiled" },
+        { "label": "VALIDATED", "desc": "Tested against invariant suite" },
+        { "label": "APPROVED", "desc": "Governed authority signed" },
+        { "label": "ACTIVATED", "desc": "Permanent zero-token fast path" }
+      ],
+      "narration": "Governed learning steadily absorbs expensive reasoning into exact capability. Once a pattern is validated and activated, future problems move permanently to the fast, zero-token path."
+    },
+    {
+      "type": "takeaway",
+      "title": "The Strategic Result",
+      "slug": "THE RESULT",
+      "narration": "The LLM didn't get faster; Xact simply stopped needing it. By reducing reasoning load by eighty-six percent, what required intelligence yesterday executes exactly today."
+    },
+    {
+      "type": "takeaway",
+      "title": "Nothing Here Is Prebuilt",
+      "slug": "LIVE BUILD PROOF",
+      "dur": 10.5,
+      "narration": "These tools are built live as you ask. Some prompts are convenient starting points. A millisecond build can look prebuilt. It is not."
+    },
+    {
+      "type": "takeaway",
+      "title": "Try a Business Tool Request",
+      "slug": "LIVE BUILD INVITATION",
+      "dur": 10.5,
+      "narration": "Try a custom business tool request. The Boss may ask for the bounds it needs. Xact decides whether that capability may become real."
+    }
+  ]
+}
