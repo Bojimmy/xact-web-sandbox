@@ -26,8 +26,10 @@ test("employee directory is a deterministic fictional 100-person organization", 
   assert.equal(result.rows.length, 100);
   assert.equal(result.summary.find((item) => item.label === "Employees")?.value, "100");
   assert.equal(result.summary.find((item) => item.label === "Divisions")?.value, "9");
+  assert.equal(result.summary.find((item) => item.label === "Company leaders")?.value, "9");
   assert.equal(result.rows[0].title, "Chief Executive Officer");
   assert.equal(result.rows.filter((employee) => employee.status === "ON LEAVE").length, 3);
   assert.ok(result.rows.some((employee) => employee.division === "Engineering"));
   assert.ok(result.rows.some((employee) => employee.division === "Customer Success"));
+  assert.deepEqual(result.rows.slice(0, 9).map((employee) => employee.division), ["Executive", "Finance", "People", "Product", "Engineering", "Sales", "Marketing", "Customer Success", "Operations"]);
 });

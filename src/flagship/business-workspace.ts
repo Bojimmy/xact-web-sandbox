@@ -124,6 +124,12 @@ const employeeDirectory: readonly EmployeeRecord[] = (() => {
 export function readEmployeeDirectory(): BusinessWorkspaceResult {
   const active = employeeDirectory.filter((employee) => employee.status === "ACTIVE").length;
   const divisions = new Set(employeeDirectory.map((employee) => employee.division)).size;
+  const isLeader = (employee: EmployeeRecord) => employee.manager === "Jordan Bennett" || employee.title === "Chief Executive Officer";
+  const leadership = employeeDirectory.filter(isLeader);
+  // This is a display projection only: it makes the CEO and every division
+  // head visible before the individual contributors without changing the
+  // public-safe source directory or any governed contract.
+  const rows = [...leadership, ...employeeDirectory.filter((employee) => !isLeader(employee))];
   return {
     kind: "EMPLOYEE_DIRECTORY",
     title: "Employee organization directory",
@@ -131,11 +137,12 @@ export function readEmployeeDirectory(): BusinessWorkspaceResult {
     summary: [
       { label: "Employees", value: String(employeeDirectory.length), detail: "fictional public-safe demo directory" },
       { label: "Divisions", value: String(divisions), detail: "executive through operating teams" },
+      { label: "Company leaders", value: String(leadership.length), detail: "CEO plus one head for each division" },
       { label: "Active", value: String(active), detail: "current mock workforce state" },
       { label: "On leave", value: String(employeeDirectory.length - active), detail: "not a payroll or timekeeping record" },
     ],
     columns: ["employeeId", "name", "division", "department", "title", "manager", "location", "status"],
-    rows: employeeDirectory,
+    rows,
   };
 }
 
