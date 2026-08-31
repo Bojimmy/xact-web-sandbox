@@ -3,9 +3,10 @@
 ## ChatGPT App bridge (local proof)
 
 `/mcp` is a Streamable HTTP MCP endpoint for using **ChatGPT as the Boss**.
-It exposes two public-safe tools: list approved Foundry READ recipes, then ask
-Xact to construct one as an inert WebMCP definition. The endpoint has no model
-credential, no external execution surface, and no mutation or Commit authority.
+It exposes two public-safe tools: list approved Foundry recipes, then ask Xact
+to construct an eligible one as an inert WebMCP definition. A constructed
+mutation definition remains Commit-gated for every future use. The endpoint has
+no model credential and no external execution surface.
 
 Run `npm run dev`, then connect a Developer Mode ChatGPT App to
 `http://localhost:3000/mcp` through a public HTTPS tunnel. A production judge

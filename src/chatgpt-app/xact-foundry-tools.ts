@@ -1,5 +1,5 @@
 import { FOUNDRY_CATALOG, type FoundryCatalogEntry } from "../flagship/foundry-catalog";
-import { XactFoundryLiaison, type FoundryActivity } from "../flagship/foundry-liaison";
+import { decomposeIntent, XactFoundryLiaison, type FoundryActivity } from "../flagship/foundry-liaison";
 import type { OAgentProvider } from "../telemetry/o-agent-provider";
 import type { WebMCPToolDefinition } from "../flagship/webmcp-tool-builder";
 
@@ -15,9 +15,11 @@ import type { WebMCPToolDefinition } from "../flagship/webmcp-tool-builder";
 export interface ChatGPTCapabilitySummary {
   readonly id: string;
   readonly title: string;
+  readonly kind: FoundryCatalogEntry["kind"];
   readonly description: string;
   readonly substrate: string;
   readonly fields: readonly { key: string; label: string; hint: string }[];
+  readonly semanticReviewRequired: boolean;
 }
 
 export interface ChatGPTConstructionResult {
@@ -37,20 +39,23 @@ const REASONING_MUST_NOT_RUN: OAgentProvider = {
 };
 
 function toSummary(entry: FoundryCatalogEntry): ChatGPTCapabilitySummary {
+  const defaults = Object.fromEntries(entry.fields.map((field) => [field.key, field.defaultValue]));
+  const semanticReviewRequired = (decomposeIntent(entry.buildIntent(defaults)).pattern?.genuineU.length ?? 0) > 0;
   return {
     id: entry.id,
     title: entry.title,
+    kind: entry.kind,
     description: entry.description,
     substrate: entry.substrate,
     fields: entry.fields.map(({ key, label, hint }) => ({ key, label, hint })),
+    semanticReviewRequired,
   };
 }
 
-/** Lists only public-safe, deterministic READ recipes for the first MCP slice. */
+/** Lists every public-safe recipe Xact Foundry knows how to compose. */
 export function listChatGPTCapabilities(query = ""): ChatGPTCapabilitySummary[] {
   const normalized = query.trim().toLowerCase();
   return FOUNDRY_CATALOG
-    .filter((entry) => entry.kind === "READ")
     .filter((entry) => !normalized || [entry.id, entry.title, entry.description, entry.substrate]
       .join(" ").toLowerCase().includes(normalized))
     .map(toSummary);
@@ -71,28 +76,29 @@ function normalizeValues(entry: FoundryCatalogEntry, raw: Readonly<Record<string
 }
 
 /**
- * Build a known READ recipe with real Foundry construction. The resulting
+ * Build a known deterministic recipe with real Foundry construction. The resulting
  * definition is intentionally inert: it contains no execute handler and
  * grants no authority over any external system.
  */
-export async function constructChatGPTReadCapability(
+export async function constructChatGPTCapability(
   capabilityId: string,
   rawValues: Readonly<Record<string, string>> = {},
 ): Promise<ChatGPTConstructionResult> {
   const entry = FOUNDRY_CATALOG.find((candidate) => candidate.id === capabilityId);
   if (!entry) throw new Error(`Unknown approved Xact capability "${capabilityId}". List the catalog before construction.`);
-  if (entry.kind !== "READ") {
-    throw new Error(`${capabilityId} is not available through the public ChatGPT bridge. Mutation and draft capabilities remain inside the Foundry UI.`);
+  const values = normalizeValues(entry, rawValues);
+  const intent = entry.buildIntent(values);
+  const decomposition = decomposeIntent(intent);
+  if ((decomposition.pattern?.genuineU.length ?? 0) > 0) {
+    throw new Error(`${capabilityId} needs semantic review before construction. ChatGPT can reason about it, but this public bridge does not yet carry an attested semantic proposal into Xact.`);
   }
 
   const liaison = new XactFoundryLiaison(REASONING_MUST_NOT_RUN);
-  const result = await liaison.buildCapability(entry.buildIntent(normalizeValues(entry, rawValues)));
+  const result = await liaison.buildCapability(intent);
   if (result.outcome !== "COMPOSED_DEFINITION" || !result.tool || !result.descriptor) {
     throw new Error(`Xact did not compose ${capabilityId}; outcome was ${result.outcome}.`);
   }
-  if (result.tool.capabilityKind !== "READ" || result.tool.requiresCommit) {
-    throw new Error(`Xact refused an unsafe ChatGPT bridge contract for ${capabilityId}.`);
-  }
+  if ("execute" in result.tool) throw new Error(`Xact refused an unsafe ChatGPT bridge contract for ${capabilityId}.`);
 
   return {
     status: "COMPOSED_DEFINITION",
@@ -107,6 +113,8 @@ export async function constructChatGPTReadCapability(
       requiresCommit: result.tool.requiresCommit,
     },
     activity: result.activity,
-    guarantee: "Xact composed an inert READ tool definition. It has no execute handler and no authority over external systems.",
+    guarantee: result.tool.requiresCommit
+      ? "Xact composed an inert governed mutation-tool definition. It has no execute handler; every future consequence still requires a separate fresh Commit."
+      : "Xact composed an inert governed tool definition. It has no execute handler and no authority over external systems.",
   };
 }

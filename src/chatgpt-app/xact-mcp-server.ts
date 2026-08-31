@@ -1,6 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { constructChatGPTReadCapability, listChatGPTCapabilities } from "./xact-foundry-tools";
+import { constructChatGPTCapability, listChatGPTCapabilities } from "./xact-foundry-tools";
 
 function json(value: unknown): string {
   return JSON.stringify(value, null, 2);
@@ -18,26 +18,26 @@ function structured(value: unknown): Record<string, unknown> {
  */
 export function createXactMcpServer(): McpServer {
   const server = new McpServer({ name: "xact-foundry", version: "0.1.0" }, {
-    instructions: "Use list_xact_capabilities before constructing. Xact can construct only the returned public-safe READ recipes here. A composed definition is inert and is never authority to execute.",
+    instructions: "Use list_xact_capabilities before constructing. Xact can compose the returned governed recipes that do not require semantic review. A composed definition is inert and is never authority to execute.",
   });
 
   server.registerTool("list_xact_capabilities", {
-    title: "List approved Xact Foundry capabilities",
-    description: "List public-safe, deterministic READ recipes that Xact Foundry can construct into inert WebMCP tool definitions. Use this before asking Xact to construct a tool.",
+    title: "List approved Xact Foundry tool recipes",
+    description: "List public-safe, governed Xact Foundry recipes that can become inert WebMCP tool definitions. Recipes marked semanticReviewRequired need an attested Boss-to-Xact proposal bridge before construction.",
     inputSchema: { query: z.string().trim().max(120).optional() },
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false, idempotentHint: true },
   }, async ({ query }) => {
     const capabilities = listChatGPTCapabilities(query);
     const value = {
       capabilities,
-      note: "This bridge exposes only public-safe READ recipes. It does not expose execution, external systems, mutation tools, or Commit authority.",
+      note: "This bridge constructs only governed, inert tool definitions. It never executes an external action. Mutation definitions remain locked: every future use requires a fresh Xact Commit.",
     };
     return { content: [{ type: "text", text: json(value) }], structuredContent: structured(value) };
   });
 
-  server.registerTool("construct_xact_read_tool", {
-    title: "Construct an approved Xact read tool",
-    description: "Ask Xact to construct one exact capability ID returned by list_xact_capabilities. Xact validates the governed recipe and returns a real but inert WebMCP READ-tool definition. This never executes an external action.",
+  server.registerTool("construct_xact_tool", {
+    title: "Construct an approved Xact tool",
+    description: "Ask Xact to construct one exact capability ID returned by list_xact_capabilities. Xact validates the governed recipe and returns a real but inert WebMCP tool definition. This never executes an external action; mutation definitions still require a fresh Commit for every future use.",
     inputSchema: {
       capabilityId: z.string().trim().min(1).max(120),
       bounds: z.record(z.string(), z.string().max(120)).optional(),
@@ -45,7 +45,7 @@ export function createXactMcpServer(): McpServer {
     annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false, idempotentHint: true },
   }, async ({ capabilityId, bounds }) => {
     try {
-      const value = await constructChatGPTReadCapability(capabilityId, bounds ?? {});
+      const value = await constructChatGPTCapability(capabilityId, bounds ?? {});
       return { content: [{ type: "text", text: json(value) }], structuredContent: structured(value) };
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : "Xact rejected the requested construction.";
