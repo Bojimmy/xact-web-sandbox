@@ -57,9 +57,12 @@ function turnTone(kind: XactTurn["kind"]): "ok" | "warn" | "block" {
   return "ok";
 }
 
-function browserWebMCPHost(): FoundryWebMCPHost {
+function browserWebMCPHost(): FoundryWebMCPHost | undefined {
   const context = (document as unknown as { modelContext?: FoundryWebMCPHost }).modelContext;
-  if (!context) return { getTools: async () => [] };
+  // Browser exposure is optional. Do not fabricate a host when this browser
+  // does not implement WebMCP: the Foundry shelf remains the real host and
+  // must not report a registration failure it never attempted.
+  if (!context || typeof context.registerTool !== "function" || typeof context.getTools !== "function") return undefined;
   return {
     registerTool: context.registerTool?.bind(context),
     getTools: context.getTools.bind(context),
