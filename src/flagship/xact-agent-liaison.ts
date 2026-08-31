@@ -27,7 +27,7 @@ import { stableFingerprint } from "../xact/authorization-artifact";
  * judge never talks to Nodes, Door, Ledger, or the O-Agent directly.
  */
 
-export type XactTurnKind = "UNDERSTAND" | "CLARIFY" | "PROPOSE" | "BUILD_RESULT" | "REFUSED" | "PENDING_GOVERNANCE";
+export type XactTurnKind = "UNDERSTAND" | "CLARIFY" | "PROPOSE" | "BUILD_RESULT" | "REFUSED" | "PENDING_GOVERNANCE" | "UNAVAILABLE";
 
 export interface XactTurn {
   kind: XactTurnKind;

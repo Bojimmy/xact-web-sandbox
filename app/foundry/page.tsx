@@ -52,7 +52,7 @@ const SEEDED_AUDIT_HISTORY: readonly AppliedEffect[] = Object.freeze([
 
 function turnTone(kind: XactTurn["kind"]): "ok" | "warn" | "block" {
   if (kind === "REFUSED") return "block";
-  if (kind === "CLARIFY" || kind === "PENDING_GOVERNANCE") return "warn";
+  if (kind === "CLARIFY" || kind === "PENDING_GOVERNANCE" || kind === "UNAVAILABLE") return "warn";
   return "ok";
 }
 
@@ -162,8 +162,11 @@ export default function FoundryPage() {
       else setPendingIntent(undefined);
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : "";
-      if (message.includes("(429)")) setError("LIVE BOSS REASONING ALLOWANCE EXHAUSTED — deterministic tools remain available, but Xact will not substitute a simulated answer.");
-      else setError("LIVE REASONING UNAVAILABLE — Xact did not substitute a simulated result.");
+      const unavailable = message.includes("(429)")
+        ? "LIVE BOSS REASONING ALLOWANCE EXHAUSTED — deterministic tools remain available, but Xact will not substitute a simulated answer."
+        : "LIVE REASONING UNAVAILABLE — the Boss could not complete this interpretation. Xact did not substitute a simulated answer or claim a tool was built.";
+      setError(unavailable);
+      setTurns((current) => [...current, { kind: "UNAVAILABLE", text: unavailable }]);
       setPendingIntent(undefined);
     } finally {
       setBusy(false);
