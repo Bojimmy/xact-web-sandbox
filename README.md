@@ -1,5 +1,17 @@
 # Xact Web Sandbox
 
+## ChatGPT App bridge (local proof)
+
+`/mcp` is a Streamable HTTP MCP endpoint for using **ChatGPT as the Boss**.
+It exposes two public-safe tools: list approved Foundry READ recipes, then ask
+Xact to construct one as an inert WebMCP definition. The endpoint has no model
+credential, no external execution surface, and no mutation or Commit authority.
+
+Run `npm run dev`, then connect a Developer Mode ChatGPT App to
+`http://localhost:3000/mcp` through a public HTTPS tunnel. A production judge
+endpoint must be explicitly hosted and made reachable by ChatGPT; do not expose
+the private Sites project merely to make the demo connect.
+
 **Xact — The Commit Layer for Agentic Web**
 
 > *Reason when necessary. Execute Xactly.*
