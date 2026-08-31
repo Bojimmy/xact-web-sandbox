@@ -7,7 +7,7 @@
  */
 
 export interface BusinessWorkspaceResult {
-  readonly kind: "WORK_ORDER_QUEUE" | "SUPPORT_QUEUE" | "CUSTOMER_HEALTH" | "OPERATIONS_REPORT" | "CAMPAIGN_DASHBOARD";
+  readonly kind: "WORK_ORDER_QUEUE" | "SUPPORT_QUEUE" | "CUSTOMER_HEALTH" | "OPERATIONS_REPORT" | "CAMPAIGN_DASHBOARD" | "EMPLOYEE_DIRECTORY";
   readonly title: string;
   readonly source: "FOUNDRY_PUBLIC_SAFE_BUSINESS_WORKSPACE";
   readonly summary: readonly { label: string; value: string; detail: string }[];
@@ -36,6 +36,108 @@ const customerHealth = Object.freeze([
   { customerId: "8821", customer: "Lin Chen", plan: "Starter", health: "WATCH", openWork: "1 billing question", engagement: "Monthly active", nextAction: "Send plan comparison draft" },
   { customerId: "7710", customer: "Northstar Cafe", plan: "Operations", health: "AT RISK", openWork: "1 urgent work order", engagement: "Daily active", nextAction: "Confirm field dispatch completion" },
 ]);
+
+/**
+ * A fictional, public-safe 100-person company directory. It is deliberately
+ * local demo data: the Foundry does not claim an HRIS, payroll, or time-clock
+ * connection merely because it can read this workspace.
+ */
+export interface EmployeeRecord extends Readonly<Record<string, string>> {
+  readonly employeeId: string;
+  readonly name: string;
+  readonly division: string;
+  readonly department: string;
+  readonly title: string;
+  readonly manager: string;
+  readonly location: string;
+  readonly status: "ACTIVE" | "ON LEAVE";
+}
+
+type DivisionPlan = {
+  readonly division: string;
+  readonly department: string;
+  readonly leader: { name: string; title: string };
+  readonly headcount: number;
+  readonly roles: readonly string[];
+};
+
+const FIRST_NAMES = ["Avery", "Cameron", "Devon", "Emerson", "Finley", "Harper", "Jamie", "Kai", "Logan", "Morgan", "Noel", "Parker", "Quinn", "Reese", "Sage", "Taylor", "Wren", "Casey", "Rowan", "Skyler"] as const;
+const LAST_NAMES = ["Bennett", "Carter", "Diaz", "Ellis", "Foster"] as const;
+const LOCATIONS = ["New York, NY", "Austin, TX", "Chicago, IL", "Remote — US"] as const;
+
+const DIVISION_PLANS: readonly DivisionPlan[] = [
+  { division: "Finance", department: "Finance & Legal", leader: { name: "Morgan Hale", title: "Chief Financial Officer" }, headcount: 10, roles: ["Finance Director", "Senior Accountant", "Financial Analyst", "Accounts Payable Specialist", "Revenue Operations Analyst"] },
+  { division: "People", department: "People Operations", leader: { name: "Riley Brooks", title: "Chief People Officer" }, headcount: 8, roles: ["People Operations Manager", "Talent Partner", "People Systems Analyst", "Learning & Development Specialist"] },
+  { division: "Product", department: "Product & Design", leader: { name: "Ari Monroe", title: "Chief Product Officer" }, headcount: 12, roles: ["Product Director", "Product Manager", "Product Designer", "User Researcher", "Product Operations Specialist"] },
+  { division: "Engineering", department: "Engineering", leader: { name: "Jordan Kim", title: "Chief Technology Officer" }, headcount: 24, roles: ["Engineering Director", "Staff Software Engineer", "Software Engineer", "Quality Engineer", "Site Reliability Engineer", "Data Engineer"] },
+  { division: "Sales", department: "Revenue", leader: { name: "Blake Turner", title: "Chief Revenue Officer" }, headcount: 16, roles: ["Sales Director", "Account Executive", "Sales Development Representative", "Sales Operations Analyst", "Solutions Consultant"] },
+  { division: "Marketing", department: "Marketing", leader: { name: "Drew Lawson", title: "Vice President, Marketing" }, headcount: 10, roles: ["Marketing Director", "Lifecycle Marketing Manager", "Content Strategist", "Demand Generation Manager", "Marketing Operations Analyst"] },
+  { division: "Customer Success", department: "Customer Experience", leader: { name: "Samira Patel", title: "Vice President, Customer Success" }, headcount: 10, roles: ["Customer Success Director", "Customer Success Manager", "Implementation Specialist", "Support Operations Analyst", "Technical Support Specialist"] },
+  { division: "Operations", department: "Business Operations", leader: { name: "Alex Rivera", title: "Vice President, Operations" }, headcount: 9, roles: ["Operations Director", "Field Operations Manager", "Workforce Coordinator", "Business Systems Analyst", "Procurement Specialist"] },
+] as const;
+
+function generatedName(index: number): string {
+  return `${FIRST_NAMES[index % FIRST_NAMES.length]} ${LAST_NAMES[Math.floor(index / FIRST_NAMES.length) % LAST_NAMES.length]}`;
+}
+
+const employeeDirectory: readonly EmployeeRecord[] = (() => {
+  const records: EmployeeRecord[] = [{
+    employeeId: "EMP-001",
+    name: "Jordan Bennett",
+    division: "Executive",
+    department: "Executive Office",
+    title: "Chief Executive Officer",
+    manager: "Board of Directors",
+    location: "New York, NY",
+    status: "ACTIVE",
+  }];
+  let generatedIndex = 0;
+
+  for (const plan of DIVISION_PLANS) {
+    records.push({
+      employeeId: `EMP-${String(records.length + 1).padStart(3, "0")}`,
+      name: plan.leader.name,
+      division: plan.division,
+      department: plan.department,
+      title: plan.leader.title,
+      manager: "Jordan Bennett",
+      location: LOCATIONS[records.length % LOCATIONS.length],
+      status: "ACTIVE",
+    });
+    for (let member = 1; member < plan.headcount; member += 1) {
+      const number = records.length + 1;
+      records.push({
+        employeeId: `EMP-${String(number).padStart(3, "0")}`,
+        name: generatedName(generatedIndex++),
+        division: plan.division,
+        department: plan.department,
+        title: plan.roles[(member - 1) % plan.roles.length],
+        manager: plan.leader.name,
+        location: LOCATIONS[number % LOCATIONS.length],
+        status: number === 18 || number === 63 || number === 91 ? "ON LEAVE" : "ACTIVE",
+      });
+    }
+  }
+  return Object.freeze(records);
+})();
+
+export function readEmployeeDirectory(): BusinessWorkspaceResult {
+  const active = employeeDirectory.filter((employee) => employee.status === "ACTIVE").length;
+  const divisions = new Set(employeeDirectory.map((employee) => employee.division)).size;
+  return {
+    kind: "EMPLOYEE_DIRECTORY",
+    title: "Employee organization directory",
+    source,
+    summary: [
+      { label: "Employees", value: String(employeeDirectory.length), detail: "fictional public-safe demo directory" },
+      { label: "Divisions", value: String(divisions), detail: "executive through operating teams" },
+      { label: "Active", value: String(active), detail: "current mock workforce state" },
+      { label: "On leave", value: String(employeeDirectory.length - active), detail: "not a payroll or timekeeping record" },
+    ],
+    columns: ["employeeId", "name", "division", "department", "title", "manager", "location", "status"],
+    rows: employeeDirectory,
+  };
+}
 
 export function readWorkOrderQueue(): BusinessWorkspaceResult {
   return {

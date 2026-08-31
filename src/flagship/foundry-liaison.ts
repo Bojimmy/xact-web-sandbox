@@ -181,6 +181,19 @@ const FOUNDRY_PATTERNS: CapabilityPattern[] = [
     matches: (intent) => /work[- ]orders?|field service|dispatch queue/i.test(intent),
   },
   {
+    id: "get_employee_directory",
+    label: "Read employee organization directory",
+    capabilityKind: "READ",
+    inputs: [],
+    resolves: ["employee-directory", "division-headcount", "reporting-line"],
+    boundaries: () => [
+      { primitive: "READ_CAPABILITY", description: "Foundry public-safe employee workspace is the approved read substrate" },
+      FRESHNESS_BOUNDARY,
+    ],
+    genuineU: [],
+    matches: (intent) => /employee (directory|data|list|org|organization|headcount)|(?:company|workforce) (directory|org|organization|headcount)|division headcount/i.test(intent),
+  },
+  {
     id: "get_customer_support_queue",
     label: "Read customer-support queue",
     capabilityKind: "READ",

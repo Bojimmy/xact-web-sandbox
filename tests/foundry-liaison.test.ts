@@ -130,6 +130,7 @@ test("business workspace requests build deterministic governed READ tools", asyn
   const liaison = new XactFoundryLiaison(liveProvider());
   const requests = [
     ["Build a WebMCP tool to read the field work-order queue", "get_work_order_queue"],
+    ["Build a WebMCP tool to read the employee organization directory and division headcount", "get_employee_directory"],
     ["Build a WebMCP tool for the customer support queue", "get_customer_support_queue"],
     ["Build a WebMCP tool for customer account health", "get_customer_health_summary"],
     ["Build a WebMCP tool for a weekly business operations report", "get_business_operations_report"],

@@ -10,7 +10,7 @@ import { createMutationCommitEngine } from "../../src/flagship/foundry-mutation-
 import { FoundryRuntime, FoundryToolRegistry, type FoundryInvocationResult } from "../../src/flagship/foundry-runtime";
 import { preparePromotionalEmailCampaign, type CampaignPreparation } from "../../src/flagship/promotional-campaign-nodes";
 import { campaignBriefFromProfile } from "../../src/flagship/foundry-profile";
-import { readCampaignDashboard, readCustomerHealth, readOperationsReport, readSupportQueue, readWorkOrderQueue, type BusinessWorkspaceResult } from "../../src/flagship/business-workspace";
+import { readCampaignDashboard, readCustomerHealth, readEmployeeDirectory, readOperationsReport, readSupportQueue, readWorkOrderQueue, type BusinessWorkspaceResult } from "../../src/flagship/business-workspace";
 import type { FoundryActivity } from "../../src/flagship/foundry-liaison";
 import type { FoundryWebMCPHost } from "../../src/flagship/webmcp-host-registration";
 import type { WebMCPToolDefinition } from "../../src/flagship/webmcp-tool-builder";
@@ -22,6 +22,7 @@ type ConversationTurn = XactTurn & { speaker?: "user" };
 const EXAMPLES = [
   "Build a WebMCP tool that shows active users and open support requests",
   "Build a WebMCP tool to read the field work-order queue",
+  "Build a WebMCP tool to read the employee organization directory and division headcount",
   "Build a WebMCP tool for a weekly business operations report",
   "Build a weekly promotional email campaign with personalized drafts",
   "Let support agents issue a service credit up to $25",
@@ -297,6 +298,7 @@ export default function FoundryPage() {
             return { activeUsers, openSupportRequests, source: "Foundry customer directory", mode: "ON_DEMAND_SNAPSHOT" };
           }
           if (readTool.name === "get_work_order_queue") return readWorkOrderQueue();
+          if (readTool.name === "get_employee_directory") return readEmployeeDirectory();
           if (readTool.name === "get_customer_support_queue") return readSupportQueue();
           if (readTool.name === "get_customer_health_summary") {
             const customerId = typeof values.customerId === "string" ? values.customerId.trim() : "";
