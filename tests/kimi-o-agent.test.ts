@@ -15,6 +15,13 @@ test("Kimi adapter keeps the key server-side and returns evidence only", async (
   assert.equal(result.inputTokens, 14);
   assert.equal(result.outputTokens, 11);
   assert.equal((received?.headers as Record<string, string>).authorization, "Bearer secret-key");
+  assert.deepEqual(JSON.parse(String(received?.body)), {
+    model: "kimi-k3",
+    messages: kimiMessagesFor(request),
+    stream: false,
+    temperature: 1,
+    max_tokens: 1024,
+  });
   assert.ok(!JSON.stringify(kimiMessagesFor(request)).includes("secret-key"));
 });
 

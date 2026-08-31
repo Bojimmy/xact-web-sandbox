@@ -39,7 +39,10 @@ export async function invokeKimiOAgent(
   const upstream = await fetcher(KIMI_CHAT_COMPLETIONS_URL, {
     method: "POST",
     headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({ model: "kimi-k3", messages: kimiMessagesFor(request), stream: false }),
+    // Kimi K3 requires temperature 1. Its reasoning tokens share the response
+    // allowance, so leave enough room for a concise evidence answer after it
+    // has completed internal deliberation.
+    body: JSON.stringify({ model: "kimi-k3", messages: kimiMessagesFor(request), stream: false, temperature: 1, max_tokens: 1024 }),
   });
   if (!upstream.ok) throw new Error(`Kimi upstream failed (${upstream.status}).`);
   const payload = await upstream.json() as { usage?: { prompt_tokens?: unknown; completion_tokens?: unknown } };
