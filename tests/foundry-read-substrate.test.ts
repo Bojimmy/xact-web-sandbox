@@ -14,6 +14,8 @@ test("each absorbed READ tool maps to its declared public-safe substrate", () =>
     ["get_customers_by_plan", { plan: "Growth" }, "Customers by plan: Growth", 1],
     ["get_work_orders_by_owner", { owner: "M. Rivera" }, "Work orders by owner: M. Rivera", 1],
     ["get_support_tickets_by_owner", { owner: "BILLING" }, "Support tickets by owner: BILLING", 1],
+    ["get_sales_pipeline_forecast", {}, "Sales pipeline and forecast", 4],
+    ["get_marketing_performance", {}, "Marketing performance dashboard", 3],
   ] as const;
 
   for (const [name, input, title, rows] of cases) {

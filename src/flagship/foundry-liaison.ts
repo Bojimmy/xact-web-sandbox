@@ -334,6 +334,32 @@ const FOUNDRY_PATTERNS: CapabilityPattern[] = [
     matches: (intent) => /weekly kpi|business (operations )?report|operations dashboard/i.test(intent),
   },
   {
+    id: "get_sales_pipeline_forecast",
+    label: "Read sales pipeline and forecast",
+    capabilityKind: "READ",
+    inputs: [],
+    resolves: ["open-pipeline", "weighted-forecast", "close-window"],
+    boundaries: () => [
+      { primitive: "READ_CAPABILITY", description: "Foundry public-safe sales workspace is the approved read substrate" },
+      FRESHNESS_BOUNDARY,
+    ],
+    genuineU: [],
+    matches: (intent) => /sales (pipeline|forecast|dashboard)|revenue (pipeline|forecast)/i.test(intent),
+  },
+  {
+    id: "get_marketing_performance",
+    label: "Read marketing performance dashboard",
+    capabilityKind: "READ",
+    inputs: [],
+    resolves: ["campaign-reach", "engagement", "delivery-status"],
+    boundaries: () => [
+      { primitive: "READ_CAPABILITY", description: "Foundry public-safe marketing workspace is the approved read substrate" },
+      FRESHNESS_BOUNDARY,
+    ],
+    genuineU: [],
+    matches: (intent) => /marketing (performance|dashboard|analytics)|campaign marketing (performance|analytics)/i.test(intent),
+  },
+  {
     id: "get_campaign_dashboard",
     label: "Read promotion campaign dashboard",
     capabilityKind: "READ",

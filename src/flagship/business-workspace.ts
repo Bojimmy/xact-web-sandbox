@@ -7,7 +7,7 @@
  */
 
 export interface BusinessWorkspaceResult {
-  readonly kind: "WORK_ORDER_QUEUE" | "SUPPORT_QUEUE" | "CUSTOMER_HEALTH" | "OPERATIONS_REPORT" | "CAMPAIGN_DASHBOARD" | "EMPLOYEE_DIRECTORY";
+  readonly kind: "WORK_ORDER_QUEUE" | "SUPPORT_QUEUE" | "CUSTOMER_HEALTH" | "OPERATIONS_REPORT" | "CAMPAIGN_DASHBOARD" | "SALES_PIPELINE" | "MARKETING_PERFORMANCE" | "EMPLOYEE_DIRECTORY";
   readonly title: string;
   readonly source: "FOUNDRY_PUBLIC_SAFE_BUSINESS_WORKSPACE";
   readonly summary: readonly { label: string; value: string; detail: string }[];
@@ -35,6 +35,19 @@ const customerHealth = Object.freeze([
   { customerId: "1042", customer: "Ada Lovelace", plan: "Growth", health: "STABLE", openWork: "1 support case", engagement: "Weekly active", nextAction: "Review late-delivery resolution" },
   { customerId: "8821", customer: "Lin Chen", plan: "Starter", health: "WATCH", openWork: "1 billing question", engagement: "Monthly active", nextAction: "Send plan comparison draft" },
   { customerId: "7710", customer: "Northstar Cafe", plan: "Operations", health: "AT RISK", openWork: "1 urgent work order", engagement: "Daily active", nextAction: "Confirm field dispatch completion" },
+]);
+
+const salesPipeline = Object.freeze([
+  { opportunity: "Northstar expansion", account: "Northstar Cafe", owner: "Casey Bennett", stage: "PROPOSAL", value: "$42,000", closeWindow: "September", confidence: "70%" },
+  { opportunity: "Lovelace renewal", account: "Lovelace Labs", owner: "Morgan Ellis", stage: "NEGOTIATION", value: "$28,000", closeWindow: "September", confidence: "85%" },
+  { opportunity: "Harbor rollout", account: "Harbor Studio", owner: "Parker Diaz", stage: "QUALIFIED", value: "$16,500", closeWindow: "October", confidence: "50%" },
+  { opportunity: "Chen service bundle", account: "Chen & Co.", owner: "Taylor Foster", stage: "DISCOVERY", value: "$9,800", closeWindow: "October", confidence: "30%" },
+]);
+
+const marketingPerformance = Object.freeze([
+  { campaign: "Weekly active-customer promotion", channel: "Email", audience: "128", engagement: "42% opens", conversion: "—", status: "DRAFT ONLY" },
+  { campaign: "Field-service follow-up", channel: "Lifecycle email", audience: "46", engagement: "31% opens", conversion: "—", status: "DRAFT ONLY" },
+  { campaign: "Q4 operations webinar", channel: "Landing page", audience: "310", engagement: "76 registrations", conversion: "—", status: "PUBLIC-SAFE DEMO" },
 ]);
 
 /**
@@ -233,6 +246,36 @@ export function readCampaignDashboard(): BusinessWorkspaceResult {
     ],
     columns: ["campaign", "audience", "drafts", "delivery", "nextAction"],
     rows: [{ campaign: "Weekly active-customer promotion", audience: "128", drafts: "128", delivery: "NOT CONNECTED", nextAction: "Review drafts or request delivery governance" }],
+  };
+}
+
+export function readSalesPipeline(): BusinessWorkspaceResult {
+  return {
+    kind: "SALES_PIPELINE",
+    title: "Sales pipeline and forecast",
+    source,
+    summary: [
+      { label: "Open pipeline", value: "$96,300", detail: "four fictional public-safe opportunities" },
+      { label: "Weighted forecast", value: "$55,710", detail: "deterministic demo calculation" },
+      { label: "Closing this month", value: "2", detail: "no CRM connection or forecast authority" },
+    ],
+    columns: ["opportunity", "account", "owner", "stage", "value", "closeWindow", "confidence"],
+    rows: salesPipeline,
+  };
+}
+
+export function readMarketingPerformance(): BusinessWorkspaceResult {
+  return {
+    kind: "MARKETING_PERFORMANCE",
+    title: "Marketing performance dashboard",
+    source,
+    summary: [
+      { label: "Campaigns", value: String(marketingPerformance.length), detail: "fictional public-safe campaign workspace" },
+      { label: "Reach", value: "484", detail: "demo audience counts only" },
+      { label: "Delivery", value: "0", detail: "no connected marketing provider or send Commit" },
+    ],
+    columns: ["campaign", "channel", "audience", "engagement", "conversion", "status"],
+    rows: marketingPerformance,
   };
 }
 

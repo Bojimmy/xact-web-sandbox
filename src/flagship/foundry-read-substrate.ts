@@ -8,6 +8,8 @@ import {
   readEmployeesByLocation,
   readEmployeesByRole,
   readEmployeesOnLeave,
+  readMarketingPerformance,
+  readSalesPipeline,
   readSupportTicketsByOwner,
   readWorkOrdersByOwner,
 } from "./business-workspace";
@@ -20,6 +22,8 @@ import {
 export function readAbsorbedFoundryTool(name: string, input: Readonly<Record<string, unknown>>): BusinessWorkspaceResult | undefined {
   const value = (key: string) => typeof input[key] === "string" ? input[key].trim() : "";
   switch (name) {
+    case "get_sales_pipeline_forecast": return readSalesPipeline();
+    case "get_marketing_performance": return readMarketingPerformance();
     case "find_employees_by_role": return readEmployeesByRole(value("role"));
     case "get_division_roster": return readEmployeesByDivision(value("division"));
     case "get_department_headcount": return readDepartmentHeadcount(value("department"));

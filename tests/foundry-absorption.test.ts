@@ -36,6 +36,8 @@ const READ_CASES = [
   ["Build a WebMCP tool to read customers by plan", "get_customers_by_plan"],
   ["Build a WebMCP tool to read work orders by owner", "get_work_orders_by_owner"],
   ["Build a WebMCP tool to read support tickets by owner", "get_support_tickets_by_owner"],
+  ["Build a WebMCP tool for the sales pipeline and forecast", "get_sales_pipeline_forecast"],
+  ["Build a WebMCP tool for marketing performance", "get_marketing_performance"],
 ] as const;
 
 const MUTATION_CASES = [
