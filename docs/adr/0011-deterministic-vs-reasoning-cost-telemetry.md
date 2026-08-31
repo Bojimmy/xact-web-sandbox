@@ -105,9 +105,11 @@ client for that boundary. It has no credential field and accepts a response
 only when the protected server endpoint attests `LIVE_SANDBOX_MEASUREMENT`.
 Deployments may wire that endpoint to a real model using server-only secrets;
 until then, the explicit `SimulatedOAgentProvider` is the offline fallback.
-The bundled route fails closed until both `OAGENT_PROVIDER_URL` and
-`OAGENT_PROVIDER_TOKEN` identify a protected model gateway; the gateway must
-enforce its own caller controls and return the attested structured result.
+The bundled route fails closed until it has either a server-only
+`MOONSHOT_API_KEY` for the direct Kimi transport or both
+`OAGENT_PROVIDER_URL` and `OAGENT_PROVIDER_TOKEN` for a protected model
+gateway. In both cases, the browser receives only the attested structured
+result; the provider credential and transport remain server-side.
 
 ### Two-path metrics
 
