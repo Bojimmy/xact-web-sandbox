@@ -228,3 +228,140 @@ export function readCampaignDashboard(): BusinessWorkspaceResult {
     rows: [{ campaign: "Weekly active-customer promotion", audience: "128", drafts: "128", delivery: "NOT CONNECTED", nextAction: "Review drafts or request delivery governance" }],
   };
 }
+
+// ---------------------------------------------------------------------------
+// Deterministic absorbable filters (zero-reasoning READ substrates).
+//
+// These are derived from the same public-safe local records above; they claim
+// no HRIS/CRM/ticketing/dispatch connection beyond the Foundry workspace.
+// ---------------------------------------------------------------------------
+
+const employeeColumns = ["employeeId", "name", "division", "department", "title", "manager", "location", "status"] as const;
+
+export function readEmployeesByRole(role: string): BusinessWorkspaceResult {
+  const needle = role.trim().toLowerCase();
+  const rows = employeeDirectory.filter((employee) => employee.title.toLowerCase().includes(needle));
+  return {
+    kind: "EMPLOYEE_DIRECTORY",
+    title: `Employees by role: ${role}`,
+    source,
+    summary: [{ label: "Matches", value: String(rows.length), detail: "title match on the public-safe directory" }],
+    columns: [...employeeColumns],
+    rows,
+  };
+}
+
+export function readEmployeesByDivision(division: string): BusinessWorkspaceResult {
+  const needle = division.trim().toLowerCase();
+  const rows = employeeDirectory.filter((employee) => employee.division.toLowerCase().includes(needle));
+  return {
+    kind: "EMPLOYEE_DIRECTORY",
+    title: `Division roster: ${division}`,
+    source,
+    summary: [{ label: "Members", value: String(rows.length), detail: "division match on the public-safe directory" }],
+    columns: [...employeeColumns],
+    rows,
+  };
+}
+
+export function readDepartmentHeadcount(department: string): BusinessWorkspaceResult {
+  const needle = department.trim().toLowerCase();
+  const rows = employeeDirectory.filter((employee) => employee.department.toLowerCase().includes(needle));
+  return {
+    kind: "EMPLOYEE_DIRECTORY",
+    title: `Department headcount: ${department}`,
+    source,
+    summary: [{ label: "Headcount", value: String(rows.length), detail: "department match on the public-safe directory" }],
+    columns: ["department", "division", "name", "title"],
+    rows: rows.map((employee) => ({ department: employee.department, division: employee.division, name: employee.name, title: employee.title })),
+  };
+}
+
+export function readEmployeesByLocation(location: string): BusinessWorkspaceResult {
+  const needle = location.trim().toLowerCase();
+  const rows = employeeDirectory.filter((employee) => employee.location.toLowerCase().includes(needle));
+  return {
+    kind: "EMPLOYEE_DIRECTORY",
+    title: `Employees by location: ${location}`,
+    source,
+    summary: [{ label: "Located", value: String(rows.length), detail: "location match on the public-safe directory" }],
+    columns: [...employeeColumns],
+    rows,
+  };
+}
+
+export function readEmployeesOnLeave(): BusinessWorkspaceResult {
+  const rows = employeeDirectory.filter((employee) => employee.status === "ON LEAVE");
+  return {
+    kind: "EMPLOYEE_DIRECTORY",
+    title: "Employees on leave",
+    source,
+    summary: [{ label: "On leave", value: String(rows.length), detail: "status match on the public-safe directory" }],
+    columns: [...employeeColumns],
+    rows,
+  };
+}
+
+export function readDirectReports(manager: string): BusinessWorkspaceResult {
+  const needle = manager.trim().toLowerCase();
+  const rows = employeeDirectory.filter((employee) => employee.manager.toLowerCase().includes(needle));
+  return {
+    kind: "EMPLOYEE_DIRECTORY",
+    title: `Direct reports: ${manager}`,
+    source,
+    summary: [{ label: "Reports", value: String(rows.length), detail: "manager match on the public-safe directory" }],
+    columns: [...employeeColumns],
+    rows,
+  };
+}
+
+export function readCustomersAtRisk(): BusinessWorkspaceResult {
+  const rows = customerHealth.filter((customer) => customer.health === "AT RISK");
+  return {
+    kind: "CUSTOMER_HEALTH",
+    title: "At-risk customers",
+    source,
+    summary: [{ label: "At risk", value: String(rows.length), detail: "health match on the public-safe customer workspace" }],
+    columns: ["customerId", "customer", "plan", "health", "openWork", "engagement", "nextAction"],
+    rows,
+  };
+}
+
+export function readCustomersByPlan(plan: string): BusinessWorkspaceResult {
+  const needle = plan.trim().toLowerCase();
+  const rows = customerHealth.filter((customer) => customer.plan.toLowerCase().includes(needle));
+  return {
+    kind: "CUSTOMER_HEALTH",
+    title: `Customers by plan: ${plan}`,
+    source,
+    summary: [{ label: "Customers", value: String(rows.length), detail: "plan match on the public-safe customer workspace" }],
+    columns: ["customerId", "customer", "plan", "health", "openWork", "engagement", "nextAction"],
+    rows,
+  };
+}
+
+export function readWorkOrdersByOwner(owner: string): BusinessWorkspaceResult {
+  const needle = owner.trim().toLowerCase();
+  const rows = workOrders.filter((order) => order.owner.toLowerCase().includes(needle));
+  return {
+    kind: "WORK_ORDER_QUEUE",
+    title: `Work orders by owner: ${owner}`,
+    source,
+    summary: [{ label: "Assigned", value: String(rows.length), detail: "owner match on the public-safe dispatch queue" }],
+    columns: ["id", "customer", "task", "priority", "owner", "status", "due"],
+    rows,
+  };
+}
+
+export function readSupportTicketsByOwner(owner: string): BusinessWorkspaceResult {
+  const needle = owner.trim().toLowerCase();
+  const rows = supportTickets.filter((ticket) => ticket.owner.toLowerCase().includes(needle));
+  return {
+    kind: "SUPPORT_QUEUE",
+    title: `Support tickets by owner: ${owner}`,
+    source,
+    summary: [{ label: "Owned", value: String(rows.length), detail: "owner match on the public-safe support queue" }],
+    columns: ["id", "customer", "issue", "severity", "owner", "status", "age"],
+    rows,
+  };
+}

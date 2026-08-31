@@ -118,9 +118,14 @@ function amountLimit(intent: string, fallback: number): number {
   return match ? Number(match[1]) : fallback;
 }
 
-const ACTOR_BOUNDARY: CapabilityBoundary = { primitive: "ACTOR_BINDING", description: "actor requires SERVICE_RECOVERY", actor: "SERVICE_RECOVERY" };
+/** A role-boundary instance from the absorbed actor ontology (ADR 0016 ACTOR_BINDING). */
+export function actorBoundaryFor(role: string): CapabilityBoundary {
+  return { primitive: "ACTOR_BINDING", description: `actor requires ${role}`, actor: role };
+}
+const ACTOR_BOUNDARY: CapabilityBoundary = actorBoundaryFor("SERVICE_RECOVERY");
 const AUDIT_BOUNDARY: CapabilityBoundary = { primitive: "AUDIT_EVENT", description: "audit event required", auditRequired: true };
 const FRESHNESS_BOUNDARY: CapabilityBoundary = { primitive: "SESSION_REQUIREMENT", description: "state freshness required", freshnessRequired: true };
+const CONFIRMATION_BOUNDARY: CapabilityBoundary = { primitive: "CONFIRMATION_REQUIREMENT", description: "confirmation required", confirmationRequired: true };
 
 const FOUNDRY_PATTERNS: CapabilityPattern[] = [
   {
@@ -153,6 +158,102 @@ const FOUNDRY_PATTERNS: CapabilityPattern[] = [
     genuineU: ["refund eligibility"],
     matches: (intent) => /refund/i.test(intent) && /delivery|fee|shipping/i.test(intent),
     extractAmountLimit: (intent) => amountLimit(intent, 15),
+  },
+  {
+    id: "reassign_support_ticket",
+    label: "Reassign support ticket",
+    capabilityKind: "MUTATION",
+    inputs: ["ticketId", "newOwner"],
+    resolves: ["ticket-reassigned"],
+    boundaries: () => [
+      actorBoundaryFor("SERVICE_RECOVERY"),
+      CONFIRMATION_BOUNDARY,
+      AUDIT_BOUNDARY,
+    ],
+    genuineU: [],
+    matches: (intent) => /reassign/i.test(intent) && /(support )?ticket|case/i.test(intent),
+  },
+  {
+    id: "reassign_work_order",
+    label: "Reassign field work order",
+    capabilityKind: "MUTATION",
+    inputs: ["orderId", "technician"],
+    resolves: ["work-order-reassigned"],
+    boundaries: () => [
+      actorBoundaryFor("FIELD OPS"),
+      CONFIRMATION_BOUNDARY,
+      AUDIT_BOUNDARY,
+    ],
+    genuineU: [],
+    matches: (intent) => /reassign/i.test(intent) && /work[- ]order/i.test(intent),
+  },
+  {
+    id: "escalate_support_ticket",
+    label: "Escalate support ticket",
+    capabilityKind: "MUTATION",
+    inputs: ["ticketId", "severity"],
+    resolves: ["ticket-escalated"],
+    boundaries: () => [
+      actorBoundaryFor("SERVICE_RECOVERY"),
+      CONFIRMATION_BOUNDARY,
+      AUDIT_BOUNDARY,
+    ],
+    genuineU: [],
+    matches: (intent) => /escalate/i.test(intent) && /(support )?ticket|case/i.test(intent),
+  },
+  {
+    id: "set_customer_next_action",
+    label: "Set customer next action",
+    capabilityKind: "MUTATION",
+    inputs: ["customerId", "nextAction"],
+    resolves: ["next-action-set"],
+    boundaries: () => [
+      actorBoundaryFor("CUSTOMER SUCCESS"),
+      CONFIRMATION_BOUNDARY,
+      AUDIT_BOUNDARY,
+    ],
+    genuineU: [],
+    matches: (intent) => /next action/i.test(intent) && /customer/i.test(intent),
+  },
+  {
+    id: "update_employee_status",
+    label: "Update employee status",
+    capabilityKind: "MUTATION",
+    inputs: ["employeeId", "status"],
+    resolves: ["status-updated"],
+    boundaries: () => [
+      actorBoundaryFor("PEOPLE"),
+      CONFIRMATION_BOUNDARY,
+      AUDIT_BOUNDARY,
+    ],
+    genuineU: [],
+    matches: (intent) => /employee/i.test(intent) && /(status|on leave|active)/i.test(intent) && /(update|change|set)/i.test(intent),
+  },
+  {
+    id: "get_work_orders_by_owner",
+    label: "Read work orders by owner",
+    capabilityKind: "READ",
+    inputs: ["owner"],
+    resolves: ["owned-work-orders"],
+    boundaries: () => [
+      { primitive: "READ_CAPABILITY", description: "Foundry public-safe business workspace is the approved work-order substrate" },
+      FRESHNESS_BOUNDARY,
+    ],
+    genuineU: [],
+    matches: (intent) => /work[- ]orders? (by|for) owner|work[- ]order owner|work[- ]orders? assigned/i.test(intent),
+  },
+  {
+    id: "get_support_tickets_by_owner",
+    label: "Read support tickets by owner",
+    capabilityKind: "READ",
+    inputs: ["owner"],
+    resolves: ["owned-tickets"],
+    boundaries: () => [
+      { primitive: "READ_CAPABILITY", description: "Foundry public-safe business workspace is the approved support substrate" },
+      FRESHNESS_BOUNDARY,
+    ],
+    genuineU: [],
+    matches: (intent) => /support tickets? (by|for) owner|tickets? (by|for) owner|support tickets? assigned/i.test(intent),
   },
   {
     id: "read_active_users_and_open_requests",
@@ -259,6 +360,110 @@ const FOUNDRY_PATTERNS: CapabilityPattern[] = [
     ],
     genuineU: [],
     matches: (intent) => /promo|promotional|marketing/i.test(intent) && /email|campaign/i.test(intent),
+  },
+  {
+    id: "find_employees_by_role",
+    label: "Find employees by role",
+    capabilityKind: "READ",
+    inputs: ["role"],
+    resolves: ["matching-employees"],
+    boundaries: () => [
+      { primitive: "READ_CAPABILITY", description: "Foundry public-safe employee workspace is the approved read substrate" },
+      FRESHNESS_BOUNDARY,
+    ],
+    genuineU: [],
+    matches: (intent) => /employees? (by|with) (role|title|position)|by (role|title|position)/i.test(intent),
+  },
+  {
+    id: "get_division_roster",
+    label: "Read division roster",
+    capabilityKind: "READ",
+    inputs: ["division"],
+    resolves: ["division-roster"],
+    boundaries: () => [
+      { primitive: "READ_CAPABILITY", description: "Foundry public-safe employee workspace is the approved read substrate" },
+      FRESHNESS_BOUNDARY,
+    ],
+    genuineU: [],
+    matches: (intent) => /division roster|division directory|division list|division members/i.test(intent),
+  },
+  {
+    id: "get_department_headcount",
+    label: "Read department headcount",
+    capabilityKind: "READ",
+    inputs: ["department"],
+    resolves: ["headcount"],
+    boundaries: () => [
+      { primitive: "READ_CAPABILITY", description: "Foundry public-safe employee workspace is the approved read substrate" },
+      FRESHNESS_BOUNDARY,
+    ],
+    genuineU: [],
+    matches: (intent) => /department headcount|department count/i.test(intent),
+  },
+  {
+    id: "get_employees_by_location",
+    label: "Read employees by location",
+    capabilityKind: "READ",
+    inputs: ["location"],
+    resolves: ["located-employees"],
+    boundaries: () => [
+      { primitive: "READ_CAPABILITY", description: "Foundry public-safe employee workspace is the approved read substrate" },
+      FRESHNESS_BOUNDARY,
+    ],
+    genuineU: [],
+    matches: (intent) => /employees? (by|in) (location|office|city|site)|by (location|office|city)/i.test(intent),
+  },
+  {
+    id: "get_employees_on_leave",
+    label: "Read employees on leave",
+    capabilityKind: "READ",
+    inputs: [],
+    resolves: ["on-leave-employees"],
+    boundaries: () => [
+      { primitive: "READ_CAPABILITY", description: "Foundry public-safe employee workspace is the approved read substrate" },
+      FRESHNESS_BOUNDARY,
+    ],
+    genuineU: [],
+    matches: (intent) => /employees? on leave|on leave|absent employees?/i.test(intent),
+  },
+  {
+    id: "get_direct_reports",
+    label: "Read direct reports",
+    capabilityKind: "READ",
+    inputs: ["manager"],
+    resolves: ["direct-reports"],
+    boundaries: () => [
+      { primitive: "READ_CAPABILITY", description: "Foundry public-safe employee workspace is the approved read substrate" },
+      FRESHNESS_BOUNDARY,
+    ],
+    genuineU: [],
+    matches: (intent) => /direct reports|reports to|reporting line/i.test(intent),
+  },
+  {
+    id: "get_customers_at_risk",
+    label: "Read at-risk customers",
+    capabilityKind: "READ",
+    inputs: [],
+    resolves: ["at-risk-customers"],
+    boundaries: () => [
+      { primitive: "READ_CAPABILITY", description: "Foundry public-safe business workspace is the approved customer-health substrate" },
+      FRESHNESS_BOUNDARY,
+    ],
+    genuineU: [],
+    matches: (intent) => /at[- ]risk customers?|customers? at[- ]risk|at-risk accounts?/i.test(intent),
+  },
+  {
+    id: "get_customers_by_plan",
+    label: "Read customers by plan",
+    capabilityKind: "READ",
+    inputs: ["plan"],
+    resolves: ["plan-customers"],
+    boundaries: () => [
+      { primitive: "READ_CAPABILITY", description: "Foundry public-safe business workspace is the approved customer-health substrate" },
+      FRESHNESS_BOUNDARY,
+    ],
+    genuineU: [],
+    matches: (intent) => /customers? by plan|by plan/i.test(intent) && !/(change|update|switch|modify)/i.test(intent),
   },
   {
     id: "find_customer_by_email",
