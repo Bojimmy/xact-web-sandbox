@@ -869,15 +869,15 @@
 <body>
 
     <section id="splash" aria-label="Xact explainer introduction">
-        <button class="splash-close" id="closeSplash" aria-label="Close explainer and open studio">×</button>
+        <button class="splash-close" id="closeSplash" aria-label="Close explainer and open the Xact Foundry">×</button>
         <div class="splash-shell">
             <div class="splash-copy">
-                <div class="splash-kicker">XACT · WEBMCP EXPLAINER</div>
+                <div class="splash-kicker">XACT FOUNDRY · BUILT WITH WEBMCP · COLDOPEN</div>
                 <h1>Turn intent into <em>governed</em> capability.</h1>
                 <p>Watch the Xact story: the Boss interprets what matters, deterministic X-Nodes build what is known, and Commit keeps consequence under control.</p>
                 <div class="splash-actions">
                     <button class="splash-primary" id="watchXact">WATCH THE XACT EXPLAINER →</button>
-                    <button class="splash-secondary" id="openStudio">OPEN EXPLAINER STUDIO</button>
+                    <button class="splash-secondary" id="openStudio">BYPASS DIRECT TO THE BOSS →</button>
                 </div>
                 <div class="splash-facts">
                     <div class="splash-stat"><span class="splash-stat-label">Featured deck</span><b>11 scenes</b></div>
@@ -891,7 +891,7 @@
                     <div><span class="splash-eyebrow">Featured explainer</span><strong>Xact WebMCP Foundry</strong></div>
                     <div style="display:flex;align-items:center;gap:10px;">
                         <button class="splash-mini" id="splashBack" hidden>← BACK</button>
-                        <button class="splash-mini" id="openStudioFromPlayer" hidden>OPEN STUDIO ↗</button>
+                        <button class="splash-mini" id="openStudioFromPlayer" hidden>OPEN THE BOSS ↗</button>
                         <span class="splash-runtime">11-SCENE DECK</span>
                     </div>
                 </div>
@@ -2637,8 +2637,8 @@
             $('#splashBack').hidden = true;
             $('#openStudioFromPlayer').hidden = true;
         }
-        $('#openStudio').onclick = () => { restorePlayerToStudio(); dismissSplash(); };
-        $('#openStudioFromPlayer').onclick = () => { restorePlayerToStudio(); dismissSplash(); };
+        $('#openStudio').onclick = () => { window.location.assign(XACT_FOUNDRY_URL); };
+        $('#openStudioFromPlayer').onclick = () => { window.location.assign(XACT_FOUNDRY_URL); };
         $('#closeSplash').onclick = () => {
             pause();
             window.location.assign(XACT_FOUNDRY_URL);
