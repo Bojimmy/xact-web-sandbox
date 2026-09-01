@@ -5,12 +5,14 @@ import assert from "node:assert/strict";
 
 const root = join(process.cwd(), "mcp-bridge");
 
-test("MCP route is a connected, session-aware Streamable HTTP endpoint", async () => {
+test("MCP route is a connected, stateless Streamable HTTP endpoint", async () => {
   const source = await readFile(join(root, "app/mcp/route.ts"), "utf8");
   assert.match(source, /WebStandardStreamableHTTPServerTransport/);
   assert.match(source, /await server\.connect\(transport\)/);
+  assert.match(source, /sessionIdGenerator:\s*undefined/);
+  assert.match(source, /await server\.close\(\)/);
+  assert.doesNotMatch(source, /const sessions/);
   assert.match(source, /export async function POST/);
-  assert.match(source, /Mcp-Session-Id/);
   assert.match(source, /XACT_COMMIT_REQUIRED/);
   assert.doesNotMatch(source, /force_action|commit_action|executeEffect/);
 });

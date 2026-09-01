@@ -18,9 +18,6 @@ const recipes = [
 ] as const;
 const recipeIds = recipes.map((recipe) => recipe.id) as [string, ...string[]];
 
-type Session = { server: McpServer; transport: WebStandardStreamableHTTPServerTransport };
-const sessions = new Map<string, Session>();
-
 function createServer(): McpServer {
   const server = new McpServer(
     { name: "xact-foundry-mcp-bridge", version: "0.1.0" },
@@ -102,46 +99,32 @@ export async function OPTIONS() {
   return withCors(new Response(null, { status: 204 }));
 }
 
-export async function POST(request: Request) {
+async function handleMcpRequest(request: Request) {
+  const server = createServer();
+  const transport = new WebStandardStreamableHTTPServerTransport({
+    sessionIdGenerator: undefined,
+    enableJsonResponse: true,
+  });
+
   try {
-    const sessionId = request.headers.get("Mcp-Session-Id");
-    const body = await request.clone().json().catch(() => null) as { method?: string } | null;
-    let session = sessionId ? sessions.get(sessionId) : undefined;
-    if (!session && body?.method !== "initialize") {
-      return withCors(new Response(JSON.stringify({ jsonrpc: "2.0", error: { code: -32000, message: "A valid MCP session is required. Initialize first." }, id: null }), { status: 400, headers: { "Content-Type": "application/json" } }));
-    }
-    if (!session) {
-      const server = createServer();
-      let createdId: string | undefined;
-      const transport = new WebStandardStreamableHTTPServerTransport({
-        sessionIdGenerator: () => crypto.randomUUID(),
-        enableJsonResponse: true,
-        onsessioninitialized: (id) => { createdId = id; sessions.set(id, { server, transport }); },
-        onsessionclosed: (id) => { sessions.delete(id); },
-      });
-      session = { server, transport };
-      await server.connect(transport);
-      const response = await transport.handleRequest(request, { parsedBody: body ?? undefined });
-      if (createdId && !sessions.has(createdId)) sessions.set(createdId, session);
-      return withCors(response);
-    }
-    return withCors(await session.transport.handleRequest(request, { parsedBody: body ?? undefined }));
+    await server.connect(transport);
+    return withCors(await transport.handleRequest(request));
   } catch (error) {
     console.error("MCP request failed", error);
     return withCors(new Response(JSON.stringify({ jsonrpc: "2.0", error: { code: -32603, message: "MCP request failed." }, id: null }), { status: 500, headers: { "Content-Type": "application/json" } }));
+  } finally {
+    await server.close();
   }
 }
 
+export async function POST(request: Request) {
+  return handleMcpRequest(request);
+}
+
 export async function GET(request: Request) {
-  const sessionId = request.headers.get("Mcp-Session-Id");
-  const session = sessionId ? sessions.get(sessionId) : undefined;
-  if (!session) return withCors(new Response("Not Found", { status: 404 }));
-  return withCors(await session.transport.handleRequest(request));
+  return handleMcpRequest(request);
 }
 
 export async function DELETE(request: Request) {
-  const sessionId = request.headers.get("Mcp-Session-Id");
-  const session = sessionId ? sessions.get(sessionId) : undefined;
-  if (!session) return withCors(new Response("Not Found", { status: 404 }));
-  return withCors(await session.transport.handleRequest(request));
+  return handleMcpRequest(request);
 }
