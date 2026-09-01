@@ -7,7 +7,7 @@ export default function HomePage() {
       <h1>Foundry MCP Bridge</h1>
       <p>This public endpoint lets ChatGPT list approved Xact Foundry READ recipes and request inert, governed WebMCP tool definitions.</p>
       <p><strong>It does not expose the private Xact dashboard, execute external actions, or grant Commit authority.</strong></p>
-      <code>POST /mcp</code>
+      <code>POST /api/mcp</code>
     </main>
   );
 }
