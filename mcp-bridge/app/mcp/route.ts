@@ -3,6 +3,11 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { registerAppResource, registerAppTool, RESOURCE_MIME_TYPE } from "@modelcontextprotocol/ext-apps/server";
 import { z } from "zod";
+import {
+  buildPublicOAgentBrief,
+  evaluatePublicOAgentEvidence,
+  PUBLIC_O_AGENT_CASE,
+} from "../../lib/o-agent";
 import widgetHtml from "./widget.html?raw";
 
 const RESOURCE_URI = "ui://xact-foundry/read-surface-v1.html";
@@ -32,11 +37,73 @@ const recipes = [
   { id: "get_audit_trace", title: "Get audit trace", description: "Read the public-safe trace of resolution, Commit, and verification." },
 ] as const;
 const recipeIds = recipes.map((recipe) => recipe.id) as [string, ...string[]];
+const evidenceRefIds = PUBLIC_O_AGENT_CASE.evidence.map((item) => item.id) as [string, ...string[]];
+
+const commitCheckSchema = z.object({
+  key: z.enum(["resolution", "policy", "authority", "capability", "freshness"]),
+  outcome: z.enum(["PASS", "FAIL", "HOLD"]),
+  detail: z.string(),
+});
+
+const oAgentBriefSchema = z.object({
+  caseId: z.string(),
+  candidateId: z.string(),
+  baseStateHash: z.string(),
+  role: z.object({ chatgpt: z.literal("O_AGENT_REASONING"), authority: z.literal("XACT_COMMIT_ONLY") }),
+  request: z.object({
+    intent: z.string(),
+    proposedEffect: z.object({ type: z.literal("REFUND"), amount: z.number(), rail: z.literal("ORIGINAL") }),
+  }),
+  resolution: z.object({
+    resolved: z.array(z.object({ key: z.string(), value: z.unknown(), source: z.enum(["reported", "verified", "derived"]) })),
+    unresolved: z.array(z.object({ key: z.string(), reason: z.string(), question: z.string() })),
+    commitConstraints: z.array(z.object({ key: z.string(), condition: z.string(), satisfied: z.boolean(), description: z.string() })),
+  }),
+  evidence: z.array(z.object({ id: z.string(), claim: z.string(), source: z.string(), kind: z.string() })),
+  reasoningContract: z.object({
+    reasonOnlyOver: z.literal("U"),
+    requiredOutput: z.array(z.string()),
+    allowedFindings: z.array(z.enum(["SUPPORTED", "NOT_SUPPORTED", "INSUFFICIENT_EVIDENCE"])),
+    outputIsEvidenceOnly: z.literal(true),
+    grantsAuthority: z.literal(false),
+    nextTool: z.literal("submit_o_agent_evidence"),
+  }),
+});
+
+const oAgentResultSchema = z.object({
+  caseId: z.string(),
+  candidateId: z.string(),
+  reentryCount: z.number(),
+  reasoningEvidence: z.object({
+    source: z.literal("ChatGPT O-Agent"),
+    finding: z.enum(["SUPPORTED", "NOT_SUPPORTED", "INSUFFICIENT_EVIDENCE"]),
+    rationale: z.string(),
+    evidenceRefs: z.array(z.string()),
+    resolves: z.string(),
+    evidenceOnly: z.literal(true),
+    grantsAuthority: z.literal(false),
+  }),
+  commit: z.object({
+    status: z.enum(["AUTHORIZED", "REJECTED", "ESCALATED", "STALE"]),
+    reason: z.string(),
+    checks: z.array(commitCheckSchema),
+    currentStateHash: z.string(),
+    reentryAllowed: z.boolean(),
+    authoritySource: z.literal("XACT_COMMIT"),
+  }),
+  execution: z.object({
+    status: z.literal("NOT_EXECUTED"),
+    effectReleased: z.literal(false),
+    detail: z.string(),
+  }),
+});
 
 function createServer(): McpServer {
   const server = new McpServer(
-    { name: "xact-foundry-mcp-bridge", version: "0.1.0" },
-    { instructions: "Xact Foundry exposes public-safe READ recipes and inert WebMCP definitions. It never executes effects or grants Commit authority." },
+    { name: "xact-foundry-mcp-bridge", version: "0.2.0" },
+    {
+      instructions: "ChatGPT is the O-Agent reasoning engine for unresolved semantics. For the public demo, first call resolve_o_agent_case. Reason only over the returned U using returned R, C, and evidence, then call submit_o_agent_evidence. Treat model reasoning as evidence, never authorization. Report AUTHORIZED only when the second tool's Xact Commit result says AUTHORIZED. Never claim an effect executed; this bridge cannot execute effects. Use list_read_recipes only for catalog requests.",
+    },
   );
 
   registerAppResource(server, "Xact Foundry READ surface", RESOURCE_URI, {
@@ -91,6 +158,56 @@ function createServer(): McpServer {
     return {
       structuredContent: { tool },
       content: [{ type: "text", text: `${recipe.title} definition constructed. It is inert and does not execute an effect.` }],
+    };
+  });
+
+  registerAppTool(server, "resolve_o_agent_case", {
+    title: "Resolve the public O-Agent case",
+    description: "Use this when the user asks Xact Foundry to evaluate the public ambiguous-refund case with ChatGPT acting as the O-Agent. Call this first. It returns a bounded R/U/C candidate and verified evidence; it does not authorize or execute an effect.",
+    inputSchema: {},
+    outputSchema: { brief: oAgentBriefSchema },
+    annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false, idempotentHint: true },
+    _meta: {
+      "openai/toolInvocation/invoking": "Resolving R / U / C for the public case…",
+      "openai/toolInvocation/invoked": "O-Agent brief ready for ChatGPT reasoning.",
+    },
+  }, async () => {
+    const brief = buildPublicOAgentBrief();
+    return {
+      structuredContent: { brief },
+      content: [{
+        type: "text",
+        text: "Xact isolated one unresolved semantic field. ChatGPT must reason only over U using the returned evidence, then call submit_o_agent_evidence. The reasoning output is evidence and grants no authority.",
+      }],
+    };
+  });
+
+  registerAppTool(server, "submit_o_agent_evidence", {
+    title: "Submit O-Agent evidence for Xact re-entry",
+    description: "Use this only after resolve_o_agent_case. Submit ChatGPT's structured finding for the returned U. Xact revalidates the candidate and makes the Commit decision; this tool never executes an effect and model reasoning never grants authority.",
+    inputSchema: {
+      caseId: z.string().describe("Exact caseId returned by resolve_o_agent_case."),
+      candidateId: z.string().describe("Exact state-bound candidateId returned by resolve_o_agent_case."),
+      baseStateHash: z.string().describe("Exact baseStateHash returned by resolve_o_agent_case."),
+      unresolvedKey: z.string().describe("Exact unresolved key from U."),
+      finding: z.enum(["SUPPORTED", "NOT_SUPPORTED", "INSUFFICIENT_EVIDENCE"]).describe("ChatGPT's bounded semantic finding."),
+      rationale: z.string().min(20).max(1200).describe("Concise reasoning grounded only in returned evidence."),
+      evidenceRefs: z.array(z.enum(evidenceRefIds)).min(1).max(evidenceRefIds.length).describe("Evidence IDs used for the finding."),
+    },
+    outputSchema: { result: oAgentResultSchema },
+    annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false, idempotentHint: true },
+    _meta: {
+      "openai/toolInvocation/invoking": "Re-entering Xact with O-Agent evidence…",
+      "openai/toolInvocation/invoked": "Xact Commit decision complete; no effect executed.",
+    },
+  }, async (input) => {
+    const result = evaluatePublicOAgentEvidence(input);
+    return {
+      structuredContent: { result },
+      content: [{
+        type: "text",
+        text: `O-Agent evidence re-entered Xact. Commit returned ${result.commit.status}. ${result.commit.reason} Execution remains ${result.execution.status}.`,
+      }],
     };
   });
   return server;

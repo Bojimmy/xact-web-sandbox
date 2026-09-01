@@ -73,6 +73,7 @@ export default function HomePage() {
           <span><strong>XACT FOUNDRY</strong><small>CHATGPT APP</small></span>
         </a>
         <nav aria-label="Primary navigation">
+          <a href="#o-agent">O-AGENT LOOP</a>
           <a href="#read-surface">READ SURFACE</a>
           <a href="#boundary">BOUNDARY</a>
           <a href="https://xact-web-sandbox.bojimmy.chatgpt.site" target="_blank" rel="noreferrer">WEB SANDBOX ↗</a>
@@ -86,7 +87,7 @@ export default function HomePage() {
         <div className="hero-copy">
           <p className="eyebrow">THE COMMIT LAYER FOR AGENTIC WEB</p>
           <h1>Reason when necessary.<br /><em>Execute Xactly.</em></h1>
-          <p className="lede">A public-safe ChatGPT app for inspecting governed READ capabilities and constructing inert WebMCP definitions—without confusing capability with authority.</p>
+          <p className="lede"><strong>ChatGPT is the O-Agent brain.</strong> It reasons over what Xact leaves unresolved and returns structured evidence. Xact re-enters, revalidates current state, and alone makes the Commit decision.</p>
           <div className="hero-actions">
             <a className="button primary" href="https://chatgpt.com/plugins" target="_blank" rel="noreferrer">OPEN IN CHATGPT <span>↗</span></a>
             <a className="button secondary" href="#read-surface">EXPLORE READ SURFACE <span>↓</span></a>
@@ -97,7 +98,7 @@ export default function HomePage() {
           <dl>
             <div><dt>TRANSPORT</dt><dd>STREAMABLE HTTP</dd></div>
             <div><dt>AUTH</dt><dd>PUBLIC / NO AUTH</dd></div>
-            <div><dt>MODE</dt><dd>READ DEFINITIONS</dd></div>
+            <div><dt>MODE</dt><dd>O-AGENT + READ</dd></div>
             <div><dt>TOOLS</dt><dd>{toolCount === null ? "SCANNING" : String(toolCount).padStart(2, "0") + " DISCOVERED"}</dd></div>
           </dl>
           <div className="boundary-line"><span>COMMIT AUTHORITY</span><strong>NOT GRANTED</strong></div>
@@ -106,6 +107,32 @@ export default function HomePage() {
 
       <section className="principle-strip" aria-label="Xact operating principle">
         <span>01 · RESOLVE</span><b>→</b><span>02 · REASON IF NEEDED</span><b>→</b><span>03 · COMMIT</span><b>→</b><span>04 · EXECUTE + VERIFY</span>
+      </section>
+
+      <section className="o-agent-section" id="o-agent">
+        <div className="section-heading">
+          <div><p className="eyebrow">BOUNDED REASONING LOOP</p><h2>ChatGPT reasons.<br />Xact commits.</h2></div>
+          <p>The app now exposes a two-tool workflow that makes the separation operational, not decorative.</p>
+        </div>
+        <div className="role-grid">
+          <article className="role-card chatgpt-role">
+            <span>O-AGENT / CHATGPT</span>
+            <h3>Reason over U</h3>
+            <p>Read the state-bound R / U / C brief. Interpret only the unresolved semantic field. Return a finding, rationale, and cited evidence IDs.</p>
+            <strong>EVIDENCE · NEVER AUTHORITY</strong>
+          </article>
+          <div className="reentry-arrow"><span>STRUCTURED EVIDENCE</span><b>→</b><small>XACT RE-ENTRY</small></div>
+          <article className="role-card xact-role">
+            <span>COMMIT / XACT</span>
+            <h3>Xact makes the Commit decision</h3>
+            <p>Re-read the candidate binding, resolve freshness first, then check policy, authority, and capability before returning a governed status.</p>
+            <strong>AUTHORIZED · REJECTED · ESCALATED · STALE</strong>
+          </article>
+        </div>
+        <div className="prompt-band">
+          <div><span>TRY IN CHATGPT</span><p>“Use Xact Foundry to evaluate the public ambiguous-refund O-Agent case.”</p></div>
+          <a className="button primary" href="https://chatgpt.com/plugins" target="_blank" rel="noreferrer">OPEN XACT FOUNDRY <span>↗</span></a>
+        </div>
       </section>
 
       <section className="surface-section" id="read-surface">
@@ -158,7 +185,7 @@ export default function HomePage() {
       <section className="boundary-section" id="boundary">
         <div><p className="eyebrow">CONSEQUENCE BOUNDARY</p><h2>Capability is visible.<br />Authority stays separate.</h2></div>
         <div className="boundary-copy">
-          <p>This app exposes public-safe contracts, simulated state, and approved READ definitions. It does not expose private Xact internals, execute external actions, or grant Commit authority.</p>
+          <p>This app exposes public-safe contracts, simulated state, approved READ definitions, and one bounded O-Agent reasoning case. ChatGPT supplies semantic evidence; it does not expose private Xact internals, execute external actions, or grant Commit authority.</p>
           <a href="https://xact-web-sandbox.bojimmy.chatgpt.site" target="_blank" rel="noreferrer">EXPLORE THE PUBLIC XACT WEB SANDBOX <span>↗</span></a>
         </div>
       </section>

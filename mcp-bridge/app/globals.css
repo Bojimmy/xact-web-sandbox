@@ -173,10 +173,24 @@ dd { color: var(--text); text-align: right; }
 }
 .principle-strip b { color: var(--acid); font-weight: 400; }
 
-.surface-section { margin: 0 auto; max-width: 1440px; padding: 120px clamp(20px, 5vw, 80px); }
+.o-agent-section, .surface-section { margin: 0 auto; max-width: 1440px; padding: 120px clamp(20px, 5vw, 80px); }
+.o-agent-section { padding-bottom: 0; }
 .section-heading { align-items: end; display: grid; gap: 40px; grid-template-columns: 1fr .8fr; margin-bottom: 46px; }
 .section-heading h2, .boundary-section h2 { font: 600 clamp(34px, 4.2vw, 64px)/1 var(--mono); letter-spacing: -.055em; margin-bottom: 0; }
 .section-heading > p { color: var(--muted); line-height: 1.6; margin-bottom: 2px; max-width: 580px; }
+.role-grid { align-items: stretch; display: grid; gap: 18px; grid-template-columns: 1fr 150px 1fr; }
+.role-card { background: rgba(13, 18, 16, .92); border: 1px solid var(--line); min-height: 250px; padding: 28px; }
+.role-card > span, .prompt-band span, .reentry-arrow span, .reentry-arrow small { color: var(--acid); font: 9px/1.2 var(--mono); letter-spacing: .14em; }
+.role-card h3 { font: 550 clamp(24px, 2.5vw, 38px)/1.05 var(--mono); letter-spacing: -.05em; margin: 28px 0 16px; }
+.role-card p { color: var(--muted); line-height: 1.65; max-width: 560px; }
+.role-card strong { color: var(--cyan); display: block; font: 9px/1.4 var(--mono); letter-spacing: .09em; margin-top: 30px; }
+.chatgpt-role { border-top: 2px solid var(--acid); }
+.xact-role { border-top: 2px solid var(--cyan); }
+.reentry-arrow { align-items: center; display: flex; flex-direction: column; justify-content: center; text-align: center; }
+.reentry-arrow b { color: var(--acid); font: 300 44px/1 var(--mono); margin: 14px 0; }
+.reentry-arrow small { color: var(--dim); }
+.prompt-band { align-items: center; background: rgba(115, 212, 220, .06); border: 1px solid var(--line); display: flex; gap: 28px; justify-content: space-between; margin-top: 18px; padding: 22px 24px; }
+.prompt-band p { color: var(--text); font: 13px/1.5 var(--mono); margin: 8px 0 0; }
 .surface-grid { display: grid; gap: 24px; grid-template-columns: minmax(0, 1.1fr) minmax(340px, .9fr); }
 .recipe-grid { display: grid; gap: 10px; }
 .recipe-card {
@@ -248,6 +262,9 @@ footer > p { color: var(--dim); font-size: 11px; line-height: 1.5; margin: 0; te
   .topbar { grid-template-columns: 1fr auto; }
   .topbar nav { display: none; }
   .hero, .surface-grid, .section-heading, .boundary-section { grid-template-columns: 1fr; }
+  .role-grid { grid-template-columns: 1fr; }
+  .reentry-arrow { flex-direction: row; gap: 16px; padding: 8px 0; }
+  .reentry-arrow b { margin: 0; transform: rotate(90deg); }
   .hero { min-height: auto; }
   .signal-panel { max-width: 620px; width: 100%; }
   .definition-panel { min-height: 420px; position: static; }
@@ -263,6 +280,7 @@ footer > p { color: var(--dim); font-size: 11px; line-height: 1.5; margin: 0; te
   .hero { padding-top: 72px; }
   h1 { font-size: clamp(42px, 13vw, 66px); }
   .hero-actions, .button { width: 100%; }
+  .prompt-band { align-items: stretch; flex-direction: column; }
   .principle-strip { justify-content: flex-start; }
   .surface-section { padding-bottom: 80px; padding-top: 80px; }
   .recipe-card { align-items: start; grid-template-columns: 30px 1fr; }
