@@ -6,6 +6,8 @@ import { z } from "zod";
 import widgetHtml from "./widget.html?raw";
 
 const RESOURCE_URI = "ui://xact-foundry/read-surface-v1.html";
+
+export const runtime = "edge";
 const recipes = [
   { id: "inspect_request", title: "Inspect request", description: "Read the reported request envelope and its public-safe fields." },
   { id: "get_customer", title: "Get customer", description: "Read the simulated customer record without exposing private data." },
