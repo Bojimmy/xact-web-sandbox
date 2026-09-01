@@ -12,6 +12,7 @@
     h1 { font:600 26px ui-monospace,SFMono-Regular,monospace; letter-spacing:-.06em; margin:8px 0; }
     .lede { color:var(--muted); margin:0 0 18px; max-width:680px; }
     .bar { align-items:center; border-top:1px solid var(--line); border-bottom:1px solid var(--line); display:flex; gap:10px; justify-content:space-between; padding:10px 0; }
+    .bar-actions { align-items:center; display:flex; gap:10px; }
     .status { color:var(--acid); font:10px ui-monospace,SFMono-Regular,monospace; letter-spacing:.08em; }
     .dot { background:var(--acid); border-radius:50%; box-shadow:0 0 0 4px #c9f43d1f; display:inline-block; height:6px; margin-right:7px; width:6px; }
     .recipes { display:grid; gap:8px; margin-top:16px; }
@@ -21,6 +22,7 @@
     button { background:transparent; border:1px solid #53635a; color:var(--text); cursor:pointer; font:10px ui-monospace,SFMono-Regular,monospace; padding:8px 10px; white-space:nowrap; }
     button:hover { border-color:var(--acid); color:var(--acid); }
     button:disabled { cursor:wait; opacity:.45; }
+    .open-full { border-color:var(--acid); color:var(--acid); }
     .result { border-left:2px solid var(--cyan); background:#101a1b; margin-top:16px; padding:12px; }
     .result h2 { color:var(--cyan); font:11px ui-monospace,SFMono-Regular,monospace; letter-spacing:.1em; margin:0 0 8px; text-transform:uppercase; }
     pre { color:#c5d6ce; font:11px/1.5 ui-monospace,SFMono-Regular,monospace; margin:0; overflow:auto; white-space:pre-wrap; }
@@ -32,7 +34,7 @@
     <div class="eyebrow">XACT FOUNDRY · GOVERNED MCP</div>
     <h1>READ surface</h1>
     <p class="lede">Inspect public-safe recipes and request inert WebMCP definitions. Capability is visible; authority stays at Xact Commit.</p>
-    <div class="bar"><span class="status"><i class="dot"></i>BRIDGE ONLINE</span><span id="count" class="status">WAITING FOR TOOL RESULT</span></div>
+    <div class="bar"><span class="status"><i class="dot"></i>BRIDGE ONLINE</span><div class="bar-actions"><span id="count" class="status">WAITING FOR TOOL RESULT</span><button class="open-full" id="openFull" type="button">OPEN FULL APP ↗</button></div></div>
     <div id="recipes" class="recipes"><div class="recipe"><div><strong>Connecting to Xact…</strong><span>Waiting for the host to deliver structured content.</span></div></div></div>
     <div id="result" class="result" hidden><h2>Inert WebMCP definition</h2><pre></pre></div>
     <p class="note">No effect can execute from this bridge. A Commit decision is always a separate Xact concern.</p>
@@ -40,11 +42,17 @@
   <script>
     (() => {
       const pending = new Map();
+      const FULL_APP_URL = 'https://xact-foundry-mcp.bojimmy.chatgpt.site';
       let seq = 0;
       const output = document.getElementById('recipes');
       const count = document.getElementById('count');
       const result = document.getElementById('result');
       const resultPre = result.querySelector('pre');
+      const openFull = document.getElementById('openFull');
+      openFull.addEventListener('click', () => {
+        if (window.openai?.openExternal) window.openai.openExternal({ href: FULL_APP_URL, redirectUrl: false });
+        else window.open(FULL_APP_URL, '_blank', 'noopener,noreferrer');
+      });
       function send(method, params) {
         const id = ++seq;
         return new Promise((resolve, reject) => {
@@ -78,6 +86,7 @@
         if (message.method === 'ui/notifications/tool-result') show(structured(message));
       });
       (async () => {
+        window.openai?.setOpenInAppUrl?.({ href: FULL_APP_URL });
         try {
           await send('ui/initialize', { protocolVersion:'2026-01-26', appInfo:{ name:'XactFoundryBridge', version:'0.1.0' }, appCapabilities:{} });
           window.parent.postMessage({ jsonrpc:'2.0', method:'ui/notifications/initialized', params:{} }, '*');

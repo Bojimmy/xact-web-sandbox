@@ -14,6 +14,11 @@ const widgetResourceMeta = {
     prefersBorder: true,
   },
   "openai/widgetDescription": "Shows approved Xact Foundry READ recipes and lets the user request inert WebMCP definitions without executing an effect.",
+  "openai/widgetCSP": {
+    connect_domains: [],
+    resource_domains: [],
+    redirect_domains: [WIDGET_DOMAIN],
+  },
   "openai/widgetDomain": WIDGET_DOMAIN,
 };
 

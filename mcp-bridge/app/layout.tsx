@@ -1,6 +1,12 @@
 export const metadata = {
-  title: "Xact Foundry MCP Bridge",
-  description: "Public-safe deterministic Xact Foundry MCP endpoint for ChatGPT.",
+  metadataBase: new URL("https://xact-foundry-mcp.bojimmy.chatgpt.site"),
+  title: "Xact Foundry — The Commit Layer for Agentic Web",
+  description: "Inspect governed Xact Foundry READ recipes and inert WebMCP definitions through ChatGPT.",
+  openGraph: {
+    title: "Xact Foundry — The Commit Layer for Agentic Web",
+    description: "Reason when necessary. Execute Xactly.",
+    type: "website",
+  },
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

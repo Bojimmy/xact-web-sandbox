@@ -31,3 +31,18 @@ test("widget uses the MCP Apps bridge and portable tools/call fallback", async (
   assert.match(source, /tools\/call/);
   assert.match(source, /request_webmcp_tool/);
 });
+
+test("widget exposes a full-app destination in ChatGPT", async () => {
+  const source = await readFile(join(root, "app/mcp/widget.html"), "utf8");
+  assert.match(source, /setOpenInAppUrl/);
+  assert.match(source, /openExternal/);
+  assert.match(source, /https:\/\/xact-foundry-mcp\.bojimmy\.chatgpt\.site/);
+});
+
+test("public root is a linked, tool-backed Xact launch surface", async () => {
+  const source = await readFile(join(root, "app/page.tsx"), "utf8");
+  assert.doesNotMatch(source, /Foundry MCP Bridge/);
+  assert.match(source, /request_webmcp_tool/);
+  assert.match(source, /https:\/\/chatgpt\.com\/plugins/);
+  assert.match(source, /https:\/\/xact-web-sandbox\.bojimmy\.chatgpt\.site/);
+});
