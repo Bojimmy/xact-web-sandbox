@@ -17,6 +17,13 @@ test("MCP route is a connected, stateless Streamable HTTP endpoint", async () =>
   assert.doesNotMatch(source, /force_action|commit_action|executeEffect/);
 });
 
+test("widget declares its submission domain on the resource metadata", async () => {
+  const source = await readFile(join(root, "app/mcp/route.ts"), "utf8");
+  assert.match(source, /const WIDGET_DOMAIN = "https:\/\/xact-foundry-mcp\.bojimmy\.chatgpt\.site"/);
+  assert.match(source, /domain: WIDGET_DOMAIN/);
+  assert.match(source, /"openai\/widgetDomain": WIDGET_DOMAIN/);
+});
+
 test("widget uses the MCP Apps bridge and portable tools/call fallback", async () => {
   const source = await readFile(join(root, "app/mcp/widget.html"), "utf8");
   assert.match(source, /ui\/initialize/);

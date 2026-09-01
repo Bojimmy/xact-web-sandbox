@@ -6,6 +6,16 @@ import { z } from "zod";
 import widgetHtml from "./widget.html?raw";
 
 const RESOURCE_URI = "ui://xact-foundry/read-surface-v1.html";
+const WIDGET_DOMAIN = "https://xact-foundry-mcp.bojimmy.chatgpt.site";
+const widgetResourceMeta = {
+  ui: {
+    csp: { connectDomains: [], resourceDomains: [] },
+    domain: WIDGET_DOMAIN,
+    prefersBorder: true,
+  },
+  "openai/widgetDescription": "Shows approved Xact Foundry READ recipes and lets the user request inert WebMCP definitions without executing an effect.",
+  "openai/widgetDomain": WIDGET_DOMAIN,
+};
 
 export const runtime = "edge";
 const recipes = [
@@ -26,19 +36,13 @@ function createServer(): McpServer {
 
   registerAppResource(server, "Xact Foundry READ surface", RESOURCE_URI, {
     description: "A compact interactive view of approved READ recipes and inert WebMCP definitions.",
-    _meta: {
-      ui: {
-        csp: { connectDomains: [], resourceDomains: [] },
-        prefersBorder: true,
-      },
-      "openai/widgetDescription": "Shows approved Xact Foundry READ recipes and lets the user request inert WebMCP definitions without executing an effect.",
-    },
+    _meta: widgetResourceMeta,
   }, async () => ({
     contents: [{
       uri: RESOURCE_URI,
       mimeType: RESOURCE_MIME_TYPE,
       text: widgetHtml,
-      _meta: { ui: { csp: { connectDomains: [], resourceDomains: [] }, prefersBorder: true } },
+      _meta: widgetResourceMeta,
     }],
   }));
 
