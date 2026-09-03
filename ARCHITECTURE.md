@@ -89,6 +89,36 @@ Only `AUTHORIZED` may proceed to execution. `REJECTED`, `ESCALATED`, and
 
 The challenge build uses a public-safe resolution simulation. Production Xact components must be replaceable behind the same contracts without redesigning the application.
 
+## Phase 2 runtime
+
+```text
+Commerce ScenarioPack
+  ↓
+SimulationDecisionProvider.resolve
+  ↓
+state-bound DecisionCandidate (R / U / C + evidence)
+  ↓
+optional structured reasoning evidence → re-entry
+  ↓
+SimulationDecisionProvider.commit(current state)
+  ↓
+DecisionResult
+  ├─ AUTHORIZED → SimulatedExecutionAdapter → VerificationProvider
+  └─ REJECTED / ESCALATED / STALE → NONE
+  ↓
+Control Room projection
+```
+
+`SimulationDecisionProvider` is a replaceable clean-room adapter. Scenario
+rules are explicit demo data owned by `ScenarioPack`; the provider does not
+claim to reproduce production resolution, scoring, matching, or authorization.
+
+Resolve produces a candidate bound to a state hash. Commit independently reads
+current state and evaluates freshness before semantic re-entry or authority.
+Structured reasoning evidence may reduce U, but a new Commit decision remains
+mandatory. Execution receives only an already-authorized effect, and
+verification compares the observed post-effect state with that exact candidate.
+
 ## Architectural non-negotiables
 
 - Tool access is not authority.
@@ -97,3 +127,39 @@ The challenge build uses a public-safe resolution simulation. Production Xact co
 - Commit re-validates relevant assumptions against current state.
 - Unknown authorization state fails closed.
 - Consequential effects are verified after execution.
+
+## Telemetry boundary
+
+`TelemetryProvider` observes public runtime operations without participating in
+their decisions. Live sandbox samples are labeled
+`LIVE_SANDBOX_MEASUREMENT`; historical reference evidence is represented by a
+separate immutable `BenchmarkReference` labeled `REFERENCE_BENCHMARK` and
+`REFERENCE_IMPLEMENTATION_NOT_SANDBOX`.
+
+Commit timing includes its nested policy evaluation. The UI exposes Policy as
+a breakout but excludes it from the summed deterministic total to avoid double
+counting. Execution time is not included in deterministic decision processing.
+Reasoning is measured separately when the simulated O-Agent is invoked.
+
+## Governed evolution boundary
+
+```text
+First encounter: Resolve → U → simulated O-Agent evidence → re-entry → Commit
+                                                          ↓
+                                                   OBSERVED pattern
+                                                          ↓
+                                CANDIDATE → VALIDATED → APPROVED → ACTIVE
+                                                          ↓
+Equivalent encounter: Resolve with governed evidence → U = 0 → Commit required
+```
+
+`LearningSimulationProvider` is a public-safe in-memory lifecycle simulator.
+It can observe structured evidence, but it returns no deterministic resolution
+evidence until governance explicitly reaches `ACTIVE`. State transitions are
+sequential and cannot be skipped. ACTIVE evidence improves only Resolution;
+it does not modify policy, authority, capability, freshness, execution, or
+verification behavior.
+
+The scenario-specific case key is supplied at composition time. The learning
+provider contains no production extraction, matching, scoring, validation,
+promotion, confidence, or Rule Pack logic.

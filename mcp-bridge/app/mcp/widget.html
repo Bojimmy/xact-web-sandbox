@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    :root { color-scheme: dark; --bg:#08090a; --panel:#111714; --line:#29352f; --text:#ecf0ed; --muted:#91a099; --acid:#c9f43d; --cyan:#5fb4d4; --amber:#f0b54d; }
+    * { box-sizing:border-box; }
+    body { margin:0; padding:18px; background:var(--bg); color:var(--text); font:13px/1.45 ui-sans-serif,system-ui,sans-serif; }
+    .shell { border:1px solid var(--line); background:linear-gradient(145deg,#111714,#0b100e); padding:18px; }
+    .eyebrow { color:var(--acid); font:10px ui-monospace,SFMono-Regular,monospace; letter-spacing:.16em; }
+    h1 { font:600 26px ui-monospace,SFMono-Regular,monospace; letter-spacing:-.06em; margin:8px 0; }
+    .lede { color:var(--muted); margin:0 0 18px; max-width:680px; }
+    .bar { align-items:center; border-top:1px solid var(--line); border-bottom:1px solid var(--line); display:flex; gap:10px; justify-content:space-between; padding:10px 0; }
+    .bar-actions { align-items:center; display:flex; gap:10px; }
+    .status { color:var(--acid); font:10px ui-monospace,SFMono-Regular,monospace; letter-spacing:.08em; }
+    .dot { background:var(--acid); border-radius:50%; box-shadow:0 0 0 4px #c9f43d1f; display:inline-block; height:6px; margin-right:7px; width:6px; }
+    .recipes { display:grid; gap:8px; margin-top:16px; }
+    .recipe { align-items:center; background:#0d1310; border:1px solid var(--line); display:flex; gap:12px; justify-content:space-between; padding:12px; }
+    .recipe strong { display:block; font:13px ui-monospace,SFMono-Regular,monospace; }
+    .recipe span { color:var(--muted); display:block; font-size:11px; margin-top:3px; }
+    button { background:transparent; border:1px solid #53635a; color:var(--text); cursor:pointer; font:10px ui-monospace,SFMono-Regular,monospace; padding:8px 10px; white-space:nowrap; }
+    button:hover { border-color:var(--acid); color:var(--acid); }
+    button:disabled { cursor:wait; opacity:.45; }
+    .open-full { border-color:var(--acid); color:var(--acid); }
+    .result { border-left:2px solid var(--cyan); background:#101a1b; margin-top:16px; padding:12px; }
+    .result h2 { color:var(--cyan); font:11px ui-monospace,SFMono-Regular,monospace; letter-spacing:.1em; margin:0 0 8px; text-transform:uppercase; }
+    pre { color:#c5d6ce; font:11px/1.5 ui-monospace,SFMono-Regular,monospace; margin:0; overflow:auto; white-space:pre-wrap; }
+    .note { border-top:1px solid var(--line); color:#718078; font-size:11px; margin-top:18px; padding-top:12px; }
+  </style>
+</head>
+<body>
+  <section class="shell">
+    <div class="eyebrow">XACT FOUNDRY · CHATGPT O-AGENT</div>
+    <h1>READ surface</h1>
+    <p class="lede">ChatGPT is the O-Agent brain for unresolved semantics. This view inspects public-safe READ recipes; model reasoning remains evidence and authority stays at Xact Commit.</p>
+    <div class="bar"><span class="status"><i class="dot"></i>BRIDGE ONLINE</span><div class="bar-actions"><span id="count" class="status">WAITING FOR TOOL RESULT</span><button class="open-full" id="openFull" type="button">OPEN FULL APP ↗</button></div></div>
+    <div id="recipes" class="recipes"><div class="recipe"><div><strong>Connecting to Xact…</strong><span>Waiting for the host to deliver structured content.</span></div></div></div>
+    <div id="result" class="result" hidden><h2>Inert WebMCP definition</h2><pre></pre></div>
+    <p class="note">O-Agent evidence may re-enter Xact. It cannot authorize or execute an effect; Xact Commit remains separate.</p>
+  </section>
+  <script>
+    (() => {
+      const pending = new Map();
+      const FULL_APP_URL = 'https://xact-foundry-mcp.bojimmy.chatgpt.site';
+      let seq = 0;
+      const output = document.getElementById('recipes');
+      const count = document.getElementById('count');
+      const result = document.getElementById('result');
+      const resultPre = result.querySelector('pre');
+      const openFull = document.getElementById('openFull');
+      openFull.addEventListener('click', () => {
+        if (window.openai?.openExternal) window.openai.openExternal({ href: FULL_APP_URL, redirectUrl: false });
+        else window.open(FULL_APP_URL, '_blank', 'noopener,noreferrer');
+      });
+      function send(method, params) {
+        const id = ++seq;
+        return new Promise((resolve, reject) => {
+          pending.set(id, { resolve, reject });
+          window.parent.postMessage({ jsonrpc:'2.0', id, method, params }, '*');
+          setTimeout(() => { if (pending.has(id)) { pending.delete(id); reject(new Error('Host request timed out.')); } }, 10000);
+        });
+      }
+      function structured(message) { return message?.structuredContent || message?.params?.structuredContent || {}; }
+      function show(data) {
+        const recipes = Array.isArray(data.recipes) ? data.recipes : [];
+        if (!recipes.length) return;
+        count.textContent = recipes.length + ' APPROVED READ RECIPES';
+        output.innerHTML = recipes.map((recipe) => '<div class="recipe"><div><strong>' + escapeHtml(recipe.title) + '</strong><span>' + escapeHtml(recipe.description) + '</span></div><button data-id="' + escapeHtml(recipe.id) + '">REQUEST DEFINITION</button></div>').join('');
+        output.querySelectorAll('button').forEach((button) => button.addEventListener('click', async () => {
+          button.disabled = true;
+          try {
+            const response = window.openai?.callTool ? await window.openai.callTool('request_webmcp_tool', { recipeId: button.dataset.id }) : await send('tools/call', { name:'request_webmcp_tool', arguments:{ recipeId:button.dataset.id } });
+            const tool = structured(response).tool;
+            result.hidden = false;
+            resultPre.textContent = JSON.stringify(tool || structured(response), null, 2);
+          } catch (error) { result.hidden = false; resultPre.textContent = error instanceof Error ? error.message : 'Tool call failed.'; }
+          button.disabled = false;
+        }));
+      }
+      function escapeHtml(value) { return String(value ?? '').replace(/[&<>"']/g, (char) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char])); }
+      window.addEventListener('message', (event) => {
+        const message = event.data;
+        if (!message || message.jsonrpc !== '2.0') return;
+        if (message.id && pending.has(message.id)) { const item = pending.get(message.id); pending.delete(message.id); if (message.error) item.reject(new Error(message.error.message || 'Host error.')); else item.resolve(message.result); return; }
+        if (message.method === 'ui/notifications/tool-result') show(structured(message));
+      });
+      (async () => {
+        window.openai?.setOpenInAppUrl?.({ href: FULL_APP_URL });
+        try {
+          await send('ui/initialize', { protocolVersion:'2026-01-26', appInfo:{ name:'XactFoundryBridge', version:'0.1.0' }, appCapabilities:{} });
+          window.parent.postMessage({ jsonrpc:'2.0', method:'ui/notifications/initialized', params:{} }, '*');
+        } catch (error) { count.textContent = 'BRIDGE WAITING'; }
+      })();
+    })();
+  </script>
+</body>
+</html>
