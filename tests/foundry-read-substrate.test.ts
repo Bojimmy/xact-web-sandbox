@@ -16,6 +16,11 @@ test("each absorbed READ tool maps to its declared public-safe substrate", () =>
     ["get_support_tickets_by_owner", { owner: "BILLING" }, "Support tickets by owner: BILLING", 1],
     ["get_sales_pipeline_forecast", {}, "Sales pipeline and forecast", 4],
     ["get_marketing_performance", {}, "Marketing performance dashboard", 3],
+    ["get_current_operations_snapshot", {}, "Current operations snapshot", 3],
+    ["get_employee_directory", {}, "Employee organization directory", 100],
+    ["get_customer_health_summary", { customerId: "1042" }, "Customer health summary", 1],
+    ["get_business_operations_report", {}, "Weekly business operations report", 4],
+    ["get_campaign_dashboard", {}, "Promotion campaign dashboard", 1],
   ] as const;
 
   for (const [name, input, title, rows] of cases) {
@@ -24,4 +29,12 @@ test("each absorbed READ tool maps to its declared public-safe substrate", () =>
     assert.equal(result?.rows.length, rows, name);
   }
   assert.equal(readAbsorbedFoundryTool("not-governed", {}), undefined);
+});
+
+test("approved READ capabilities without a real handler stay unreadable (contract-only)", () => {
+  assert.equal(readAbsorbedFoundryTool("find_customer_by_email", {}), undefined);
+  assert.equal(readAbsorbedFoundryTool("get_audit_history", {}), undefined);
+  assert.equal(readAbsorbedFoundryTool("read_active_users_and_open_requests", {}), undefined);
+  // Governed composition, but owner-qualification evidence is genuinely absent from the substrate.
+  assert.equal(readAbsorbedFoundryTool("get_urgent_work_orders_unqualified_owner", {}), undefined);
 });

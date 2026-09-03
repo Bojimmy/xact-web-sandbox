@@ -34,6 +34,7 @@ interface MutationState {
 }
 
 function mutationPack(tool: WebMCPToolDefinition): ScenarioPack<MutationInvocationContext, MutationState, MutationInvocationContext> {
+  const isTrue = (value: unknown) => value === true || value === "true";
   return {
     id: `foundry-mutation:${tool.name}`,
     label: `Mutation consequence: ${tool.name}`,
@@ -51,6 +52,7 @@ function mutationPack(tool: WebMCPToolDefinition): ScenarioPack<MutationInvocati
         unresolved: [],
         commitConstraints: [
           { key: "confirmation", description: "Explicit confirmation is required for this consequence.", condition: "required", satisfied: inputs.confirmation === true },
+          ...(tool.name === "reassign_support_ticket" ? [{ key: "reassignment_policy", description: "Current owner unavailable OR required skill mismatch is required.", condition: "required" as const, satisfied: isTrue(inputs.ownerUnavailable) || isTrue(inputs.requiredSkillMismatch) }] : []),
         ],
       },
       evidence: [
@@ -99,7 +101,16 @@ class MutationPolicy implements PolicyProvider<MutationInvocationContext, Mutati
       detail: confirmationOk ? "Explicit confirmation present." : "Explicit confirmation required.",
     });
 
-    const denied = !actorOk || !amountOk || !confirmationOk;
+    const reassignmentPolicyOk = this.tool.name !== "reassign_support_ticket"
+      || inputs.ownerUnavailable === true || inputs.ownerUnavailable === "true"
+      || inputs.requiredSkillMismatch === true || inputs.requiredSkillMismatch === "true";
+    checks.push({
+      key: "policy",
+      outcome: reassignmentPolicyOk ? "PASS" : "FAIL",
+      detail: reassignmentPolicyOk ? "Owner availability or required-skill mismatch evidence present." : "Reassignment requires current owner unavailable or required skill mismatch.",
+    });
+
+    const denied = !actorOk || !amountOk || !confirmationOk || !reassignmentPolicyOk;
     return {
       outcome: denied ? "DENIED" : "ALLOWED",
       reason: denied

@@ -3,6 +3,12 @@ import test from "node:test";
 import { XactFoundryLiaison, decomposeIntent } from "../src/flagship/foundry-liaison";
 import { SecureEndpointOAgentProvider } from "../src/telemetry/o-agent-provider";
 
+test("sales leaderboard requests do not fall through to the employee directory", () => {
+  const result = decomposeIntent("Show sales representatives with their current performance statistics and leaderboard ranking");
+  assert.equal(result.pattern, undefined);
+  assert.deepEqual(result.raw.resolves, ["sales performance metrics"]);
+});
+
 function liveProvider(): SecureEndpointOAgentProvider {
   return new SecureEndpointOAgentProvider(
     "/api/o-agent",

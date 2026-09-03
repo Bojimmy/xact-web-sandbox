@@ -7,7 +7,7 @@
  */
 
 export interface BusinessWorkspaceResult {
-  readonly kind: "WORK_ORDER_QUEUE" | "SUPPORT_QUEUE" | "CUSTOMER_HEALTH" | "OPERATIONS_REPORT" | "CAMPAIGN_DASHBOARD" | "SALES_PIPELINE" | "MARKETING_PERFORMANCE" | "EMPLOYEE_DIRECTORY";
+  readonly kind: "WORK_ORDER_QUEUE" | "URGENT_WORK_ORDER_TRIAGE" | "SUPPORT_QUEUE" | "ESCALATED_SUPPORT_REVIEW" | "SUPPORT_ESCALATION_EVIDENCE" | "SERVICE_CREDIT_OPPORTUNITIES" | "CUSTOMER_PLAN_CHANGE_HISTORY" | "CUSTOMER_WAIT_QUEUE" | "OPERATIONS_EXCEPTION_BRIEF" | "OWNER_WORKLOAD" | "CUSTOMER_HEALTH" | "OPERATIONS_REPORT" | "OPERATIONS_SNAPSHOT" | "CAMPAIGN_DASHBOARD" | "SALES_PIPELINE" | "SALES_LEADERBOARD" | "MARKETING_PERFORMANCE" | "EMPLOYEE_DIRECTORY";
   readonly title: string;
   readonly source: "FOUNDRY_PUBLIC_SAFE_BUSINESS_WORKSPACE";
   readonly summary: readonly { label: string; value: string; detail: string }[];
@@ -18,17 +18,17 @@ export interface BusinessWorkspaceResult {
 const source = "FOUNDRY_PUBLIC_SAFE_BUSINESS_WORKSPACE" as const;
 
 const workOrders = Object.freeze([
-  { id: "WO-2841", customer: "Northstar Cafe", task: "Inspect refrigeration alarm", priority: "URGENT", owner: "M. Rivera", status: "IN PROGRESS", due: "Today · 14:00" },
-  { id: "WO-2838", customer: "Lovelace Labs", task: "Replace access reader", priority: "HIGH", owner: "J. Patel", status: "DISPATCHED", due: "Today · 16:30" },
-  { id: "WO-2835", customer: "Chen & Co.", task: "Quarterly equipment review", priority: "NORMAL", owner: "A. Moss", status: "SCHEDULED", due: "Tomorrow · 09:00" },
-  { id: "WO-2829", customer: "Harbor Studio", task: "Verify network handoff", priority: "NORMAL", owner: "L. Okafor", status: "AWAITING CUSTOMER", due: "Tomorrow · 13:00" },
+  { id: "WO-2841", customer: "Northstar Cafe", task: "Inspect refrigeration alarm", priority: "URGENT", owner: "M. Rivera", status: "IN PROGRESS", due: "Today · 14:00", blocker: "Awaiting field-dispatch completion", ownerAvailability: "AVAILABLE" },
+  { id: "WO-2838", customer: "Lovelace Labs", task: "Replace access reader", priority: "HIGH", owner: "J. Patel", status: "DISPATCHED", due: "Today · 16:30", blocker: "None recorded", ownerAvailability: "UNAVAILABLE" },
+  { id: "WO-2835", customer: "Chen & Co.", task: "Quarterly equipment review", priority: "NORMAL", owner: "A. Moss", status: "SCHEDULED", due: "Tomorrow · 09:00", blocker: "Scheduled", ownerAvailability: "AVAILABLE" },
+  { id: "WO-2829", customer: "Harbor Studio", task: "Verify network handoff", priority: "NORMAL", owner: "L. Okafor", status: "AWAITING CUSTOMER", due: "Tomorrow · 13:00", blocker: "Awaiting customer response", ownerAvailability: "AVAILABLE" },
 ]);
 
 const supportTickets = Object.freeze([
-  { id: "SUP-918", customer: "Ada Lovelace", issue: "Delivery arrived late", severity: "HIGH", owner: "SERVICE RECOVERY", status: "READY FOR REVIEW", age: "42m" },
-  { id: "SUP-917", customer: "Lin Chen", issue: "Plan invoice question", severity: "NORMAL", owner: "BILLING", status: "OPEN", age: "1h 18m" },
-  { id: "SUP-914", customer: "Northstar Cafe", issue: "Access reader intermittently offline", severity: "URGENT", owner: "FIELD OPS", status: "ESCALATED", age: "2h 04m" },
-  { id: "SUP-909", customer: "Harbor Studio", issue: "Requesting campaign preview", severity: "LOW", owner: "CAMPAIGNS", status: "WAITING ON CUSTOMER", age: "4h 11m" },
+  { id: "SUP-918", customer: "Ada Lovelace", issue: "Delivery arrived late", severity: "HIGH", owner: "SERVICE RECOVERY", status: "READY FOR REVIEW", age: "42m", history: "One prior late-delivery case", nextReview: "Today · 15:00" },
+  { id: "SUP-917", customer: "Lin Chen", issue: "Plan invoice question", severity: "NORMAL", owner: "BILLING", status: "OPEN", age: "1h 18m", history: "No prior escalations", nextReview: "Tomorrow · 10:00" },
+  { id: "SUP-914", customer: "Northstar Cafe", issue: "Access reader intermittently offline", severity: "URGENT", owner: "FIELD OPS", status: "ESCALATED", age: "2h 04m", history: "Two related access incidents this quarter", nextReview: "Today · 13:30" },
+  { id: "SUP-909", customer: "Harbor Studio", issue: "Requesting campaign preview", severity: "LOW", owner: "CAMPAIGNS", status: "WAITING ON CUSTOMER", age: "4h 11m", history: "First recorded request", nextReview: "Tomorrow · 09:30" },
 ]);
 
 const customerHealth = Object.freeze([
@@ -38,10 +38,18 @@ const customerHealth = Object.freeze([
 ]);
 
 const salesPipeline = Object.freeze([
-  { opportunity: "Northstar expansion", account: "Northstar Cafe", owner: "Casey Bennett", stage: "PROPOSAL", value: "$42,000", closeWindow: "September", confidence: "70%" },
-  { opportunity: "Lovelace renewal", account: "Lovelace Labs", owner: "Morgan Ellis", stage: "NEGOTIATION", value: "$28,000", closeWindow: "September", confidence: "85%" },
+  { opportunity: "Northstar expansion", account: "Northstar Cafe", owner: "Avery Ellis", stage: "PROPOSAL", value: "$42,000", closeWindow: "September", confidence: "70%" },
+  { opportunity: "Lovelace renewal", account: "Lovelace Labs", owner: "Cameron Ellis", stage: "NEGOTIATION", value: "$28,000", closeWindow: "September", confidence: "85%" },
   { opportunity: "Harbor rollout", account: "Harbor Studio", owner: "Parker Diaz", stage: "QUALIFIED", value: "$16,500", closeWindow: "October", confidence: "50%" },
-  { opportunity: "Chen service bundle", account: "Chen & Co.", owner: "Taylor Foster", stage: "DISCOVERY", value: "$9,800", closeWindow: "October", confidence: "30%" },
+  { opportunity: "Chen service bundle", account: "Chen & Co.", owner: "Taylor Diaz", stage: "DISCOVERY", value: "$9,800", closeWindow: "October", confidence: "30%" },
+]);
+
+const salesLeaderboard = Object.freeze([
+  { representative: "Parker Diaz", team: "Sales", closedDeals: "14", revenue: "$482,000", quotaAttainment: "118%", rank: "1" },
+  { representative: "Avery Ellis", team: "Sales", closedDeals: "11", revenue: "$296,500", quotaAttainment: "104%", rank: "2" },
+  { representative: "Taylor Diaz", team: "Sales", closedDeals: "9", revenue: "$254,000", quotaAttainment: "96%", rank: "3" },
+  { representative: "Cameron Ellis", team: "Sales", closedDeals: "12", revenue: "$142,800", quotaAttainment: "91%", rank: "4" },
+  { representative: "Noel Diaz", team: "Sales", closedDeals: "7", revenue: "$88,400", quotaAttainment: "83%", rank: "5" },
 ]);
 
 const marketingPerformance = Object.freeze([
@@ -174,6 +182,23 @@ export function readWorkOrderQueue(): BusinessWorkspaceResult {
   };
 }
 
+export function readUrgentWorkOrderTriage(): BusinessWorkspaceResult {
+  const rows = workOrders.filter((order) => order.priority === "URGENT").map(({ id, customer, task, owner, due, blocker }) => ({ id, customer, task, owner, due, blocker }));
+  return {
+    kind: "URGENT_WORK_ORDER_TRIAGE",
+    title: "Urgent work-order triage",
+    source,
+    summary: [{ label: "Urgent work orders", value: String(rows.length), detail: "public-safe demo queue" }],
+    columns: ["id", "customer", "task", "owner", "due", "blocker"],
+    rows,
+  };
+}
+
+export function readWorkOrdersWithUnavailableOwners(): BusinessWorkspaceResult {
+  const rows = workOrders.filter((order) => order.ownerAvailability === "UNAVAILABLE").map(({ id, customer, task, owner, priority, due, status }) => ({ id, customer, task, owner, priority, due, status }));
+  return { kind: "WORK_ORDER_QUEUE", title: "Work orders with unavailable owners", source, summary: [{ label: "Owner-unavailable work orders", value: String(rows.length), detail: "read-only public-safe filter" }], columns: ["id", "customer", "task", "owner", "priority", "due", "status"], rows };
+}
+
 export function readSupportQueue(): BusinessWorkspaceResult {
   return {
     kind: "SUPPORT_QUEUE",
@@ -186,6 +211,59 @@ export function readSupportQueue(): BusinessWorkspaceResult {
     ],
     columns: ["id", "customer", "issue", "severity", "owner", "status", "age"],
     rows: supportTickets,
+  };
+}
+
+export function readEscalatedSupportReview(): BusinessWorkspaceResult {
+  const rows = supportTickets.filter((ticket) => ticket.status === "ESCALATED").map(({ id, customer, issue, severity, owner, history, nextReview }) => ({ id, customer, issue, severity, owner, history, nextReview }));
+  return { kind: "ESCALATED_SUPPORT_REVIEW", title: "Escalated support case review", source, summary: [{ label: "Escalated cases", value: String(rows.length), detail: "public-safe demo queue" }], columns: ["id", "customer", "issue", "severity", "owner", "history", "nextReview"], rows };
+}
+
+export function readSupportEscalationEvidence(): BusinessWorkspaceResult {
+  const rows = [{ id: "SUP-914", customer: "Northstar Cafe", severity: "URGENT", owner: "FIELD OPS", qualifyingEvidence: "Repeated access-reader outage; 2h 04m open; linked urgent work order", escalationCondition: "URGENT severity + repeated incident" }];
+  return { kind: "SUPPORT_ESCALATION_EVIDENCE", title: "Support escalation-condition evidence", source, summary: [{ label: "Qualifying cases", value: String(rows.length), detail: "read-only public-safe evidence view" }], columns: ["id", "customer", "severity", "owner", "qualifyingEvidence", "escalationCondition"], rows };
+}
+
+export function readServiceCreditOpportunities(): BusinessWorkspaceResult {
+  const rows = [{ customer: "Ada Lovelace", qualifyingEvidence: "Late delivery confirmed; support case SUP-918", priorCredits30d: "0", status: "ELIGIBLE · UNISSUED" }];
+  return { kind: "SERVICE_CREDIT_OPPORTUNITIES", title: "Eligible unissued service-credit opportunities", source, summary: [{ label: "Eligible opportunities", value: String(rows.length), detail: "read-only public-safe evidence view" }], columns: ["customer", "qualifyingEvidence", "priorCredits30d", "status"], rows };
+}
+
+export function readCustomerPlanChangeHistory(email: string): BusinessWorkspaceResult {
+  const customer = email.toLowerCase() === "ada@example.com" ? "Ada Lovelace" : email;
+  const rows = [{ date: "2026-08-12", priorPlan: "Starter", resultingPlan: "Growth" }];
+  return { kind: "CUSTOMER_PLAN_CHANGE_HISTORY", title: `Plan-change audit history: ${customer}`, source, summary: [{ label: "Recorded changes", value: String(rows.length), detail: "public-safe audit projection" }], columns: ["date", "priorPlan", "resultingPlan"], rows };
+}
+
+/** Read-only customer/request projection ordered by the governed wait clock. */
+export function readCustomersWaitingLongest(): BusinessWorkspaceResult {
+  const customerIds: Readonly<Record<string, string>> = {
+    "Ada Lovelace": "1042",
+    "Lin Chen": "8821",
+    "Northstar Cafe": "7710",
+    "Harbor Studio": "5532",
+  };
+  const waitMinutes = (age: string) => {
+    const match = age.match(/(?:(\d+)h\s*)?(?:(\d+)m)?/);
+    return (Number(match?.[1] ?? 0) * 60) + Number(match?.[2] ?? 0);
+  };
+  const rows = [...supportTickets]
+    .sort((left, right) => waitMinutes(right.age) - waitMinutes(left.age))
+    .map((ticket) => ({
+      customerId: customerIds[ticket.customer] ?? "UNKNOWN",
+      requestId: ticket.id,
+      waitDuration: ticket.age,
+    }));
+  return {
+    kind: "CUSTOMER_WAIT_QUEUE",
+    title: "Customers waiting longest",
+    source,
+    summary: [
+      { label: "Open requests", value: String(rows.length), detail: "public-safe support queue — current" },
+      { label: "Ordering", value: "Longest wait first", detail: "wait clock is request age in this demo substrate" },
+    ],
+    columns: ["customerId", "requestId", "waitDuration"],
+    rows,
   };
 }
 
@@ -213,6 +291,32 @@ export function readCustomerHealth(customerId: string): BusinessWorkspaceResult 
   };
 }
 
+export function readCustomer360ByEmail(email: string): BusinessWorkspaceResult {
+  const normalized = email.trim().toLowerCase();
+  const directory: Readonly<Record<string, { customerId: string; customer: string; plan: string; health: string; openWork: string; engagement: string; nextAction: string }>> = {
+    "ada@example.com": customerHealth[0],
+    "lin@example.com": customerHealth[1],
+  };
+  const customer = directory[normalized];
+  if (!customer) {
+    return { kind: "CUSTOMER_HEALTH", title: `Customer 360: ${email}`, source, summary: [{ label: "Matches", value: "0", detail: "no public-safe customer record" }], columns: ["email", "status"], rows: [{ email, status: "NOT FOUND" }] };
+  }
+  const tickets = supportTickets.filter((ticket) => ticket.customer === customer.customer);
+  const orders = workOrders.filter((order) => order.customer === customer.customer);
+  return {
+    kind: "CUSTOMER_HEALTH",
+    title: `Customer 360: ${customer.customer}`,
+    source,
+    summary: [
+      { label: "Open cases", value: String(tickets.length), detail: "support history and current queue" },
+      { label: "Work orders", value: String(orders.length), detail: "field operations — current" },
+      { label: "Health", value: customer.health, detail: "public-safe customer workspace" },
+    ],
+    columns: ["customerId", "email", "customer", "health", "supportHistory", "openCases", "workOrders", "plan"],
+    rows: [{ customerId: customer.customerId, email, customer: customer.customer, health: customer.health, supportHistory: tickets.map((ticket) => `${ticket.id}: ${ticket.issue}`).join("; ") || "None", openCases: String(tickets.length), workOrders: orders.map((order) => `${order.id}: ${order.status}`).join("; ") || "None", plan: customer.plan }],
+  };
+}
+
 export function readOperationsReport(): BusinessWorkspaceResult {
   return {
     kind: "OPERATIONS_REPORT",
@@ -231,6 +335,64 @@ export function readOperationsReport(): BusinessWorkspaceResult {
       { area: "Customer", metric: "At-risk accounts", current: "3", trend: "Watch", nextAction: "Prepare account-health reviews" },
       { area: "Campaigns", metric: "Draft-ready audience", current: "128", trend: "Ready", nextAction: "Request separate delivery authorization" },
     ],
+  };
+}
+
+export function readCurrentOperationsSnapshot(): BusinessWorkspaceResult {
+  const openWorkOrders = workOrders.length;
+  const urgentWorkOrders = workOrders.filter((order) => order.priority === "URGENT").length;
+  const openCases = supportTickets.length;
+  const escalatedCases = supportTickets.filter((ticket) => ticket.status === "ESCALATED" || ticket.severity === "URGENT").length;
+  const atRiskAccounts = customerHealth.filter((customer) => customer.health === "AT RISK").length;
+  return {
+    kind: "OPERATIONS_SNAPSHOT",
+    title: "Current operations snapshot",
+    source,
+    summary: [
+      { label: "Open work orders", value: String(openWorkOrders), detail: "field dispatch queue — current" },
+      { label: "Open support cases", value: String(openCases), detail: "support queue — current" },
+      { label: "At-risk accounts", value: String(atRiskAccounts), detail: "customer health — current" },
+    ],
+    columns: ["domain", "metric", "current", "attention"],
+    rows: [
+      { domain: "Field operations", metric: "Open work orders", current: String(openWorkOrders), attention: `${urgentWorkOrders} urgent` },
+      { domain: "Customer support", metric: "Open cases", current: String(openCases), attention: `${escalatedCases} escalated` },
+      { domain: "Customer health", metric: "At-risk accounts", current: String(atRiskAccounts), attention: "Review next actions" },
+    ],
+  };
+}
+
+export function readOperationsExceptionBrief(): BusinessWorkspaceResult {
+  return {
+    kind: "OPERATIONS_EXCEPTION_BRIEF",
+    title: "Operations exception brief",
+    source,
+    summary: [
+      { label: "Urgent work orders", value: "1", detail: "field operations — current" },
+      { label: "Escalated support cases", value: "1", detail: "customer support — current" },
+      { label: "At-risk accounts", value: "1", detail: "customer health — current" },
+    ],
+    columns: ["domain", "recordId", "status", "attention"],
+    rows: [
+      { domain: "Field operations", recordId: "WO-2841", status: "URGENT", attention: "Inspect refrigeration alarm" },
+      { domain: "Customer support", recordId: "SUP-914", status: "ESCALATED", attention: "Access reader intermittently offline" },
+      { domain: "Customer health", recordId: "7710", status: "AT RISK", attention: "Confirm field dispatch completion" },
+    ],
+  };
+}
+
+export function readOwnerWorkload(): BusinessWorkspaceResult {
+  const rows = [
+    ...workOrders.map((order) => ({ owner: order.owner, workOrderId: order.id, ticketId: "—", urgency: order.priority, dueTime: order.due })),
+    ...supportTickets.map((ticket) => ({ owner: ticket.owner, workOrderId: "—", ticketId: ticket.id, urgency: ticket.severity, dueTime: ticket.age })),
+  ].sort((left, right) => (({ URGENT: 0, HIGH: 1, NORMAL: 2, LOW: 3 }[left.urgency as "URGENT" | "HIGH" | "NORMAL" | "LOW"] ?? 9) - ({ URGENT: 0, HIGH: 1, NORMAL: 2, LOW: 3 }[right.urgency as "URGENT" | "HIGH" | "NORMAL" | "LOW"] ?? 9)) || left.dueTime.localeCompare(right.dueTime));
+  return {
+    kind: "OWNER_WORKLOAD",
+    title: "Owner workload: work orders and support tickets",
+    source,
+    summary: [{ label: "Assigned items", value: String(rows.length), detail: "combined public-safe work-order and support queues — current" }],
+    columns: ["owner", "workOrderId", "ticketId", "urgency", "dueTime"],
+    rows,
   };
 }
 
@@ -261,6 +423,20 @@ export function readSalesPipeline(): BusinessWorkspaceResult {
     ],
     columns: ["opportunity", "account", "owner", "stage", "value", "closeWindow", "confidence"],
     rows: salesPipeline,
+  };
+}
+
+export function readSalesLeaderboard(): BusinessWorkspaceResult {
+  return {
+    kind: "SALES_LEADERBOARD",
+    title: "Sales leaderboard",
+    source,
+    summary: [
+      { label: "Representatives", value: String(salesLeaderboard.length), detail: "fictional public-safe sales team" },
+      { label: "Top performer", value: salesLeaderboard[0].representative, detail: "ranked by revenue" },
+    ],
+    columns: ["rank", "representative", "team", "closedDeals", "revenue", "quotaAttainment"],
+    rows: salesLeaderboard,
   };
 }
 

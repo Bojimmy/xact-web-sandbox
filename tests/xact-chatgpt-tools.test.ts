@@ -39,3 +39,19 @@ test("ChatGPT bridge permits only declared bounded fields", async () => {
   assert.equal(result.definition.name, "get_division_roster");
   await assert.rejects(() => constructChatGPTCapability("get_division_roster", { role: "CEO" }), /Unknown bound/);
 });
+
+test("every successful build returns the three-part summary: answer, boundary, next step", async () => {
+  const read = await constructChatGPTCapability("read_active_users_and_open_requests");
+  assert.match(read.summary.builtAndValidated, /read-only `read_active_users_and_open_requests`/);
+  assert.match(read.summary.builtAndValidated, /active user count/);
+  assert.match(read.summary.currentBoundary, /No data was read/);
+  assert.match(read.summary.nextRequiredCapability, /read handler bound to the approved Foundry customer directory/);
+
+  const mutation = await constructChatGPTCapability("reassign_support_ticket");
+  assert.match(mutation.summary.builtAndValidated, /governed mutation `reassign_support_ticket`/);
+  assert.match(mutation.summary.currentBoundary, /fresh Xact Commit/);
+
+  const draft = await constructChatGPTCapability("prepare_weekly_promotional_email_campaign");
+  assert.match(draft.summary.builtAndValidated, /draft-only `prepare_weekly_promotional_email_campaign`/);
+  assert.match(draft.summary.currentBoundary, /nothing was sent or scheduled/);
+});

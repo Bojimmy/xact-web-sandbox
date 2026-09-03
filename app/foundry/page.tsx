@@ -346,7 +346,7 @@ export default function FoundryPage() {
   const businessWorkspace = isBusinessWorkspaceResult(invocation?.result) ? invocation.result : undefined;
 
   return <main className="foundry">
-    <header className="foundry-top"><Link href="/">XACT</Link><span>WEBMCP FOUNDRY</span><nav className="foundry-tabs" aria-label="Foundry pages"><Link href="/foundry" aria-current="page">BOSS · BUILD A TOOL</Link><Link href="/foundry/catalog">WHAT XACT CAN BUILD</Link></nav><strong>The O-Agent understands. Xact decides what may become real.</strong></header>
+    <header className="foundry-top"><Link href="/" aria-label="Xact Foundry home"><img className="foundry-logo" src="/xact-foundry-logo.webp" alt="Xact Foundry" /></Link><span>WEBMCP FOUNDRY</span><nav className="foundry-tabs" aria-label="Foundry pages"><Link href="/foundry" aria-current="page">BOSS · BUILD A TOOL</Link><Link href="/foundry/catalog">XACT BUILD &amp; EXAMPLES</Link></nav><strong>The O-Agent understands. Xact decides what may become real.</strong></header>
     <section className="foundry-grid">
       <section className="foundry-panel foundry-conversation">
         <p className="foundry-kicker">BOSS CHAT · O-AGENT LIAISON</p><h2>Tell the Boss what tool you need.</h2>

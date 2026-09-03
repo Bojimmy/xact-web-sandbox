@@ -43,6 +43,22 @@ function governedMutationTool() {
   }));
 }
 
+function governedReassignmentTool() {
+  return composeWebMCPTool(describeCapability({
+    id: "reassign_support_ticket",
+    capabilityKind: "MUTATION",
+    label: "Reassign support ticket when policy permits",
+    inputs: ["ticketId", "newOwner", "ownerUnavailable", "requiredSkillMismatch"],
+    resolves: ["ticket-reassigned"],
+    boundaries: [
+      { primitive: "ACTOR_BINDING", description: "Only service recovery may reassign.", actor: "SERVICE_RECOVERY" },
+      { primitive: "STATE_BINDING", description: "Owner unavailable or required skill mismatch." },
+      { primitive: "CONFIRMATION_REQUIREMENT", description: "Explicit confirmation required." },
+      { primitive: "AUDIT_EVENT", description: "Audit required." },
+    ],
+  }));
+}
+
 function freshEffect(payload: unknown = { customerId: "1042", amount: 25 }): AuthorizedEffect {
   const artifact: AuthorizationArtifact = {
     commitId: "commit:runtime",
@@ -112,6 +128,17 @@ test("a MUTATION without a fresh Commit blocks with no effect", async () => {
   assert.equal(result.result, undefined);
   assert.equal(applied, false);
   assert.ok(result.audit[0].includes("no fresh Commit authorization"));
+});
+
+test("support-ticket reassignment requires owner-unavailable or skill-mismatch evidence", async () => {
+  const tool = governedReassignmentTool();
+  const commit = createMutationCommitEngine();
+  const base = { actor: "SERVICE_RECOVERY", ticketId: "SUP-918", newOwner: "FIELD OPS", confirmation: true };
+  const denied = await commit(tool, base);
+  assert.equal(denied.authorized, false);
+  assert.match(denied.reason ?? "", /owner unavailable or required skill mismatch/i);
+  const allowed = await commit(tool, { ...base, ownerUnavailable: true });
+  assert.equal(allowed.authorized, true);
 });
 
 test("a MUTATION with a fresh Commit runs exact dispatch then the effect", async () => {

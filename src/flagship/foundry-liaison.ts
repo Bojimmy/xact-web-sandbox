@@ -2,6 +2,7 @@ import type { WebMCPToolDefinition } from "./webmcp-tool-builder";
 import { constructWebMCPToolWithNodes, type ToolConstructionNodeOutcome } from "./tool-construction-nodes";
 import {
   describeCapability,
+  recognizeGovernedCapability,
   type CapabilityBoundary,
   type CapabilityKind,
   type GovernedCapabilityDescriptor,
@@ -126,8 +127,22 @@ const ACTOR_BOUNDARY: CapabilityBoundary = actorBoundaryFor("SERVICE_RECOVERY");
 const AUDIT_BOUNDARY: CapabilityBoundary = { primitive: "AUDIT_EVENT", description: "audit event required", auditRequired: true };
 const FRESHNESS_BOUNDARY: CapabilityBoundary = { primitive: "SESSION_REQUIREMENT", description: "state freshness required", freshnessRequired: true };
 const CONFIRMATION_BOUNDARY: CapabilityBoundary = { primitive: "CONFIRMATION_REQUIREMENT", description: "confirmation required", confirmationRequired: true };
+const observationalIntent = (intent: string): boolean => /read[- ]only|do not|never|without (?:changing|performing|issuing|escalating|reassigning)|no mutation/i.test(intent);
 
 const FOUNDRY_PATTERNS: CapabilityPattern[] = [
+  {
+    id: "get_service_credit_opportunities",
+    label: "Read service-credit opportunity evidence",
+    capabilityKind: "READ",
+    inputs: [],
+    resolves: ["eligible-customers", "qualifying-evidence", "prior-credits-30d", "unissued-status"],
+    boundaries: () => [
+      { primitive: "READ_CAPABILITY", description: "Foundry public-safe business workspace is the approved credit-evidence substrate" },
+      FRESHNESS_BOUNDARY,
+    ],
+    genuineU: [],
+    matches: (intent) => /service[- ]credit/i.test(intent) && /read[- ]only|unissued|prior credits|opportunity/i.test(intent),
+  },
   {
     id: "issue_service_credit",
     label: "Issue customer service credit",
@@ -141,7 +156,7 @@ const FOUNDRY_PATTERNS: CapabilityPattern[] = [
       FRESHNESS_BOUNDARY,
     ],
     genuineU: ["credit eligibility", "stacking policy"],
-    matches: (intent) => /credit/i.test(intent),
+    matches: (intent) => /credit/i.test(intent) && !observationalIntent(intent) && !/unissued|opportunity|eligible|policy/i.test(intent),
     extractAmountLimit: (intent) => amountLimit(intent, 25),
   },
   {
@@ -163,15 +178,16 @@ const FOUNDRY_PATTERNS: CapabilityPattern[] = [
     id: "reassign_support_ticket",
     label: "Reassign support ticket",
     capabilityKind: "MUTATION",
-    inputs: ["ticketId", "newOwner"],
+    inputs: ["ticketId", "newOwner", "ownerUnavailable", "requiredSkillMismatch"],
     resolves: ["ticket-reassigned"],
     boundaries: () => [
       actorBoundaryFor("SERVICE_RECOVERY"),
+      { primitive: "STATE_BINDING", description: "Reassignment requires current owner unavailable OR required skill mismatch" },
       CONFIRMATION_BOUNDARY,
       AUDIT_BOUNDARY,
     ],
     genuineU: [],
-    matches: (intent) => /reassign/i.test(intent) && /(support )?ticket|case/i.test(intent),
+    matches: (intent) => /reassign/i.test(intent) && /(support )?ticket|case/i.test(intent) && !observationalIntent(intent),
   },
   {
     id: "reassign_work_order",
@@ -185,7 +201,7 @@ const FOUNDRY_PATTERNS: CapabilityPattern[] = [
       AUDIT_BOUNDARY,
     ],
     genuineU: [],
-    matches: (intent) => /reassign/i.test(intent) && /work[- ]order/i.test(intent),
+    matches: (intent) => /reassign/i.test(intent) && /work[- ]order/i.test(intent) && !observationalIntent(intent),
   },
   {
     id: "escalate_support_ticket",
@@ -199,7 +215,7 @@ const FOUNDRY_PATTERNS: CapabilityPattern[] = [
       AUDIT_BOUNDARY,
     ],
     genuineU: [],
-    matches: (intent) => /escalate/i.test(intent) && /(support )?ticket|case/i.test(intent),
+    matches: (intent) => /\bescalate(?:d|s|ion)?\b/i.test(intent) && !/read[- ]only|review|show|list/i.test(intent) && /(support )?ticket|case/i.test(intent),
   },
   {
     id: "set_customer_next_action",
@@ -269,6 +285,45 @@ const FOUNDRY_PATTERNS: CapabilityPattern[] = [
     matches: (intent) => /active users?|user stats?/i.test(intent) && /open (support )?requests?/i.test(intent),
   },
   {
+    id: "get_urgent_work_orders_unqualified_owner",
+    label: "Read urgent work orders with no qualified owner",
+    capabilityKind: "READ",
+    inputs: [],
+    resolves: ["owner", "qualified-owner-available", "due-time", "status"],
+    boundaries: () => [
+      { primitive: "READ_CAPABILITY", description: "Foundry public-safe business workspace is the approved dispatch substrate" },
+      FRESHNESS_BOUNDARY,
+    ],
+    genuineU: [],
+    matches: (intent) => /urgent.*(?:qualified|unqualified).*owner|no qualified owner|qualified owner unavailable|no available qualified owner/i.test(intent),
+  },
+  {
+    id: "get_urgent_work_order_triage",
+    label: "Read urgent work-order triage",
+    capabilityKind: "READ",
+    inputs: [],
+    resolves: ["urgent-work-orders", "owner", "due-time", "completion-blocker"],
+    boundaries: () => [
+      { primitive: "READ_CAPABILITY", description: "Foundry public-safe business workspace is the approved work-order substrate" },
+      FRESHNESS_BOUNDARY,
+    ],
+    genuineU: [],
+    matches: (intent) => /urgent work[- ]order(?:s)? triage|urgent work[- ]orders?.*(?:blocking|blocker|due time)/i.test(intent),
+  },
+  {
+    id: "get_work_orders_owner_unavailable",
+    label: "Read work orders with unavailable owners",
+    capabilityKind: "READ",
+    inputs: [],
+    resolves: ["work-orders", "owner-unavailable", "priority", "due-time", "status"],
+    boundaries: () => [
+      { primitive: "READ_CAPABILITY", description: "Foundry public-safe business workspace is the approved work-order substrate" },
+      FRESHNESS_BOUNDARY,
+    ],
+    genuineU: [],
+    matches: (intent) => /work orders?.*(?:owner is )?unavailable|owner unavailable.*work orders?/i.test(intent),
+  },
+  {
     id: "get_work_order_queue",
     label: "Read field work-order queue",
     capabilityKind: "READ",
@@ -279,7 +334,8 @@ const FOUNDRY_PATTERNS: CapabilityPattern[] = [
       FRESHNESS_BOUNDARY,
     ],
     genuineU: [],
-    matches: (intent) => /work[- ]orders?|field service|dispatch queue/i.test(intent),
+    matches: (intent) => /work[- ]orders?|field service|dispatch queue/i.test(intent)
+      && !/customer 360|support history|open cases.*work orders|customer email.*health|owner workload|assigned work orders and support tickets|owner unavailable/i.test(intent),
   },
   {
     id: "get_employee_directory",
@@ -292,7 +348,31 @@ const FOUNDRY_PATTERNS: CapabilityPattern[] = [
       FRESHNESS_BOUNDARY,
     ],
     genuineU: [],
-    matches: (intent) => /employee (directory|data|list|org|organization|headcount)|(?:company|workforce) (directory|org|organization|headcount)|division headcount/i.test(intent),
+    matches: (intent) => /employee (directory|data|list|org|organization|headcount)|(?:company|workforce) (directory|org|organization|headcount)|division headcount/i.test(intent)
+      && !/sales (?:people|reps?|representatives?).*(?:leaderboard|statistics|stats|performance)|(?:leaderboard|rankings?).*sales/i.test(intent),
+  },
+  {
+    id: "get_escalated_support_case_review",
+    label: "Read escalated support case review",
+    capabilityKind: "READ",
+    inputs: [],
+    resolves: ["escalated-cases", "severity", "current-owner", "customer-history", "next-review"],
+    boundaries: () => [
+      { primitive: "READ_CAPABILITY", description: "Foundry public-safe business workspace is the approved support substrate" },
+      FRESHNESS_BOUNDARY,
+    ],
+    genuineU: [],
+    matches: (intent) => /escalated support (?:cases?|tickets?).*(?:history|next review|severity|owner)|escalated (?:support )?(?:case|ticket) review/i.test(intent),
+  },
+  {
+    id: "get_support_escalation_evidence",
+    label: "Read support escalation-condition evidence",
+    capabilityKind: "READ",
+    inputs: [],
+    resolves: ["qualifying-tickets", "severity", "owner", "qualifying-evidence", "escalation-condition"],
+    boundaries: () => [{ primitive: "READ_CAPABILITY", description: "Foundry public-safe business workspace is the approved support substrate" }, FRESHNESS_BOUNDARY],
+    genuineU: [],
+    matches: (intent) => /support tickets?.*(?:conditions? for escalation|qualifying evidence)|escalation[- ]condition evidence/i.test(intent),
   },
   {
     id: "get_customer_support_queue",
@@ -305,7 +385,34 @@ const FOUNDRY_PATTERNS: CapabilityPattern[] = [
       FRESHNESS_BOUNDARY,
     ],
     genuineU: [],
-    matches: (intent) => /support (queue|tickets?|cases?)|customer support/i.test(intent),
+    matches: (intent) => /support (queue|tickets?|cases?)|customer support/i.test(intent)
+      && !/owner workload|assigned work orders and support tickets|escalated support|escalated case review|conditions? for escalation|qualifying evidence/i.test(intent),
+  },
+  {
+    id: "get_support_lead_decision_queue",
+    label: "Read support lead decision queue",
+    capabilityKind: "READ",
+    inputs: [],
+    resolves: ["request-id", "decision-category", "possible-next-action"],
+    boundaries: () => [
+      { primitive: "READ_CAPABILITY", description: "Foundry public-safe business workspace is the approved support substrate" },
+      FRESHNESS_BOUNDARY,
+    ],
+    genuineU: [],
+    matches: (intent) => /support[- ]lead.*(?:review|queue)|awaiting (?:support[- ]lead )?review|possible next action|decision (?:category|queue)/i.test(intent),
+  },
+  {
+    id: "composed_read_customer_request",
+    label: "Read customers waiting longest",
+    capabilityKind: "READ",
+    inputs: [],
+    resolves: ["customer-id", "request-id", "wait-duration"],
+    boundaries: () => [
+      { primitive: "READ_CAPABILITY", description: "Foundry public-safe business workspace is the approved wait-queue substrate" },
+      FRESHNESS_BOUNDARY,
+    ],
+    genuineU: [],
+    matches: (intent) => /customers? (?:who )?(?:have )?been waiting (?:the )?longest|longest[- ]waiting customers?|customers? waiting longest/i.test(intent),
   },
   {
     id: "get_customer_health_summary",
@@ -334,6 +441,58 @@ const FOUNDRY_PATTERNS: CapabilityPattern[] = [
     matches: (intent) => /weekly kpi|business (operations )?report|operations dashboard/i.test(intent),
   },
   {
+    id: "get_current_operations_snapshot",
+    label: "Read current operations snapshot",
+    capabilityKind: "READ",
+    inputs: [],
+    resolves: ["open-work-orders", "open-support-cases", "at-risk-accounts"],
+    boundaries: () => [
+      { primitive: "READ_CAPABILITY", description: "Foundry public-safe business workspace is the approved current-operations substrate" },
+      FRESHNESS_BOUNDARY,
+    ],
+    genuineU: [],
+    matches: (intent) => /current operations snapshot|operations snapshot|live operations snapshot|current operations overview/i.test(intent),
+  },
+  {
+    id: "get_operations_exception_brief",
+    label: "Read operations exception brief",
+    capabilityKind: "READ",
+    inputs: [],
+    resolves: ["urgent-work-orders", "escalated-support-cases", "at-risk-accounts"],
+    boundaries: () => [
+      { primitive: "READ_CAPABILITY", description: "Foundry public-safe business workspace is the approved exception-brief substrate" },
+      FRESHNESS_BOUNDARY,
+    ],
+    genuineU: [],
+    matches: (intent) => /operations? exception brief|exception brief|operations? exceptions/i.test(intent),
+  },
+  {
+    id: "get_owner_workload",
+    label: "Read owner workload",
+    capabilityKind: "READ",
+    inputs: [],
+    resolves: ["owner", "assigned-work-orders", "assigned-support-tickets", "urgency", "due-time"],
+    boundaries: () => [
+      { primitive: "READ_CAPABILITY", description: "Foundry public-safe business workspace is the approved owner-workload substrate" },
+      FRESHNESS_BOUNDARY,
+    ],
+    genuineU: [],
+    matches: (intent) => /assigned work orders and support tickets|owner workload|owner.*workload/i.test(intent),
+  },
+  {
+    id: "get_customer_360",
+    label: "Read customer 360 evidence view",
+    capabilityKind: "READ",
+    inputs: ["email"],
+    resolves: ["customer-id", "support-history", "open-cases", "work-orders", "health-status"],
+    boundaries: () => [
+      { primitive: "READ_CAPABILITY", description: "Foundry public-safe business workspace is the approved customer-360 substrate" },
+      FRESHNESS_BOUNDARY,
+    ],
+    genuineU: [],
+    matches: (intent) => /customer 360|customer evidence view|account.*support history.*open cases.*work orders.*health/i.test(intent),
+  },
+  {
     id: "get_sales_pipeline_forecast",
     label: "Read sales pipeline and forecast",
     capabilityKind: "READ",
@@ -345,6 +504,19 @@ const FOUNDRY_PATTERNS: CapabilityPattern[] = [
     ],
     genuineU: [],
     matches: (intent) => /sales (pipeline|forecast|dashboard)|revenue (pipeline|forecast)/i.test(intent),
+  },
+  {
+    id: "get_sales_leaderboard",
+    label: "Read sales leaderboard",
+    capabilityKind: "READ",
+    inputs: [],
+    resolves: ["representative", "team", "closed-deals", "revenue", "quota-attainment", "rank"],
+    boundaries: () => [
+      { primitive: "READ_CAPABILITY", description: "Foundry public-safe sales workspace is the approved read substrate" },
+      FRESHNESS_BOUNDARY,
+    ],
+    genuineU: [],
+    matches: (intent) => /sales (leaderboard|ranking|rankings|top performers|reps?)|leaderboard|top sales reps?|rank.*sales/i.test(intent),
   },
   {
     id: "get_marketing_performance",
@@ -492,6 +664,19 @@ const FOUNDRY_PATTERNS: CapabilityPattern[] = [
     matches: (intent) => /customers? by plan|by plan/i.test(intent) && !/(change|update|switch|modify)/i.test(intent),
   },
   {
+    id: "get_customer_plan_change_history",
+    label: "Read customer plan-change audit history",
+    capabilityKind: "READ",
+    inputs: ["email"],
+    resolves: ["customer", "plan-change-date", "prior-plan", "resulting-plan"],
+    boundaries: () => [
+      { primitive: "READ_CAPABILITY", description: "Foundry audit workspace is the approved plan-history substrate" },
+      FRESHNESS_BOUNDARY,
+    ],
+    genuineU: [],
+    matches: (intent) => /plan changes?.*(?:audit|history|prior plan|resulting plan)|audit history.*(?:plan|email)/i.test(intent),
+  },
+  {
     id: "find_customer_by_email",
     label: "Find customer by email",
     capabilityKind: "READ",
@@ -549,6 +734,11 @@ export interface IntentDecomposition {
 
 export function decomposeIntent(intent: string): IntentDecomposition {
   const normalized = intent.trim().toLowerCase();
+  // Do not substitute the employee directory for an ungoverned leaderboard.
+  if (/sales (?:people|reps?|representatives?).*(?:leaderboard|statistics|stats|performance)|(?:leaderboard|rankings?).*sales/i.test(normalized)) {
+    const raw = { capability: "unrecognized_capability", resolves: ["sales performance metrics"] };
+    return { raw, door: doorValidate(raw, new Set()), ledger: ledgerValidate(raw) };
+  }
   const pattern = FOUNDRY_PATTERNS.find((candidate) => candidate.matches(normalized));
 
   if (!pattern) {
@@ -746,7 +936,23 @@ export class XactFoundryLiaison {
       emit({ type: "RE_ENTRY", label: "Re-entry", detail: "Structured evidence re-enters Xact for governed resolution.", status: "PASS" });
     }
 
-    // AUTHORIZATION → COMMIT — the construction consequence crosses the boundary.
+    return this.finishBuild(intent, descriptor, reasoning, activity, emit);
+  }
+
+  /**
+   * AUTHORIZATION → COMMIT → BUILD. The shared tail of a construction run: the
+   * exact construction consequence crosses the authority boundary, then the
+   * X-Nodes compose the inert definition. `reasoning` is the already-attested
+   * semantic evidence (from the internal O-Agent or, for the ChatGPT Boss loop,
+   * from the external Boss) — it is recorded, never re-derived here.
+   */
+  private async finishBuild(
+    intent: string,
+    descriptor: GovernedCapabilityDescriptor,
+    reasoning: FoundryReasoning | undefined,
+    activity: FoundryActivity[],
+    emit: (activity: FoundryActivity) => void,
+  ): Promise<FoundryBuildResult> {
     const provider = new SimulationDecisionProvider(constructionPack, new FoundryConstructionPolicy());
     const candidateDecision = await provider.resolve({ capabilityId: descriptor.id, capabilityKind: descriptor.capabilityKind }, { version: 1, constructed: [] });
     const decisionResult = await provider.commit(candidateDecision, { version: 1, constructed: [] });
@@ -791,6 +997,71 @@ export class XactFoundryLiaison {
       commitAuthorization,
       constructionNodes: construction.nodes,
     };
+  }
+
+  /**
+   * Build a recognized capability whose semantic requirements have already been
+   * resolved OUTSIDE the liaison — the ChatGPT Boss loop calls this as the
+   * Xact re-entry after `submit_boss_resolution`. It never invokes the internal
+   * O-Agent; the supplied reasoning evidence is re-entered and recorded, then
+   * AUTHORIZATION → COMMIT → BUILD proceeds exactly as in `buildCapability`.
+   */
+  async buildCapabilityWithReasoning(
+    intent: string,
+    reasoning: { unresolved: string[]; claims: string[]; provider: string },
+    onActivity?: (activity: FoundryActivity) => void,
+  ): Promise<FoundryBuildResult> {
+    const activity: FoundryActivity[] = [];
+    const emit = (a: FoundryActivity) => { activity.push(a); onActivity?.(a); };
+
+    const decomposition = decomposeIntent(intent);
+    if (!decomposition.pattern || decomposition.pattern.blocked) {
+      throw new Error("Boss re-entry requires a recognized, non-blocked governed capability.");
+    }
+    const descriptor = decomposition.descriptor!;
+    if (!decomposition.door.admissible || !decomposition.ledger.valid) {
+      return { kind: "FOUNDRY_BUILD", intent, outcome: "BLOCKED", activity };
+    }
+
+    emit({ type: "RESOLVE", label: "Resolve", detail: `Decomposed intent into capability "${descriptor.id}".`, status: "PASS" });
+    emit({ type: "DOOR", label: "DOOR", detail: "Admissible — in the closed ontology.", status: "PASS" });
+    emit({ type: "LEDGER", label: "LEDGER", detail: "Valid — no authority or execution surface.", status: "PASS" });
+
+    const attested: FoundryReasoning = {
+      unresolved: [...reasoning.unresolved],
+      claims: [...reasoning.claims],
+      provider: reasoning.provider,
+    };
+    emit({ type: "REASON_EVIDENCE", label: "Boss", detail: `${reasoning.provider} returned structured interpretation.`, status: "EVIDENCE" });
+    emit({ type: "RE_ENTRY", label: "Re-entry", detail: "Boss interpretation re-enters Xact for governed construction.", status: "PASS" });
+
+    return this.finishBuild(intent, descriptor, attested, activity, emit);
+  }
+
+  /**
+   * Build directly from an already-governed descriptor (no decomposition, no
+   * internal reasoning). This is the COMPOSABLE path of the Boss composition
+   * seam: the descriptor still passes Door/Ledger and then the SAME
+   * AUTHORIZATION → COMMIT → BUILD boundary as every other construction. It is
+   * never a shortcut around Commit.
+   */
+  async buildFromDescriptor(
+    descriptor: GovernedCapabilityDescriptor,
+    onActivity?: (activity: FoundryActivity) => void,
+  ): Promise<FoundryBuildResult> {
+    const activity: FoundryActivity[] = [];
+    const emit = (a: FoundryActivity) => { activity.push(a); onActivity?.(a); };
+
+    const recognition = recognizeGovernedCapability(descriptor);
+    if (!recognition.recognized) {
+      emit({ type: "DOOR", label: "DOOR", detail: recognition.checks.join(" "), status: "BLOCK" });
+      return { kind: "FOUNDRY_BUILD", intent: descriptor.label, outcome: "BLOCKED", activity };
+    }
+    emit({ type: "RESOLVE", label: "Resolve", detail: `Composed descriptor "${descriptor.id}" from a governed composition.`, status: "PASS" });
+    emit({ type: "DOOR", label: "DOOR", detail: "Admissible — composed from the closed governed vocabulary.", status: "PASS" });
+    emit({ type: "LEDGER", label: "LEDGER", detail: "Valid — no authority or execution surface.", status: "PASS" });
+
+    return this.finishBuild(descriptor.label, descriptor, undefined, activity, emit);
   }
 
   /**
