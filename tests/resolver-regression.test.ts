@@ -77,3 +77,36 @@ test("real mutation intents still resolve to their Commit-gated mutations", () =
   assert.equal(decomposeIntent("Reassign a support ticket to another owner.").pattern?.id, "reassign_support_ticket");
   assert.equal(decomposeIntent("Escalate this support ticket now.").pattern?.id, "escalate_support_ticket");
 });
+
+// Part 3 — construct-only mutation phrasing and read guards.
+
+test("construct-only mutation requests resolve to the mutation, not an observation read", () => {
+  assert.equal(
+    decomposeIntent(
+      "Build a governed capability to reassign a support ticket only when the current owner is unavailable or the required skill does not match. Construct the tool only; do not reassign any ticket or claim Commit authority.",
+    ).pattern?.id,
+    "reassign_support_ticket",
+  );
+  assert.equal(
+    decomposeIntent(
+      "Build a governed capability to issue a bounded service credit. Require actor role and maximum amount, construct the tool only, and do not issue any credit or claim Commit authority.",
+    ).pattern?.id,
+    "issue_service_credit",
+  );
+});
+
+test("a read of employees on leave never resolves to the status mutation", () => {
+  const d = decomposeIntent(
+    "Build a governed, read-only capability that shows all employees currently on leave. Construct the tool only; do not retrieve data or change employee status.",
+  );
+  assert.equal(d.pattern?.id, "get_employees_on_leave");
+  assert.equal(d.pattern?.capabilityKind, "READ");
+});
+
+test("customer accounts marked at risk resolve to the at-risk read", () => {
+  const d = decomposeIntent(
+    "Build a governed, read-only capability that shows customer accounts currently marked at risk. Construct the tool only; do not retrieve data or change anything.",
+  );
+  assert.equal(d.pattern?.id, "get_customers_at_risk");
+  assert.equal(d.pattern?.capabilityKind, "READ");
+});

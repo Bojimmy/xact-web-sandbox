@@ -128,6 +128,10 @@ const AUDIT_BOUNDARY: CapabilityBoundary = { primitive: "AUDIT_EVENT", descripti
 const FRESHNESS_BOUNDARY: CapabilityBoundary = { primitive: "SESSION_REQUIREMENT", description: "state freshness required", freshnessRequired: true };
 const CONFIRMATION_BOUNDARY: CapabilityBoundary = { primitive: "CONFIRMATION_REQUIREMENT", description: "confirmation required", confirmationRequired: true };
 const observationalIntent = (intent: string): boolean => /read[- ]only|do not|never|without (?:changing|performing|issuing|escalating|reassigning)|no mutation/i.test(intent);
+/** A request phrased as "build/construct/define … a capability/tool to …" (construct intent), not an observation of a consequence. */
+const constructionRequest = (intent: string): boolean =>
+  /\b(build|construct|define|create|compose|design)\b/i.test(intent) &&
+  /\b(capabilit|tool|way|view|report|definition|recipe)\b/i.test(intent);
 
 const FOUNDRY_PATTERNS: CapabilityPattern[] = [
   {
@@ -156,7 +160,7 @@ const FOUNDRY_PATTERNS: CapabilityPattern[] = [
       FRESHNESS_BOUNDARY,
     ],
     genuineU: ["credit eligibility", "stacking policy"],
-    matches: (intent) => /credit/i.test(intent) && !observationalIntent(intent) && !/unissued|opportunity|eligible|policy/i.test(intent),
+    matches: (intent) => /credit/i.test(intent) && (!observationalIntent(intent) || constructionRequest(intent)) && !/unissued|opportunity|eligible|policy/i.test(intent),
     extractAmountLimit: (intent) => amountLimit(intent, 25),
   },
   {
@@ -187,7 +191,7 @@ const FOUNDRY_PATTERNS: CapabilityPattern[] = [
       AUDIT_BOUNDARY,
     ],
     genuineU: [],
-    matches: (intent) => /reassign/i.test(intent) && /(support )?ticket|case/i.test(intent) && !observationalIntent(intent),
+    matches: (intent) => /reassign/i.test(intent) && /(support )?ticket|case/i.test(intent) && (!observationalIntent(intent) || constructionRequest(intent)),
   },
   {
     id: "reassign_work_order",
@@ -201,7 +205,7 @@ const FOUNDRY_PATTERNS: CapabilityPattern[] = [
       AUDIT_BOUNDARY,
     ],
     genuineU: [],
-    matches: (intent) => /reassign/i.test(intent) && /work[- ]order/i.test(intent) && !observationalIntent(intent),
+    matches: (intent) => /reassign/i.test(intent) && /work[- ]order/i.test(intent) && (!observationalIntent(intent) || constructionRequest(intent)),
   },
   {
     id: "escalate_support_ticket",
@@ -243,7 +247,7 @@ const FOUNDRY_PATTERNS: CapabilityPattern[] = [
       AUDIT_BOUNDARY,
     ],
     genuineU: [],
-    matches: (intent) => /employee/i.test(intent) && /(status|on leave|active)/i.test(intent) && /(update|change|set)/i.test(intent),
+    matches: (intent) => /employee/i.test(intent) && /(status|on leave|active)/i.test(intent) && /(update|change|set)/i.test(intent) && !observationalIntent(intent),
   },
   {
     id: "get_work_orders_by_owner",
@@ -648,7 +652,7 @@ const FOUNDRY_PATTERNS: CapabilityPattern[] = [
       FRESHNESS_BOUNDARY,
     ],
     genuineU: [],
-    matches: (intent) => /at[- ]risk customers?|customers? at[- ]risk|at-risk accounts?/i.test(intent),
+    matches: (intent) => /customers? at[- ]risk|at[- ]risk (customers?|accounts?)|customer accounts? .{0,24}at[- ]risk|marked at[- ]risk/i.test(intent),
   },
   {
     id: "get_customers_by_plan",
